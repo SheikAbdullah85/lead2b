@@ -1,0 +1,25 @@
+{
+  "name": "lead2b - Event Lead Capture",
+  "short_name": "lead2b",
+  "description": "Fast, offline-first mobile lead capture and sales engagement platform for exhibitions and events",
+  "start_url": "/app/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"]
+}
