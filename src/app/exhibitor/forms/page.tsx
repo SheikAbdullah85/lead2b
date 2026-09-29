@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_FORM } from '@/lib/data/mock-store';
 import { FormQuestion } from '@/lib/types';
-import { Sliders, Plus, Trash2, Edit2, GitBranch, Eye, CheckCircle, Sparkles } from 'lucide-react';
+import { Sliders, Plus, Trash2, Edit2, GitBranch, Eye, CheckCircle, Sparkles, Smartphone } from 'lucide-react';
 
 export default function ExhibitorFormsPage() {
   const [form, setForm] = useState(INITIAL_FORM);
@@ -75,10 +75,13 @@ export default function ExhibitorFormsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600">Lead Scoring Engine</span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Qualification Form Builder</h1>
+          <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
+            <Sliders className="w-3 h-3 text-brand-600" />
+            Lead Qualification Architecture
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Qualification Form Builder</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure custom qualification questions and branch workflows with conditional logic.
+            Configure custom qualification questions, scoring criteria, and branching logic for booth sales reps.
           </p>
         </div>
 
@@ -86,7 +89,7 @@ export default function ExhibitorFormsPage() {
           variant="primary"
           size="sm"
           onClick={() => setIsAddQuestionModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-xs"
+          className="text-xs font-bold gap-1.5 shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Custom Question</span>
@@ -96,14 +99,17 @@ export default function ExhibitorFormsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left 2 Columns: Questions Management */}
         <div className="lg:col-span-2 space-y-4">
-          <Card>
+          <Card className="shadow-2xs">
             <CardHeader className="border-b border-slate-100 pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
-                  <CardTitle className="text-base">{form.form_name}</CardTitle>
+                  <CardTitle className="text-base font-black">{form.form_name}</CardTitle>
                   <p className="text-xs text-slate-400 mt-0.5">{form.description}</p>
                 </div>
-                <Badge variant="synced">Active (Default Form)</Badge>
+                <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Active Default Form
+                </span>
               </div>
             </CardHeader>
 
@@ -115,45 +121,45 @@ export default function ExhibitorFormsPage() {
                 return (
                   <div
                     key={q.id}
-                    className={`p-3.5 rounded-xl border transition ${
+                    className={`p-4 rounded-2xl border transition ${
                       isConditional
-                        ? 'bg-amber-50/50 border-amber-200/80 ml-6 relative'
-                        : 'bg-white border-slate-200'
+                        ? 'bg-amber-50/40 border-amber-200/80 ml-4 sm:ml-6 relative'
+                        : 'bg-white border-slate-200/90 shadow-2xs hover:border-brand-300'
                     }`}
                   >
                     {isConditional && (
-                      <div className="absolute -left-4 top-5 w-4 h-0.5 bg-amber-400" />
+                      <div className="absolute -left-3 sm:-left-4 top-6 w-3 sm:w-4 h-0.5 bg-amber-400" />
                     )}
 
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold flex items-center justify-center">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="w-5 h-5 rounded-md bg-brand-50 text-brand-800 text-[10px] font-black flex items-center justify-center border border-brand-200/60">
                             {index + 1}
                           </span>
-                          <h4 className="text-xs font-bold text-slate-900">{q.question_text}</h4>
-                          {q.is_required && <span className="text-red-500 font-bold">*</span>}
+                          <h4 className="text-xs font-black text-slate-900 leading-snug">{q.question_text}</h4>
+                          {q.is_required && <span className="text-rose-500 font-black text-xs">*</span>}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-2 mt-1.5 ml-7">
-                          <span className="text-[10px] font-mono uppercase bg-slate-100 text-slate-600 px-2 py-0.5 rounded">
+                        <div className="flex flex-wrap items-center gap-2 mt-2 ml-7">
+                          <span className="text-[10px] font-mono font-bold uppercase bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
                             {q.question_type}
                           </span>
 
                           {isConditional && parentQ && (
-                            <span className="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-md flex items-center gap-1">
                               <GitBranch className="w-3 h-3 text-amber-600" />
-                              Only shows if: &ldquo;{parentQ.question_text}&rdquo; equals &ldquo;{q.conditional_value}&rdquo;
+                              Only shows if: &ldquo;{parentQ.question_text}&rdquo; = &ldquo;{q.conditional_value}&rdquo;
                             </span>
                           )}
                         </div>
 
                         {q.options && q.options.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2 ml-7">
+                          <div className="flex flex-wrap gap-1.5 mt-2.5 ml-7">
                             {q.options.map((opt) => (
                               <span
                                 key={opt.id}
-                                className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200"
+                                className="text-[10px] font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200"
                               >
                                 {opt.option_label}
                               </span>
@@ -164,7 +170,7 @@ export default function ExhibitorFormsPage() {
 
                       <button
                         onClick={() => handleDeleteQuestion(q.id)}
-                        className="text-slate-400 hover:text-red-600 p-1 transition"
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition"
                         title="Delete Question"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -177,16 +183,16 @@ export default function ExhibitorFormsPage() {
           </Card>
         </div>
 
-        {/* Right Column: Live Interactive Simulator / Preview */}
+        {/* Right Column: Live Interactive Smartphone Simulator */}
         <div>
-          <Card className="sticky top-20 border-blue-200 shadow-md">
-            <CardHeader className="bg-blue-50/60 border-b border-blue-100">
-              <div className="flex items-center gap-2 text-xs font-bold text-blue-900 uppercase tracking-wider">
-                <Eye className="w-4 h-4 text-blue-600" />
-                <span>Live Sales Rep Preview</span>
+          <Card className="sticky top-20 border-brand-200 shadow-md overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-brand-50 to-brand-100/50 border-b border-brand-100 pb-3">
+              <div className="flex items-center gap-2 text-xs font-black text-brand-900 uppercase tracking-wider">
+                <Smartphone className="w-4 h-4 text-brand-600" />
+                <span>Live Sales Rep Mobile Preview</span>
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Simulates dynamic conditional questions as reps qualify visitors
+                Test conditional branches as reps qualify visitors
               </p>
             </CardHeader>
 
@@ -198,7 +204,7 @@ export default function ExhibitorFormsPage() {
                 return (
                   <div key={q.id} className="space-y-1.5 animate-in fade-in duration-200">
                     <label className="block text-xs font-bold text-slate-800">
-                      {q.question_text} {q.is_required && <span className="text-red-500">*</span>}
+                      {q.question_text} {q.is_required && <span className="text-rose-500 font-bold">*</span>}
                     </label>
 
                     {q.question_type === 'yes_no' ? (
@@ -208,9 +214,9 @@ export default function ExhibitorFormsPage() {
                             key={val}
                             type="button"
                             onClick={() => setPreviewAnswers({ ...previewAnswers, [q.id]: val })}
-                            className={`py-1.5 text-xs font-bold rounded-lg border transition ${
+                            className={`py-2 text-xs font-black rounded-xl border transition ${
                               previewAnswers[q.id] === val
-                                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                                ? 'bg-brand-600 text-white border-brand-600 shadow-xs'
                                 : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                             }`}
                           >
@@ -222,7 +228,7 @@ export default function ExhibitorFormsPage() {
                       <select
                         value={previewAnswers[q.id] || ''}
                         onChange={(e) => setPreviewAnswers({ ...previewAnswers, [q.id]: e.target.value })}
-                        className="w-full text-xs h-9 rounded-lg border border-slate-300 px-2.5 bg-white"
+                        className="w-full text-xs h-10 rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
                       >
                         <option value="">Select option...</option>
                         {q.options.map((opt) => (
@@ -235,7 +241,7 @@ export default function ExhibitorFormsPage() {
                       <input
                         type="text"
                         placeholder="Enter value..."
-                        className="w-full text-xs h-9 rounded-lg border border-slate-300 px-2.5 bg-white"
+                        className="w-full text-xs h-10 rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
                       />
                     )}
                   </div>
@@ -253,7 +259,7 @@ export default function ExhibitorFormsPage() {
         title="Add Qualification Question"
         description="Configure question type, options, and conditional logic"
       >
-        <form onSubmit={handleAddQuestion} className="space-y-3">
+        <form onSubmit={handleAddQuestion} className="space-y-3.5">
           <Input
             label="Question Label"
             value={questionText}
@@ -263,13 +269,13 @@ export default function ExhibitorFormsPage() {
           />
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
               Question Type
             </label>
             <select
               value={questionType}
               onChange={(e) => setQuestionType(e.target.value as any)}
-              className="w-full h-11 text-xs rounded-lg border border-slate-300 px-3 bg-white"
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
             >
               <option value="dropdown">Dropdown (Single Selection)</option>
               <option value="radio">Radio Buttons</option>
@@ -292,24 +298,24 @@ export default function ExhibitorFormsPage() {
           )}
 
           <div className="pt-2 border-t border-slate-200">
-            <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+            <label className="flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
               <input
                 type="checkbox"
                 checked={hasCondition}
                 onChange={(e) => setHasCondition(e.target.checked)}
-                className="rounded border-slate-300 text-blue-600"
+                className="rounded border-slate-300 text-brand-600 focus:ring-brand-500"
               />
               <span>Enable Conditional Logic (Branching)</span>
             </label>
 
             {hasCondition && (
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2 text-xs">
+              <div className="mt-3 p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200 space-y-2.5 text-xs">
                 <div>
-                  <label className="block font-bold text-amber-900 mb-1">Show only if parent question:</label>
+                  <label className="block font-bold text-amber-950 mb-1">Show only if parent question:</label>
                   <select
                     value={conditionalParentId}
                     onChange={(e) => setConditionalParentId(e.target.value)}
-                    className="w-full h-9 rounded-lg border border-amber-300 bg-white px-2"
+                    className="w-full h-10 rounded-xl border border-amber-300 bg-white px-3 font-medium text-slate-800"
                   >
                     <option value="">Select parent question...</option>
                     {questions.map((q) => (
@@ -318,13 +324,13 @@ export default function ExhibitorFormsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-amber-900 mb-1">Equals answer value:</label>
+                  <label className="block font-bold text-amber-950 mb-1">Equals answer value:</label>
                   <input
                     type="text"
                     value={conditionalValue}
                     onChange={(e) => setConditionalValue(e.target.value)}
                     placeholder="e.g. Yes"
-                    className="w-full h-9 rounded-lg border border-amber-300 bg-white px-2.5"
+                    className="w-full h-10 rounded-xl border border-amber-300 bg-white px-3 font-medium text-slate-800"
                   />
                 </div>
               </div>

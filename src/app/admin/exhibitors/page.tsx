@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Organization } from '@/lib/types';
-import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Edit2, CheckCircle2 } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Edit2, CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function AdminExhibitorsPage() {
   const [exhibitors, setExhibitors] = useState<Organization[]>([
@@ -88,10 +88,13 @@ export default function AdminExhibitorsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">Tenant Management</span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Exhibitor Directory</h1>
+          <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
+            <Building2 className="w-3 h-3 text-brand-600" />
+            Exhibitor Tenant Directory
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Exhibitor Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Onboard exhibitors, assign booths, configure licenses, and manage multi-tenant access.
+            Provision exhibitor tenants, allocate stand licenses, and enforce PostgreSQL RLS isolation.
           </p>
         </div>
 
@@ -99,7 +102,7 @@ export default function AdminExhibitorsPage() {
           variant="primary"
           size="sm"
           onClick={() => setIsAddModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-xs"
+          className="text-xs font-bold gap-1.5 shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Add Exhibitor Tenant</span>
@@ -107,61 +110,67 @@ export default function AdminExhibitorsPage() {
       </div>
 
       {/* Exhibitors Table */}
-      <Card className="p-0 overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-            <tr>
-              <th className="p-3">Company & Code</th>
-              <th className="p-3">Primary Contact</th>
-              <th className="p-3">Assigned Event & Booth</th>
-              <th className="p-3">Plan & Licenses</th>
-              <th className="p-3">Status</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {exhibitors.map((ex) => (
-              <tr key={ex.id} className="hover:bg-slate-50/80 transition">
-                <td className="p-3 font-semibold text-slate-900">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
-                      {ex.company_name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div>{ex.company_name}</div>
-                      <div className="text-[11px] font-mono text-slate-400 font-normal">{ex.company_code}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-3">
-                  <div className="font-medium text-slate-800">{ex.primary_contact_name}</div>
-                  <div className="text-[11px] text-slate-400">{ex.email}</div>
-                </td>
-                <td className="p-3">
-                  <span className="font-semibold text-slate-700">GITEX Global 2026</span>
-                  <div className="text-[11px] font-mono text-slate-500">Stand H3-B24</div>
-                </td>
-                <td className="p-3">
-                  <span className="font-bold text-slate-900">{ex.license_count} Users</span>
-                  <div className="text-[11px] text-slate-400 font-mono uppercase">{ex.subscription_plan}</div>
-                </td>
-                <td className="p-3">
-                  <Badge variant={ex.active_status ? 'synced' : 'default'}>
-                    {ex.active_status ? 'Active' : 'Suspended'}
-                  </Badge>
-                </td>
-                <td className="p-3 text-right">
-                  <button
-                    onClick={() => toggleStatus(ex.id)}
-                    className="text-xs font-semibold text-blue-600 hover:underline mr-2"
-                  >
-                    {ex.active_status ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
+      <Card className="p-0 overflow-hidden shadow-2xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+              <tr>
+                <th className="p-3.5">Company & Code</th>
+                <th className="p-3.5">Primary Contact</th>
+                <th className="p-3.5">Assigned Stand</th>
+                <th className="p-3.5">Plan & Quota</th>
+                <th className="p-3.5">Tenant Status</th>
+                <th className="p-3.5 text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {exhibitors.map((ex) => (
+                <tr key={ex.id} className="hover:bg-slate-50/80 transition">
+                  <td className="p-3.5 font-bold text-slate-900">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white font-black flex items-center justify-center text-xs shadow-2xs">
+                        {ex.company_name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-black text-slate-900 leading-snug">{ex.company_name}</div>
+                        <div className="text-[11px] font-mono text-slate-400 font-normal">{ex.company_code}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3.5">
+                    <div className="font-bold text-slate-800">{ex.primary_contact_name}</div>
+                    <div className="text-[11px] text-slate-400">{ex.email}</div>
+                  </td>
+                  <td className="p-3.5">
+                    <span className="font-semibold text-slate-800">GITEX Global 2026</span>
+                    <div className="text-[11px] font-mono text-brand-700 font-bold">Stand H3-B24</div>
+                  </td>
+                  <td className="p-3.5">
+                    <span className="font-black text-brand-700">{ex.license_count} User Licenses</span>
+                    <div className="text-[11px] text-slate-400 font-mono uppercase">{ex.subscription_plan}</div>
+                  </td>
+                  <td className="p-3.5">
+                    <Badge variant={ex.active_status ? 'synced' : 'default'}>
+                      {ex.active_status ? 'Active' : 'Suspended'}
+                    </Badge>
+                  </td>
+                  <td className="p-3.5 text-right">
+                    <button
+                      onClick={() => toggleStatus(ex.id)}
+                      className={`text-xs font-bold px-2.5 py-1 rounded transition ${
+                        ex.active_status
+                          ? 'text-rose-600 hover:text-rose-800 hover:bg-rose-50'
+                          : 'text-brand-700 hover:text-brand-900 hover:bg-brand-50'
+                      }`}
+                    >
+                      {ex.active_status ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {/* Add Exhibitor Modal */}
@@ -171,7 +180,7 @@ export default function AdminExhibitorsPage() {
         title="Onboard New Exhibitor Tenant"
         description="Creates tenant partition, branding container, and root admin access"
       >
-        <form onSubmit={handleAddExhibitor} className="space-y-3">
+        <form onSubmit={handleAddExhibitor} className="space-y-3.5">
           <Input
             label="Company Name"
             value={name}
@@ -181,7 +190,7 @@ export default function AdminExhibitorsPage() {
           />
 
           <Input
-            label="Company Code (Unique Tenant Identifier)"
+            label="Company Code (Tenant Identifier)"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             placeholder="e.g. SIEMENS-01"
@@ -207,13 +216,13 @@ export default function AdminExhibitorsPage() {
 
           <div className="grid grid-cols-2 gap-2.5">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
                 Subscription Tier
               </label>
               <select
                 value={plan}
                 onChange={(e) => setPlan(e.target.value)}
-                className="w-full h-11 text-xs rounded-lg border border-slate-300 px-3 bg-white"
+                className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
               >
                 <option value="event_standard">Event Standard (5 Users)</option>
                 <option value="event_pro">Event Pro (10 Users)</option>

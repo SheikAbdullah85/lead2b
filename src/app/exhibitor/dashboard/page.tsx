@@ -9,7 +9,7 @@ import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { exportLeadsToExcel } from '@/lib/utils/export-excel';
 import {
   Users, Flame, Sun, CalendarCheck, TrendingUp, Download, Building2,
-  Clock, ArrowUpRight, CheckCircle2, ShieldCheck, Tag
+  Clock, ArrowUpRight, CheckCircle2, ShieldCheck, Tag, Sparkles, Award, QrCode
 } from 'lucide-react';
 
 export default function ExhibitorDashboardPage() {
@@ -54,14 +54,22 @@ export default function ExhibitorDashboardPage() {
       {/* Top Banner & Export Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
+          <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
+            <Sparkles className="w-3 h-3 text-brand-600" />
             Exhibitor Analytics Portal
           </span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             GITEX Global 2026 — Alpha Technology Group
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Hall 3, Stand H3-B24 • Real-time booth performance & team activity
+          <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-slate-700">Hall 3, Stand H3-B24</span>
+            <span>•</span>
+            <span className="text-brand-700 font-bold">Dubai World Trade Centre</span>
+            <span>•</span>
+            <span className="flex items-center gap-1 text-emerald-600 font-medium">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              Live Telemetry Connected
+            </span>
           </p>
         </div>
 
@@ -70,16 +78,16 @@ export default function ExhibitorDashboardPage() {
             variant="outline"
             size="sm"
             onClick={() => exportLeadsToExcel(leads)}
-            className="text-xs font-semibold gap-1.5 bg-white"
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 hover:border-brand-300"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3.5 h-3.5 text-brand-600" />
             <span>Export Excel</span>
           </Button>
 
           <Link href="/exhibitor/leads">
-            <Button size="sm" variant="primary" className="text-xs font-bold gap-1.5 shadow-xs">
+            <Button size="sm" variant="primary" className="text-xs font-bold gap-1.5 shadow-sm">
               <Users className="w-3.5 h-3.5" />
-              <span>View All Leads ({leads.length})</span>
+              <span>All Leads ({leads.length})</span>
             </Button>
           </Link>
         </div>
@@ -87,11 +95,13 @@ export default function ExhibitorDashboardPage() {
 
       {/* KPI Headline Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-l-4 border-l-blue-600">
+        <Card className="border-l-4 border-l-brand-600 shadow-2xs hover:shadow-xs transition">
           <CardHeader className="pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Leads</span>
-              <Users className="w-4 h-4 text-blue-600" />
+              <div className="p-1.5 rounded-lg bg-brand-50 text-brand-600">
+                <Users className="w-4 h-4" />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
@@ -102,43 +112,49 @@ export default function ExhibitorDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-red-500">
+        <Card className="border-l-4 border-l-rose-500 shadow-2xs hover:shadow-xs transition">
           <CardHeader className="pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Hot Leads (Urgent)</span>
-              <Flame className="w-4 h-4 text-red-500" />
+              <div className="p-1.5 rounded-lg bg-rose-50 text-rose-600">
+                <Flame className="w-4 h-4" />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-red-700">{hotCount}</div>
-            <p className="text-xs text-slate-400 mt-1">Immediate follow-up needed</p>
+            <div className="text-3xl font-black text-rose-600">{hotCount}</div>
+            <p className="text-xs text-slate-500 mt-1">High purchase intent (&lt;30d)</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-amber-500 shadow-2xs hover:shadow-xs transition">
           <CardHeader className="pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Warm Leads</span>
-              <Sun className="w-4 h-4 text-amber-500" />
+              <div className="p-1.5 rounded-lg bg-amber-50 text-amber-600">
+                <Sun className="w-4 h-4" />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-amber-800">{warmCount}</div>
-            <p className="text-xs text-slate-400 mt-1">1–3 months evaluation</p>
+            <div className="text-3xl font-black text-amber-700">{warmCount}</div>
+            <p className="text-xs text-slate-500 mt-1">1–3 months evaluation</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-500">
+        <Card className="border-l-4 border-l-emerald-500 shadow-2xs hover:shadow-xs transition">
           <CardHeader className="pb-1">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Cloud & CRM Sync</span>
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-black text-emerald-700">100%</div>
+            <div className="text-3xl font-black text-emerald-600">100%</div>
             <p className="text-xs text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-              <CheckCircle2 className="w-3 h-3" /> All records synchronized
+              <CheckCircle2 className="w-3.5 h-3.5" /> All Dexie records synced
             </p>
           </CardContent>
         </Card>
@@ -147,33 +163,33 @@ export default function ExhibitorDashboardPage() {
       {/* Main Grid: Hourly Velocity + Rep Leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Hourly Lead Velocity Chart */}
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 shadow-2xs">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <CardTitle>Booth Lead Velocity by Hour</CardTitle>
+                <CardTitle className="text-base font-black">Booth Lead Velocity by Hour</CardTitle>
                 <p className="text-xs text-slate-400 mt-0.5">Captures per hour at GITEX Hall 3</p>
               </div>
-              <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                Peak: 3 PM (44 leads)
+              <span className="text-xs font-black text-brand-800 bg-brand-50 border border-brand-200/60 px-3 py-1 rounded-full">
+                Peak: 3 PM (44 leads/hr)
               </span>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="h-48 flex items-end gap-3 pt-6 px-2">
+            <div className="h-52 flex items-end gap-3 pt-6 px-2">
               {hourlyData.map((d) => {
                 const max = 50;
                 const heightPct = Math.round((d.count / max) * 100);
                 return (
                   <div key={d.hour} className="flex-1 flex flex-col items-center gap-2 group">
-                    <span className="text-[10px] font-bold text-slate-600 opacity-0 group-hover:opacity-100 transition">
+                    <span className="text-[10px] font-black text-brand-700 opacity-0 group-hover:opacity-100 transition">
                       {d.count}
                     </span>
                     <div
-                      className="w-full bg-blue-600 hover:bg-blue-500 rounded-t-lg transition-all"
+                      className="w-full bg-gradient-to-t from-brand-700 to-brand-500 hover:from-brand-600 hover:to-brand-400 rounded-t-xl transition-all shadow-2xs"
                       style={{ height: `${heightPct}%` }}
                     />
-                    <span className="text-[10px] font-mono text-slate-400">{d.hour}</span>
+                    <span className="text-[10px] font-mono text-slate-500 font-bold">{d.hour}</span>
                   </div>
                 );
               })}
@@ -182,27 +198,33 @@ export default function ExhibitorDashboardPage() {
         </Card>
 
         {/* Rep Leaderboard */}
-        <Card>
+        <Card className="shadow-2xs">
           <CardHeader>
-            <CardTitle>Booth Team Performance</CardTitle>
-            <p className="text-xs text-slate-400 mt-0.5">Leads captured per representative</p>
+            <CardTitle className="text-base font-black">Booth Team Performance</CardTitle>
+            <p className="text-xs text-slate-400 mt-0.5">Live leads captured per representative</p>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {Object.values(repStats).map((rep, idx) => (
-                <div key={rep.name} className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center">
+                <div key={rep.name} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between hover:bg-slate-100/60 transition">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center shadow-2xs ${
+                      idx === 0
+                        ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-200'
+                        : idx === 1
+                        ? 'bg-slate-200 text-slate-800'
+                        : 'bg-brand-100 text-brand-800'
+                    }`}>
                       #{idx + 1}
                     </span>
                     <div>
                       <h4 className="text-xs font-bold text-slate-900">{rep.name}</h4>
-                      <p className="text-[10px] text-slate-400">🔥 {rep.hot} Hot Leads</p>
+                      <p className="text-[10px] text-rose-600 font-bold">🔥 {rep.hot} Hot Leads</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-base font-black text-slate-900">{rep.count}</span>
-                    <span className="text-[10px] text-slate-400 block">leads</span>
+                    <span className="text-[10px] text-slate-400 block font-medium">leads</span>
                   </div>
                 </div>
               ))}
@@ -213,23 +235,23 @@ export default function ExhibitorDashboardPage() {
 
       {/* Product Interest & Purchase Timeline Distribution */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
+        <Card className="shadow-2xs">
           <CardHeader>
-            <CardTitle>Product Interest Breakdown</CardTitle>
+            <CardTitle className="text-base font-black">Product Interest Breakdown</CardTitle>
             <p className="text-xs text-slate-400 mt-0.5">Most in-demand solutions at exhibition</p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {Object.entries(productStats).map(([prod, count]) => {
                 const pct = Math.round((count / leads.length) * 100);
                 return (
-                  <div key={prod} className="space-y-1">
+                  <div key={prod} className="space-y-1.5">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-slate-700">{prod}</span>
+                      <span className="text-slate-800 font-semibold">{prod}</span>
                       <span className="font-bold text-slate-900">{count} ({pct}%)</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div className="bg-blue-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className="bg-gradient-to-r from-brand-600 to-brand-400 h-full rounded-full transition-all" style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 );
@@ -238,27 +260,27 @@ export default function ExhibitorDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-2xs">
           <CardHeader>
-            <CardTitle>Purchase Timeline Distribution</CardTitle>
+            <CardTitle className="text-base font-black">Purchase Timeline Distribution</CardTitle>
             <p className="text-xs text-slate-400 mt-0.5">Buying horizon across qualified visitors</p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
+            <div className="space-y-3.5">
               {[
-                { label: 'Immediate (<30 days)', count: leads.filter((l) => l.purchase_timeline === 'immediate').length },
-                { label: '1 to 3 Months', count: leads.filter((l) => l.purchase_timeline === '1-3 months').length },
-                { label: '3 to 6 Months', count: leads.filter((l) => l.purchase_timeline === '3-6 months').length },
+                { label: 'Immediate (<30 days)', count: leads.filter((l) => l.purchase_timeline === 'immediate').length, color: 'bg-emerald-500' },
+                { label: '1 to 3 Months', count: leads.filter((l) => l.purchase_timeline === '1-3 months').length, color: 'bg-brand-500' },
+                { label: '3 to 6 Months', count: leads.filter((l) => l.purchase_timeline === '3-6 months').length, color: 'bg-amber-500' },
               ].map((t) => {
                 const pct = Math.round((t.count / leads.length) * 100);
                 return (
-                  <div key={t.label} className="space-y-1">
+                  <div key={t.label} className="space-y-1.5">
                     <div className="flex justify-between text-xs font-medium">
-                      <span className="text-slate-700">{t.label}</span>
+                      <span className="text-slate-800 font-semibold">{t.label}</span>
                       <span className="font-bold text-slate-900">{t.count} ({pct}%)</span>
                     </div>
-                    <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                      <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                      <div className={`${t.color} h-full rounded-full transition-all`} style={{ width: `${pct}%` }} />
                     </div>
                   </div>
                 );

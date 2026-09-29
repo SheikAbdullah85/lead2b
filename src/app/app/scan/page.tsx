@@ -10,7 +10,7 @@ import { INITIAL_ATTENDEES, INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Search, AlertTriangle, ArrowLeft, RefreshCw, QrCode } from 'lucide-react';
+import { Search, AlertTriangle, ArrowLeft, RefreshCw, QrCode, Sparkles } from 'lucide-react';
 import { playWarningBeep } from '@/lib/utils/sound';
 
 export default function ScanPage() {
@@ -112,22 +112,22 @@ export default function ScanPage() {
   const handleLeadSaved = (savedLead: Lead) => {
     setScannedAttendee(null);
     setDuplicateLead(null);
-    // Salesperson can immediately scan the next visitor!
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-12">
       {/* Top Header */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => router.push('/app/dashboard')}
-          className="flex items-center gap-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
+          className="flex items-center gap-1.5 text-xs font-bold text-slate-700 hover:text-brand-700 px-2 py-1 -ml-2 rounded-lg transition"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 stroke-[2.5]" />
           <span>Dashboard</span>
         </button>
-        <span className="text-xs font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1">
-          <QrCode className="w-3.5 h-3.5" /> Fast Scanner
+        <span className="text-xs font-black uppercase tracking-wider text-brand-700 flex items-center gap-1.5 bg-brand-50 border border-brand-200/60 px-2.5 py-1 rounded-full">
+          <QrCode className="w-3.5 h-3.5 text-brand-600" />
+          <span>5-Sec Badge Scanner</span>
         </span>
       </div>
 
@@ -138,30 +138,30 @@ export default function ScanPage() {
       <div className="pt-2">
         <form onSubmit={handleManualSearch} className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
             <input
               type="text"
               value={manualQuery}
               onChange={(e) => setManualQuery(e.target.value)}
               placeholder="Search Badge ID, Name, or Email..."
-              className="w-full text-xs rounded-xl border border-slate-300 pl-9 pr-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-blue-600"
+              className="w-full text-xs rounded-xl border border-slate-300 pl-10 pr-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 text-slate-800"
             />
           </div>
-          <Button type="submit" variant="secondary" size="md" isLoading={isSearchingManual}>
+          <Button type="submit" variant="secondary" size="md" isLoading={isSearchingManual} className="font-bold">
             Find
           </Button>
         </form>
 
         {searchNotFound && (
-          <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center justify-between">
-            <span>No attendee found with that query.</span>
+          <div className="mt-2.5 p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-center justify-between">
+            <span className="font-medium">No attendee found with that query.</span>
             <Button
               size="sm"
               variant="outline"
               onClick={() => router.push('/app/lead/new')}
-              className="text-[11px] bg-white"
+              className="text-[11px] font-bold bg-white"
             >
-              Create Manual Lead
+              Manual Lead
             </Button>
           </div>
         )}
@@ -222,7 +222,7 @@ export default function ScanPage() {
               </Button>
               <Button
                 variant="primary"
-                className="flex-1"
+                className="flex-1 font-bold"
                 onClick={() => router.push(`/app/lead/${duplicateLead.id}`)}
               >
                 View Existing Lead

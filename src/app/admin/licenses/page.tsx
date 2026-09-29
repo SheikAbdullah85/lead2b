@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LICENSES } from '@/lib/data/mock-store';
 import { License } from '@/lib/types';
-import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database } from 'lucide-react';
+import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key } from 'lucide-react';
 
 export default function AdminLicensesPage() {
   const [licenses, setLicenses] = useState<License[]>(INITIAL_LICENSES);
@@ -48,10 +48,13 @@ export default function AdminLicensesPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">SaaS Commercial Layer</span>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">License & Quota Management</h1>
+          <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
+            <Key className="w-3 h-3 text-brand-600" />
+            SaaS Commercial Provisioning
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">License & Quota Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Per-event exhibitor packages, user seat allocations, and lead capture ceilings.
+            Per-event exhibitor packages, seat allocations, and lead capture ceilings.
           </p>
         </div>
 
@@ -59,7 +62,7 @@ export default function AdminLicensesPage() {
           variant="primary"
           size="sm"
           onClick={() => setIsAddModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-xs"
+          className="text-xs font-bold gap-1.5 shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" />
           <span>Issue License Package</span>
@@ -69,14 +72,14 @@ export default function AdminLicensesPage() {
       {/* Licenses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {licenses.map((lic) => (
-          <Card key={lic.id} className="border-slate-200 shadow-sm hover:border-blue-400 transition">
+          <Card key={lic.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-800 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-md">
                     {lic.plan}
                   </span>
-                  <CardTitle className="text-lg mt-2">{lic.tenant_name}</CardTitle>
+                  <CardTitle className="text-lg font-black mt-2">{lic.tenant_name}</CardTitle>
                 </div>
                 <Badge variant={lic.is_active ? 'synced' : 'default'}>
                   {lic.is_active ? 'ACTIVE' : 'EXPIRED'}
@@ -85,22 +88,22 @@ export default function AdminLicensesPage() {
             </CardHeader>
 
             <CardContent className="space-y-3 pt-2 text-xs text-slate-600">
-              <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+              <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">User Seats</span>
-                  <span className="text-sm font-black text-slate-900">{lic.allowed_users}</span>
+                  <span className="text-base font-black text-slate-900">{lic.allowed_users}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Lead Limit</span>
-                  <span className="text-sm font-black text-blue-600">{lic.lead_limit.toLocaleString()}</span>
+                  <span className="text-base font-black text-brand-700">{lic.lead_limit.toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Events</span>
-                  <span className="text-sm font-black text-slate-900">{lic.allowed_events}</span>
+                  <span className="text-base font-black text-slate-900">{lic.allowed_events}</span>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-slate-500 font-mono">
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-slate-500 font-mono text-[11px]">
                 <span>Valid: {lic.start_date}</span>
                 <span>Expires: {lic.expiry_date}</span>
               </div>
@@ -116,7 +119,7 @@ export default function AdminLicensesPage() {
         title="Issue Exhibition License"
         description="Allocate booth seats and lead thresholds for an exhibitor"
       >
-        <form onSubmit={handleAddLicense} className="space-y-3">
+        <form onSubmit={handleAddLicense} className="space-y-3.5">
           <Input
             label="Exhibitor Organization"
             value={tenantName}
@@ -125,13 +128,13 @@ export default function AdminLicensesPage() {
           />
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
               Package Plan
             </label>
             <select
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
-              className="w-full h-11 text-xs rounded-lg border border-slate-300 px-3 bg-white"
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
             >
               <option value="event_standard">Event Standard (5 Users / 2,000 Leads)</option>
               <option value="event_pro">Event Pro (10 Users / 5,000 Leads)</option>

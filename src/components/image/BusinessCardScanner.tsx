@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { compressBusinessCardImage } from '@/lib/utils/compress-image';
-import { Camera, Upload, Check, AlertCircle, FileText, Image as ImageIcon } from 'lucide-react';
+import { Camera, Upload, Check, AlertCircle, FileText, Image as ImageIcon, Sparkles, RefreshCw } from 'lucide-react';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
 import { Lead } from '@/lib/types';
@@ -129,22 +129,23 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         />
 
         {previewUrl ? (
-          <div className="w-full relative rounded-xl overflow-hidden border border-slate-300 shadow-sm bg-slate-900">
+          <div className="w-full relative rounded-2xl overflow-hidden border border-slate-300 shadow-sm bg-slate-950">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewUrl} alt="Business Card Preview" className="w-full h-44 object-contain" />
-            <div className="absolute bottom-2 right-2 flex items-center gap-1.5">
+            <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-[11px] shadow"
+                className="text-[11px] shadow-sm bg-white/90 backdrop-blur-sm"
               >
+                <RefreshCw className="w-3 h-3 mr-1" />
                 Retake
               </Button>
             </div>
             {compressionStats && (
-              <div className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-sm text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded-full border border-emerald-500/30">
+              <div className="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-sm text-brand-300 text-[10px] font-mono px-2.5 py-1 rounded-full border border-brand-500/40">
                 Compressed: {compressionStats.compKB} KB (was {compressionStats.origKB} KB)
               </div>
             )}
@@ -152,14 +153,14 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         ) : (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="w-full h-36 border-2 border-dashed border-slate-300 rounded-xl flex flex-col items-center justify-center p-4 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer transition text-center"
+            className="w-full h-36 border-2 border-dashed border-brand-300 rounded-2xl flex flex-col items-center justify-center p-4 hover:border-brand-500 hover:bg-brand-50/40 cursor-pointer transition text-center bg-slate-50/50"
           >
-            <div className="p-3 bg-blue-100 text-blue-600 rounded-full mb-2">
+            <div className="p-3 bg-brand-100 text-brand-700 rounded-full mb-2 shadow-xs">
               <Camera className="w-6 h-6" />
             </div>
-            <p className="text-xs font-bold text-slate-800">Take Photo of Business Card</p>
+            <p className="text-xs font-bold text-slate-800">Tap to Snap or Upload Card</p>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Client-side auto-compressed to ~300 KB for rapid offline saving
+              Auto-compressed on device (~300 KB) for instant offline storage
             </p>
           </div>
         )}
@@ -224,15 +225,15 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
       </div>
 
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
-          Notes / Context
+        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+          Booth Notes / Context
         </label>
         <textarea
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           placeholder="Met at booth, interested in AI partnership..."
-          className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 text-slate-800"
         />
       </div>
 
@@ -244,8 +245,9 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
           type="submit"
           variant="primary"
           isLoading={isSaving || isCompressing}
-          className="flex-[2] py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700"
+          className="flex-[2] py-3 text-sm font-bold shadow-md"
         >
+          <Sparkles className="w-4 h-4 mr-1 text-cyan-200" />
           Save Business Card Lead
         </Button>
       </div>

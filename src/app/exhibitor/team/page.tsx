@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone } from 'lucide-react';
+import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2 } from 'lucide-react';
 
 interface TeamMember {
   id: string;
@@ -91,9 +91,13 @@ export default function ExhibitorTeamPage() {
       {/* Top Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">Booth Sales Team</h1>
+          <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
+            <Users className="w-3 h-3 text-brand-600" />
+            Booth Personnel Management
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Booth Sales Team</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage representatives, access credentials, and monitor lead capture activity at GITEX Booth H3-B24.
+            Manage representatives, allocate licenses, and monitor lead capture activity at GITEX Stand H3-B24.
           </p>
         </div>
 
@@ -102,9 +106,9 @@ export default function ExhibitorTeamPage() {
             variant="outline"
             size="sm"
             onClick={() => setIsQrModalOpen(true)}
-            className="text-xs font-semibold gap-1.5 bg-white"
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 hover:border-brand-300"
           >
-            <QrCode className="w-3.5 h-3.5 text-blue-600" />
+            <QrCode className="w-3.5 h-3.5 text-brand-600" />
             <span>Join Team via QR</span>
           </Button>
 
@@ -112,7 +116,7 @@ export default function ExhibitorTeamPage() {
             variant="primary"
             size="sm"
             onClick={() => setIsInviteModalOpen(true)}
-            className="text-xs font-bold gap-1.5 shadow-xs"
+            className="text-xs font-bold gap-1.5 shadow-sm"
           >
             <UserPlus className="w-3.5 h-3.5" />
             <span>Invite Representative</span>
@@ -121,81 +125,92 @@ export default function ExhibitorTeamPage() {
       </div>
 
       {/* Team Quota Progress Card */}
-      <Card className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-blue-700">License Quota</span>
-            <h3 className="text-base font-bold text-slate-900">
+      <Card className="p-4 sm:p-5 bg-gradient-to-r from-brand-50/80 via-white to-slate-50 border-brand-200 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <span className="text-[10px] font-black uppercase tracking-wider text-brand-700">License Quota</span>
+            <h3 className="text-base font-black text-slate-900">
               {members.length} of 10 Representative Licenses Active
             </h3>
-            <p className="text-xs text-slate-600 mt-0.5">
-              Plan: <strong>Event Pro (GITEX 2026)</strong> • 7 licenses available
+            <p className="text-xs text-slate-600">
+              Plan: <strong className="text-brand-900 font-bold">Event Pro (GITEX 2026)</strong> • 7 licenses available
             </p>
+            <div className="w-64 sm:w-80 bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
+              <div
+                className="bg-gradient-to-r from-brand-600 to-brand-400 h-full rounded-full transition-all"
+                style={{ width: `${(members.length / 10) * 100}%` }}
+              />
+            </div>
           </div>
           <Button
             variant="outline"
             size="sm"
             onClick={copyToClipboard}
-            className="text-xs font-semibold gap-1.5 bg-white"
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 hover:border-brand-300 self-start sm:self-center"
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? 'Link Copied!' : 'Copy Team Onboarding Link'}</span>
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5 text-brand-600" />}
+            <span>{copiedLink ? 'Link Copied!' : 'Copy Onboarding Link'}</span>
           </Button>
         </div>
       </Card>
 
       {/* Team Table */}
-      <Card className="p-0 overflow-hidden">
-        <table className="w-full text-left text-xs">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
-            <tr>
-              <th className="p-3">Team Member</th>
-              <th className="p-3">Role</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Leads Captured</th>
-              <th className="p-3">Last Active</th>
-              <th className="p-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {members.map((m) => (
-              <tr key={m.id} className="hover:bg-slate-50/80 transition">
-                <td className="p-3 font-semibold text-slate-900">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
-                      {m.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <div>{m.name}</div>
-                      <div className="text-[11px] font-normal text-slate-400">{m.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="p-3">
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded ${
-                    m.role === 'exhibitor_admin' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700'
-                  }`}>
-                    {m.role === 'exhibitor_admin' ? 'Admin' : 'Sales Rep'}
-                  </span>
-                </td>
-                <td className="p-3">
-                  <Badge variant={m.status === 'active' ? 'synced' : 'pending'}>
-                    {m.status === 'active' ? 'Active' : 'Invited'}
-                  </Badge>
-                </td>
-                <td className="p-3 font-bold text-slate-900">
-                  <span className="text-sm font-black text-blue-600">{m.leadsCount}</span> leads
-                </td>
-                <td className="p-3 text-slate-500 font-mono">{m.lastActive}</td>
-                <td className="p-3 text-right">
-                  <button className="text-xs text-slate-500 hover:text-slate-800 font-medium">
-                    Edit Role
-                  </button>
-                </td>
+      <Card className="p-0 overflow-hidden shadow-2xs">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50/90 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider">
+              <tr>
+                <th className="p-3.5">Team Member</th>
+                <th className="p-3.5">Role</th>
+                <th className="p-3.5">Status</th>
+                <th className="p-3.5">Leads Captured</th>
+                <th className="p-3.5">Last Active</th>
+                <th className="p-3.5 text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {members.map((m) => (
+                <tr key={m.id} className="hover:bg-slate-50/80 transition">
+                  <td className="p-3.5 font-bold text-slate-900">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-600 to-brand-800 text-white font-black flex items-center justify-center text-xs shadow-2xs">
+                        {m.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div>
+                        <div className="font-black text-slate-900 leading-snug">{m.name}</div>
+                        <div className="text-[11px] font-normal text-slate-400 font-mono">{m.email}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="p-3.5">
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-md border ${
+                      m.role === 'exhibitor_admin'
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-brand-50 text-brand-800 border-brand-200/60'
+                    }`}>
+                      {m.role === 'exhibitor_admin' ? 'Admin' : 'Sales Rep'}
+                    </span>
+                  </td>
+                  <td className="p-3.5">
+                    <Badge variant={m.status === 'active' ? 'synced' : 'pending'}>
+                      {m.status === 'active' ? 'Active' : 'Invited'}
+                    </Badge>
+                  </td>
+                  <td className="p-3.5 font-bold text-slate-900">
+                    <span className="text-sm font-black text-brand-700">{m.leadsCount}</span>{' '}
+                    <span className="text-slate-400 font-normal">leads</span>
+                  </td>
+                  <td className="p-3.5 text-slate-500 font-mono">{m.lastActive}</td>
+                  <td className="p-3.5 text-right">
+                    <button className="text-xs text-brand-700 hover:text-brand-900 font-bold px-2 py-1 rounded hover:bg-brand-50 transition">
+                      Edit Role
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       {/* Invite Member Modal */}
@@ -205,7 +220,7 @@ export default function ExhibitorTeamPage() {
         title="Invite Booth Representative"
         description="Send an email invitation with instant booth onboarding credentials"
       >
-        <form onSubmit={handleSendInvite} className="space-y-3">
+        <form onSubmit={handleSendInvite} className="space-y-3.5">
           <Input
             label="Full Name"
             value={inviteName}
@@ -223,13 +238,13 @@ export default function ExhibitorTeamPage() {
           />
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
               Role Permission
             </label>
             <select
               value={inviteRole}
               onChange={(e) => setInviteRole(e.target.value as any)}
-              className="w-full h-11 text-xs rounded-lg border border-slate-300 px-3 bg-white"
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
             >
               <option value="sales_rep">Sales Representative (Capture & Own Leads)</option>
               <option value="exhibitor_admin">Exhibitor Administrator (Full Access & Export)</option>
@@ -247,7 +262,7 @@ export default function ExhibitorTeamPage() {
         </form>
       </Modal>
 
-      {/* Join Team via QR Modal matching prompt specifications */}
+      {/* Join Team via QR Modal */}
       <Modal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
@@ -255,38 +270,41 @@ export default function ExhibitorTeamPage() {
         description="Sales reps scan this code on their phone to be assigned to this booth instantly"
       >
         <div className="flex flex-col items-center text-center p-2 space-y-4">
-          <div className="p-4 bg-white rounded-2xl border-2 border-slate-300 shadow-lg">
-            {/* SVG simulated QR code */}
-            <svg className="w-48 h-48" viewBox="0 0 100 100">
+          <div className="p-4 bg-white rounded-3xl border-2 border-brand-200 shadow-xl ring-4 ring-brand-50">
+            {/* SVG simulated QR code with brand teal accent */}
+            <svg className="w-52 h-52" viewBox="0 0 100 100">
               <rect width="100" height="100" fill="#ffffff" />
               {/* Corner markers */}
-              <rect x="5" y="5" width="25" height="25" fill="#0f172a" />
+              <rect x="5" y="5" width="25" height="25" rx="3" fill="#0f172a" />
               <rect x="10" y="10" width="15" height="15" fill="#ffffff" />
-              <rect x="13" y="13" width="9" height="9" fill="#0f172a" />
-              <rect x="70" y="5" width="25" height="25" fill="#0f172a" />
+              <rect x="13" y="13" width="9" height="9" fill="#00838f" />
+
+              <rect x="70" y="5" width="25" height="25" rx="3" fill="#0f172a" />
               <rect x="75" y="10" width="15" height="15" fill="#ffffff" />
-              <rect x="78" y="13" width="9" height="9" fill="#0f172a" />
-              <rect x="5" y="70" width="25" height="25" fill="#0f172a" />
+              <rect x="78" y="13" width="9" height="9" fill="#00838f" />
+
+              <rect x="5" y="70" width="25" height="25" rx="3" fill="#0f172a" />
               <rect x="10" y="75" width="15" height="15" fill="#ffffff" />
-              <rect x="13" y="78" width="9" height="9" fill="#0f172a" />
-              {/* Pattern data blocks */}
-              <rect x="35" y="10" width="10" height="10" fill="#2563eb" />
+              <rect x="13" y="78" width="9" height="9" fill="#00838f" />
+
+              {/* Data blocks */}
+              <rect x="35" y="10" width="10" height="10" fill="#00838f" />
               <rect x="50" y="20" width="15" height="10" fill="#0f172a" />
-              <rect x="35" y="35" width="30" height="30" fill="#0f172a" />
+              <rect x="35" y="35" width="30" height="30" rx="4" fill="#0f172a" />
               <rect x="42" y="42" width="16" height="16" fill="#ffffff" />
-              <rect x="46" y="46" width="8" height="8" fill="#2563eb" />
+              <rect x="46" y="46" width="8" height="8" rx="2" fill="#00838f" />
               <rect x="70" y="45" width="10" height="25" fill="#0f172a" />
               <rect x="40" y="75" width="20" height="15" fill="#0f172a" />
-              <rect x="70" y="75" width="15" height="15" fill="#2563eb" />
+              <rect x="70" y="75" width="15" height="15" fill="#00838f" />
             </svg>
           </div>
 
           <div className="text-xs space-y-1 text-slate-600">
-            <p className="font-bold text-slate-900">Event: GITEX Global 2026 • Booth H3-B24</p>
-            <p className="text-slate-400">QR token expires in 24 hours • Never exposes master keys</p>
+            <p className="font-bold text-slate-900">Event: GITEX Global 2026 • Stand H3-B24</p>
+            <p className="text-slate-400">QR token expires in 24 hours • Enforces booth license limits</p>
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => setIsQrModalOpen(false)} className="w-full">
+          <Button variant="outline" size="sm" onClick={() => setIsQrModalOpen(false)} className="w-full font-bold">
             Done
           </Button>
         </div>

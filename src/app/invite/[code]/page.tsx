@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Logo } from '@/components/ui/Logo';
 import { useAuth } from '@/lib/auth/context';
-import { Building2, Sparkles, CheckCircle2, QrCode } from 'lucide-react';
+import { Building2, Sparkles, CheckCircle2, QrCode, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function InviteJoinPage({ params }: { params: { code: string } }) {
   const router = useRouter();
@@ -29,35 +30,47 @@ export default function InviteJoinPage({ params }: { params: { code: string } })
 
     setTimeout(() => {
       router.push('/app/dashboard');
-    }, 1500);
+    }, 1200);
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 sm:p-8 border border-slate-100">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Decorative gradient glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-brand-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-100 relative z-10">
         <div className="flex flex-col items-center text-center mb-6">
-          <div className="w-12 h-12 rounded-xl bg-blue-600 text-white font-black text-2xl flex items-center justify-center shadow-lg shadow-blue-500/30 mb-3">
-            L2
-          </div>
-          <span className="text-xs font-bold uppercase tracking-wider text-blue-600">
+          <Logo size="md" className="mb-4" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-1 rounded-full">
             Booth Team Onboarding
           </span>
-          <h2 className="text-xl font-black text-slate-900 mt-1">Join Alpha Technology Group</h2>
-          <p className="text-xs text-slate-500 mt-1">
+          <h2 className="text-xl font-black text-slate-900 mt-2">Join Alpha Technology Group</h2>
+          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
+            <Building2 className="w-3.5 h-3.5 text-brand-600" />
             GITEX Global 2026 • Stand H3-B24
           </p>
         </div>
 
         {joinedSuccess ? (
           <div className="py-8 text-center space-y-3">
-            <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-sm ring-4 ring-emerald-50/50">
               <CheckCircle2 className="w-8 h-8" />
             </div>
-            <h3 className="text-lg font-bold text-slate-900">Welcome to the Team!</h3>
-            <p className="text-xs text-slate-500">Redirecting to Mobile Lead Scanner...</p>
+            <h3 className="text-lg font-black text-slate-900">Welcome to the Booth!</h3>
+            <p className="text-xs text-slate-500">Redirecting to your mobile badge scanner...</p>
           </div>
         ) : (
           <form onSubmit={handleJoin} className="space-y-3.5">
+            <div className="p-3 bg-brand-50/60 rounded-xl border border-brand-100 text-xs text-brand-900 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-brand-600 block">Invite Code</span>
+                <span className="font-mono font-bold">{params.code}</span>
+              </div>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                Verified
+              </span>
+            </div>
+
             <Input
               label="Your Full Name"
               value={fullName}
@@ -95,13 +108,18 @@ export default function InviteJoinPage({ params }: { params: { code: string } })
               variant="primary"
               size="lg"
               isLoading={isSubmitting}
-              className="w-full font-bold bg-blue-600 hover:bg-blue-700 shadow-md mt-2"
+              className="w-full font-bold shadow-md mt-2 py-3"
             >
-              <Sparkles className="w-4 h-4 mr-1 text-sky-200" />
-              Activate Mobile App & Start Scanning
+              <Sparkles className="w-4 h-4 mr-1 text-cyan-200" />
+              <span>Activate Sales Badge & Enter</span>
             </Button>
           </form>
         )}
+      </div>
+
+      <div className="mt-6 text-center text-xs text-slate-500 flex items-center gap-1.5 font-medium">
+        <ShieldCheck className="w-4 h-4 text-brand-400" />
+        <span>Secured by lead2b Enterprise Multi-Tenant Engine</span>
       </div>
     </div>
   );

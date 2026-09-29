@@ -32,10 +32,10 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
     'Custom Software Services',
   ];
 
-  const ratingOptions: { value: LeadRating; label: string; icon: string; color: string }[] = [
-    { value: 'hot', label: 'HOT (Urgent)', icon: '🔥', color: 'border-red-500 bg-red-50 text-red-700' },
-    { value: 'warm', label: 'WARM (Active)', icon: '☀️', color: 'border-amber-500 bg-amber-50 text-amber-800' },
-    { value: 'cold', label: 'COLD (Info)', icon: '❄️', color: 'border-sky-500 bg-sky-50 text-sky-700' },
+  const ratingOptions: { value: LeadRating; label: string; icon: string; activeClass: string }[] = [
+    { value: 'hot', label: 'HOT (Urgent)', icon: '🔥', activeClass: 'border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/30' },
+    { value: 'warm', label: 'WARM (Active)', icon: '☀️', activeClass: 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/30' },
+    { value: 'cold', label: 'COLD (Info)', icon: '❄️', activeClass: 'border-teal-500 bg-teal-50 text-teal-800 ring-2 ring-teal-500/30' },
   ];
 
   const timelineOptions: { value: PurchaseTimeline; label: string }[] = [
@@ -86,13 +86,12 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         updated_at: new Date().toISOString(),
       };
 
-      // Instant local persistence into IndexedDB + automatic sync queue
       const savedLead = await saveLeadLocally(leadPayload);
 
       setSaveSuccess(true);
       setTimeout(() => {
         onSuccess(savedLead);
-      }, 1200);
+      }, 1000);
     } catch (err) {
       console.error('Error saving lead:', err);
       setIsSaving(false);
@@ -102,22 +101,22 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   if (saveSuccess) {
     const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
     return (
-      <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-200">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-4">
+      <div className="py-10 flex flex-col items-center justify-center text-center animate-in zoom-in-95 duration-200">
+        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-md shadow-emerald-500/20">
           <CheckCircle2 className="w-10 h-10" />
         </div>
-        <h3 className="text-xl font-bold text-slate-900">Lead Saved!</h3>
-        <p className="text-sm text-slate-500 mt-1 max-w-xs">
+        <h3 className="text-xl font-black text-slate-900">Lead Saved!</h3>
+        <p className="text-xs text-slate-500 mt-1 max-w-xs font-medium">
           {attendee.first_name} {attendee.last_name} ({attendee.company})
         </p>
-        <div className="mt-3">
+        <div className="mt-4">
           {isOnline ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
               Synced with Cloud
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+            <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
               <span className="w-2 h-2 rounded-full bg-amber-500"></span>
               Saved Offline — Will Sync Automatically
             </span>
@@ -128,13 +127,13 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-left">
       {/* Attendee Profile Header */}
-      <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+      <div className="p-3.5 bg-gradient-to-r from-slate-50 to-teal-50/40 rounded-2xl border border-slate-200 shadow-2xs">
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h4 className="text-base font-bold text-slate-900">
+              <h4 className="text-base font-black text-slate-900">
                 {attendee.first_name} {attendee.last_name}
               </h4>
               {attendee.visitor_type && (
@@ -143,39 +142,33 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
                 </Badge>
               )}
             </div>
-            <p className="text-xs font-semibold text-blue-600 flex items-center gap-1 mt-0.5">
+            <p className="text-xs font-bold text-[#00838f] flex items-center gap-1 mt-0.5">
               <Building2 className="w-3.5 h-3.5" />
-              <span>{attendee.company || 'Private Enterprise'}</span>
+              <span>{attendee.company || 'Enterprise Visitor'}</span>
             </p>
             {attendee.job_title && (
-              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
                 <User className="w-3.5 h-3.5" />
                 <span>{attendee.job_title}</span>
               </p>
             )}
           </div>
-          <span className="text-[10px] font-mono text-slate-400 bg-slate-200/60 px-2 py-0.5 rounded">
+          <span className="text-[10px] font-mono font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs">
             {attendee.badge_id.slice(-5)}
           </span>
         </div>
 
-        <div className="mt-2.5 pt-2 border-t border-slate-200/80 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+        <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
           {attendee.email && (
             <span className="flex items-center gap-1">
               <Mail className="w-3 h-3 text-slate-400" />
-              {attendee.email}
+              <span className="font-mono text-[11px]">{attendee.email}</span>
             </span>
           )}
           {attendee.mobile && (
             <span className="flex items-center gap-1">
               <Phone className="w-3 h-3 text-slate-400" />
-              {attendee.mobile}
-            </span>
-          )}
-          {attendee.country && (
-            <span className="flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-slate-400" />
-              {attendee.country}
+              <span>{attendee.mobile}</span>
             </span>
           )}
         </div>
@@ -183,9 +176,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
       {/* 1. Fast Rating Selector */}
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
-          <Flame className="w-3.5 h-3.5 text-amber-500" />
-          <span>Lead Temperature Rating</span>
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+          <Flame className="w-3.5 h-3.5 text-rose-500" />
+          <span>Lead Temperature Rating *</span>
         </label>
         <div className="grid grid-cols-3 gap-2">
           {ratingOptions.map((r) => {
@@ -195,8 +188,8 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
                 key={r.value}
                 type="button"
                 onClick={() => setRating(r.value)}
-                className={`py-2 px-1 text-xs font-bold rounded-lg border-2 transition text-center flex flex-col items-center justify-center gap-0.5 ${
-                  isSelected ? `${r.color} shadow-sm ring-1 ring-current` : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                className={`py-2 px-1 text-xs font-bold rounded-xl border-2 transition text-center flex flex-col items-center justify-center gap-0.5 cursor-pointer ${
+                  isSelected ? r.activeClass : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
                 <span className="text-base">{r.icon}</span>
@@ -209,9 +202,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
       {/* 2. Product Interest */}
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
-          <Tag className="w-3.5 h-3.5 text-blue-500" />
-          <span>Product of Interest</span>
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+          <Tag className="w-3.5 h-3.5 text-[#00838f]" />
+          <span>Primary Solution of Interest</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
           {productOptions.map((p) => {
@@ -221,9 +214,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
                 key={p}
                 type="button"
                 onClick={() => setProductInterest(p)}
-                className={`px-3 py-2 text-xs font-medium rounded-lg text-left transition border ${
+                className={`px-3 py-2 text-xs font-semibold rounded-xl text-left transition border cursor-pointer ${
                   isSelected
-                    ? 'border-blue-600 bg-blue-50 text-blue-700 font-semibold'
+                    ? 'border-[#00838f] bg-teal-50/70 text-teal-900 font-bold shadow-2xs'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                 }`}
               >
@@ -236,9 +229,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
       {/* 3. Purchase Timeline */}
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
           <Clock className="w-3.5 h-3.5 text-slate-500" />
-          <span>Purchase Timeline</span>
+          <span>Expected Buying Timeline</span>
         </label>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
           {timelineOptions.map((t) => {
@@ -248,9 +241,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
                 key={t.value}
                 type="button"
                 onClick={() => setPurchaseTimeline(t.value)}
-                className={`py-2 px-2 text-xs font-medium rounded-lg text-center transition border ${
+                className={`py-2 px-1.5 text-xs font-bold rounded-xl text-center transition border cursor-pointer ${
                   isSelected
-                    ? 'border-slate-900 bg-slate-900 text-white font-semibold'
+                    ? 'border-slate-900 bg-slate-900 text-white shadow-2xs'
                     : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
                 }`}
               >
@@ -261,23 +254,23 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         </div>
       </div>
 
-      {/* 4. Quick Note & Follow-up toggle */}
+      {/* 4. Quick Note */}
       <div>
-        <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
-          <FileText className="w-3.5 h-3.5 text-slate-500" />
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1 flex items-center gap-1">
+          <FileText className="w-3.5 h-3.5 text-slate-400" />
           <span>Quick Note (Optional)</span>
         </label>
         <textarea
           value={quickNote}
           onChange={(e) => setQuickNote(e.target.value)}
-          placeholder="e.g. Requested RFP, looking for Arabic NLP, budget approved..."
+          placeholder="e.g. Budget approved, requested Arabic NLP demo..."
           rows={2}
-          className="w-full text-xs rounded-lg border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-600"
+          className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-[#00838f]"
         />
       </div>
 
       {/* Action Buttons */}
-      <div className="pt-2 flex items-center gap-3">
+      <div className="pt-2 flex items-center gap-2.5">
         <Button
           type="button"
           variant="outline"
@@ -292,9 +285,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
           variant="primary"
           onClick={handleSave}
           isLoading={isSaving}
-          className="flex-[2] py-3 text-sm font-bold bg-blue-600 hover:bg-blue-700 shadow-md"
+          className="flex-[2] py-3 text-sm font-black shadow-lg shadow-teal-700/30"
         >
-          <Sparkles className="w-4 h-4 mr-1 text-sky-200" />
+          <Sparkles className="w-4 h-4 mr-1 text-cyan-200" />
           Save Qualified Lead
         </Button>
       </div>
