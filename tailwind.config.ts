@@ -88,7 +88,8 @@ const config: Config = {
         "card-hover": "0 4px 6px -1px rgba(0,0,0,0.05), 0 20px 25px -5px rgba(15, 23, 42, 0.08)",
       },
       fontFamily: {
-        sans: ["var(--font-inter)", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["'Poppins'", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "sans-serif"],
+        poppins: ["'Poppins'", "sans-serif"],
       },
     },
   },

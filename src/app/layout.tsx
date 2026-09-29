@@ -34,8 +34,14 @@ export default function RootLayout({
       <head>
         <link rel="icon" href="/brand/logo.png" type="image/png" />
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
       </head>
-      <body className="antialiased min-h-screen bg-slate-50 text-slate-900 selection:bg-brand-100 selection:text-brand-900">
+      <body className="antialiased min-h-screen bg-slate-50 text-slate-900 selection:bg-brand-100 selection:text-brand-900 font-sans">
         <AuthProvider>
           <BrandingProvider>
             <RoleSwitcher />
