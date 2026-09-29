@@ -5,6 +5,7 @@
   "description": "lead2b - Event Lead Capture & Sales Engagement Platform",
   "scripts": {
     "dev": "next dev",
+    "dev:https": "next dev --experimental-https",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"

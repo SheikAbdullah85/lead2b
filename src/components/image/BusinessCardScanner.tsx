@@ -16,7 +16,8 @@ interface BusinessCardScannerProps {
 
 export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScannerProps) {
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [compressionStats, setCompressionStats] = useState<{ origKB: number; compKB: number } | null>(null);
@@ -119,11 +120,19 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
     <form onSubmit={handleSave} className="space-y-4">
       {/* Photo Capture / Upload Card */}
       <div className="flex flex-col items-center">
+        {/* Hidden inputs for camera capture vs gallery picker */}
         <input
           type="file"
           accept="image/*"
           capture="environment"
-          ref={fileInputRef}
+          ref={cameraInputRef}
+          onChange={handleFileChange}
+          className="hidden"
+        />
+        <input
+          type="file"
+          accept="image/*"
+          ref={galleryInputRef}
           onChange={handleFileChange}
           className="hidden"
         />
@@ -137,7 +146,7 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
                 type="button"
                 size="sm"
                 variant="secondary"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => cameraInputRef.current?.click()}
                 className="text-[11px] shadow-sm bg-white/90 backdrop-blur-sm"
               >
                 <RefreshCw className="w-3 h-3 mr-1" />
@@ -145,23 +154,40 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
               </Button>
             </div>
             {compressionStats && (
-              <div className="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-sm text-brand-300 text-[10px] font-mono px-2.5 py-1 rounded-full border border-brand-500/40">
+              <div className="absolute top-2.5 left-2.5 bg-slate-900/90 backdrop-blur-sm text-[#22d3ee] text-[10px] font-mono px-2.5 py-1 rounded-full border border-[#00838f]/40">
                 Compressed: {compressionStats.compKB} KB (was {compressionStats.origKB} KB)
               </div>
             )}
           </div>
         ) : (
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full h-36 border-2 border-dashed border-brand-300 rounded-2xl flex flex-col items-center justify-center p-4 hover:border-brand-500 hover:bg-brand-50/40 cursor-pointer transition text-center bg-slate-50/50"
-          >
-            <div className="p-3 bg-brand-100 text-brand-700 rounded-full mb-2 shadow-xs">
-              <Camera className="w-6 h-6" />
+          <div className="w-full space-y-2">
+            <div className="w-full border-2 border-dashed border-[#00838f]/30 rounded-2xl flex flex-col items-center justify-center p-4 bg-slate-50/50 text-center">
+              <div className="p-3 bg-teal-50 text-[#00838f] rounded-full mb-2 shadow-xs border border-teal-100">
+                <Camera className="w-6 h-6" />
+              </div>
+              <p className="text-xs font-bold text-slate-800">Business Card Photo Capture</p>
+              <p className="text-[11px] text-slate-400 mt-0.5 max-w-xs">
+                Snaps high-resolution photo and auto-compresses on device (~300 KB) for instant offline storage.
+              </p>
+              <div className="mt-3 flex gap-2 w-full max-w-xs">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-[#00838f] hover:bg-[#006d77] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95"
+                >
+                  <Camera className="w-4 h-4 text-cyan-200" />
+                  <span>Camera</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition active:scale-95"
+                >
+                  <ImageIcon className="w-4 h-4 text-slate-500" />
+                  <span>Gallery</span>
+                </button>
+              </div>
             </div>
-            <p className="text-xs font-bold text-slate-800">Tap to Snap or Upload Card</p>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Auto-compressed on device (~300 KB) for instant offline storage
-            </p>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import { INITIAL_ATTENDEES, INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { parseBadgeQr } from '@/lib/utils/qr-parser';
 import { Search, AlertTriangle, ArrowLeft, RefreshCw, QrCode, Sparkles } from 'lucide-react';
 import { playWarningBeep } from '@/lib/utils/sound';
 
@@ -23,10 +24,8 @@ export default function ScanPage() {
 
   // Handle scanned QR code text
   const handleQrDecoded = async (qrText: string) => {
-    let badgeId = qrText.trim();
-    if (badgeId.startsWith('lead2b:badge:')) {
-      badgeId = badgeId.replace('lead2b:badge:', '');
-    }
+    const parsed = parseBadgeQr(qrText);
+    const badgeId = parsed.badgeId;
 
     // 1. Check local Dexie first for offline lookup, then mock store
     let matchedAttendee = await localDb.attendees
@@ -41,17 +40,20 @@ export default function ScanPage() {
     }
 
     if (!matchedAttendee) {
-      // Create on the fly if unknown visitor badge format
+      // Create on the fly using parsed QR information (e.g., vCard, JSON, or badge token)
       matchedAttendee = {
         id: `att_${Date.now()}`,
         event_id: 'eeee1111-1111-1111-1111-111111111111',
         badge_id: badgeId,
         qr_token: qrText,
-        first_name: 'Visitor',
-        last_name: badgeId.slice(-4),
-        company: 'Exhibition Visitor',
-        email: `visitor_${badgeId.slice(-4).toLowerCase()}@event.example.com`,
-        visitor_type: 'Trade Visitor',
+        first_name: parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : 'Visitor'),
+        last_name: parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : badgeId.slice(-4)),
+        company: parsed.company || 'Exhibition Visitor',
+        job_title: parsed.jobTitle || 'Visitor',
+        email: parsed.email || `visitor_${badgeId.slice(-4).toLowerCase()}@event.example.com`,
+        mobile: parsed.phone,
+        website: parsed.website,
+        visitor_type: (parsed.visitorType as any) || 'Trade Visitor',
         consent_status: true,
       };
     }
