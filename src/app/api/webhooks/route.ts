@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { WebhookEndpoint } from '@/lib/types';
 import { dispatchWebhookEvent } from '@/lib/crm/webhook-dispatcher';
 
+export const runtime = 'edge';
+
 let webhooksStore: WebhookEndpoint[] = [
   {
     id: 'wh_001',

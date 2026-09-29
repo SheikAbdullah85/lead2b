@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
 
+export const runtime = 'edge';
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }

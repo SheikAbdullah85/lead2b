@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
 import { FollowupTask } from '@/lib/types';
 
+export const runtime = 'edge';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const tenantId = searchParams.get('tenant_id');

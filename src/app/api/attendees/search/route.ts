@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_ATTENDEES } from '@/lib/data/mock-store';
 
+export const runtime = 'edge';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const q = searchParams.get('q')?.trim().toLowerCase();

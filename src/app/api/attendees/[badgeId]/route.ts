@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_ATTENDEES } from '@/lib/data/mock-store';
 
+export const runtime = 'edge';
+
 export async function GET(
   req: NextRequest,
   { params }: { params: { badgeId: string } }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Event } from '@/lib/types';
 
+export const runtime = 'edge';
+
 export async function GET() {
   return NextResponse.json({
     events: INITIAL_EVENTS,

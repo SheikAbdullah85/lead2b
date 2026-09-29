@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { SyncQueueItem } from '@/lib/types';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 
+export const runtime = 'edge';
+
 // In-memory or database sync handler with idempotency protection
 const processedIdempotencyKeys = new Set<string>();
 
