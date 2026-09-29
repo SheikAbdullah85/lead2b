@@ -1,4 +1,3 @@
-import crypto from 'crypto';
 import { WebhookEndpoint } from '../types';
 
 export interface WebhookPayload {
@@ -8,8 +7,19 @@ export interface WebhookPayload {
   data: any;
 }
 
-export function generateWebhookSignature(payloadString: string, secretKey: string): string {
-  return crypto.createHmac('sha256', secretKey).update(payloadString).digest('hex');
+export async function generateWebhookSignature(payloadString: string, secretKey: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(secretKey),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, enc.encode(payloadString));
+  return Array.from(new Uint8Array(signature))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export async function dispatchWebhookEvent(
@@ -25,7 +35,7 @@ export async function dispatchWebhookEvent(
   };
 
   const payloadString = JSON.stringify(payload);
-  const signature = generateWebhookSignature(payloadString, endpoint.secret_key);
+  const signature = await generateWebhookSignature(payloadString, endpoint.secret_key);
 
   try {
     const res = await fetch(endpoint.target_url, {
