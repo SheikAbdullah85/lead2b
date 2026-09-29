@@ -10,11 +10,11 @@ import { Building2, Sparkles, CheckCircle2, QrCode, ShieldCheck, ArrowRight } fr
 
 export default function InviteJoinPage({ params }: { params: { code: string } }) {
   const router = useRouter();
-  const { login } = useAuth();
+  const { registerUser } = useAuth();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('lead2b-pass-2026');
+  const [password, setPassword] = useState('Password123!');
   const [mobile, setMobile] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [joinedSuccess, setJoinedSuccess] = useState(false);
@@ -24,7 +24,17 @@ export default function InviteJoinPage({ params }: { params: { code: string } })
     if (!fullName || !email) return;
 
     setIsSubmitting(true);
-    await login(email, 'sales_rep');
+    await registerUser({
+      id: `usr_${Date.now()}`,
+      email,
+      full_name: fullName,
+      mobile,
+      system_role: 'sales_rep',
+      tenant_id: '11111111-1111-1111-1111-111111111111',
+      is_active: true,
+      created_at: new Date().toISOString(),
+      password,
+    });
     setIsSubmitting(false);
     setJoinedSuccess(true);
 

@@ -62,18 +62,38 @@ export default function ExhibitorTeamPage() {
     e.preventDefault();
     if (!inviteEmail) return;
 
+    const newMemberId = `m_${Date.now()}`;
+    const cleanEmail = inviteEmail.trim().toLowerCase();
+
     setMembers([
       ...members,
       {
-        id: `m_${Date.now()}`,
-        name: inviteName || inviteEmail.split('@')[0],
-        email: inviteEmail,
+        id: newMemberId,
+        name: inviteName || cleanEmail.split('@')[0],
+        email: cleanEmail,
         role: inviteRole,
         leadsCount: 0,
         status: 'pending',
         lastActive: 'Invite Sent',
       },
     ]);
+
+    // Store credential for instant login with Password123!
+    try {
+      const customStored = localStorage.getItem('lead2b_registered_users');
+      const registered = customStored ? JSON.parse(customStored) : {};
+      registered[cleanEmail] = {
+        id: `usr_${Date.now()}`,
+        email: cleanEmail,
+        full_name: inviteName || cleanEmail.split('@')[0],
+        system_role: inviteRole,
+        tenant_id: '11111111-1111-1111-1111-111111111111',
+        is_active: true,
+        created_at: new Date().toISOString(),
+        password: 'Password123!',
+      };
+      localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
+    } catch (err) {}
 
     setIsInviteModalOpen(false);
     setInviteEmail('');

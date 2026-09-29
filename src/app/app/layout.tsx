@@ -5,6 +5,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav';
 import { OfflineBanner } from '@/components/pwa/OfflineBanner';
 import { useBranding } from '@/lib/branding/context';
 import { useAuth } from '@/lib/auth/context';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Logo } from '@/components/ui/Logo';
 import { Building2, Sparkles, ShieldCheck } from 'lucide-react';
 
@@ -17,7 +18,8 @@ export default function MobileAppLayout({
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-slate-900 sm:bg-slate-100 flex flex-col items-center sm:py-6 sm:px-4">
+    <AuthGuard>
+      <div className="min-h-screen bg-slate-900 sm:bg-slate-100 flex flex-col items-center sm:py-6 sm:px-4">
       {/* Container adapts: 100% width on mobile, sleek smartphone container on desktop */}
       <div className="w-full max-w-md bg-white min-h-screen sm:min-h-[844px] sm:max-h-[920px] flex flex-col shadow-2xl sm:rounded-3xl sm:border sm:border-slate-300/80 relative overflow-x-hidden pb-20">
         {/* Offline Banner with Synced / Pending / Failed counters */}
@@ -51,5 +53,6 @@ export default function MobileAppLayout({
         <MobileBottomNav />
       </div>
     </div>
+    </AuthGuard>
   );
 }
