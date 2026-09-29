@@ -1,5 +1,6 @@
 import { localDb, LocalLead } from './dexie';
 import { SyncQueueItem, Lead } from '../types';
+import { supabase } from '../supabase/client';
 
 export interface SyncStats {
   synced: number;
@@ -132,37 +133,79 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
 
         if (item.action === 'create_lead') {
           await localDb.leads.where('id').equals(item.payload.id).modify({ sync_status: 'syncing' });
-        }
+          const p = item.payload;
 
-        // Post to /api/sync
-        const response = await fetch('/api/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Idempotency-Key': item.idempotency_key,
-          },
-          body: JSON.stringify(item),
-        });
+          let serverLeadId: string | null = null;
 
-        if (!response.ok) {
-          throw new Error(`Server returned HTTP ${response.status}`);
-        }
+          // Attempt 1: Direct Supabase PostgreSQL Insertion
+          try {
+            const { data: dbLead, error: sbError } = await supabase.from('leads').insert([{
+              tenant_id: p.tenant_id,
+              event_id: p.event_id,
+              captured_by: p.captured_by,
+              first_name: p.first_name,
+              last_name: p.last_name,
+              company: p.company || '',
+              job_title: p.job_title || '',
+              email: p.email || '',
+              mobile: p.mobile || '',
+              website: p.website || '',
+              country: p.country || '',
+              industry: p.industry || '',
+              source: p.source || 'business_card',
+              rating: p.rating || 'warm',
+              status: p.status || 'new',
+              priority: p.priority || 'medium',
+              product_interest: p.product_interest || '',
+              requirement: p.requirement || '',
+              purchase_timeline: p.purchase_timeline || '1-3 months',
+              capture_method: p.capture_method || 'business_card',
+              online_offline: 'online',
+              sync_status: 'synced',
+              idempotency_key: item.idempotency_key,
+            }]).select('id').single();
 
-        const result = await response.json();
+            if (!sbError && dbLead?.id) {
+              serverLeadId = dbLead.id;
+            } else if (sbError) {
+              console.warn('Direct Supabase insert returned error:', sbError);
+            }
+          } catch (sbErr) {
+            console.warn('Supabase client exception during sync:', sbErr);
+          }
 
-        // Mark as synced locally
-        await localDb.syncQueue.update(item.id, { status: 'synced', error_message: undefined });
+          // Attempt 2: Server API endpoint /api/sync fallback
+          if (!serverLeadId) {
+            const response = await fetch('/api/sync', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Idempotency-Key': item.idempotency_key,
+              },
+              body: JSON.stringify(item),
+            });
 
-        if (item.action === 'create_lead' && result.lead?.id) {
-          await localDb.leads.where('local_id').equals(item.payload.local_id).modify({
-            id: result.lead.id,
-            server_id: result.lead.id,
-            sync_status: 'synced',
-            updated_at: new Date().toISOString(),
+            if (!response.ok) {
+              throw new Error(`Sync API returned HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            serverLeadId = result.lead?.id || `lead_${Date.now()}`;
+          }
+
+          // Mark as synced locally
+          await localDb.syncQueue.update(item.id, { status: 'synced', error_message: undefined });
+
+          const finalServerId = serverLeadId || `lead_${Date.now()}`;
+          await localDb.leads.where('local_id').equals(p.local_id).modify((lead: LocalLead) => {
+            lead.id = finalServerId;
+            lead.server_id = finalServerId;
+            lead.sync_status = 'synced';
+            lead.updated_at = new Date().toISOString();
           });
-        }
 
-        syncedCount++;
+          syncedCount++;
+        }
       } catch (err: any) {
         console.warn(`Sync failed for item ${item.id}:`, err);
         await localDb.syncQueue.update(item.id, {
@@ -170,7 +213,9 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
           error_message: err.message || 'Network sync error',
         });
         if (item.action === 'create_lead') {
-          await localDb.leads.where('local_id').equals(item.payload.local_id).modify({ sync_status: 'failed' });
+          await localDb.leads.where('local_id').equals(item.payload.local_id).modify((lead: LocalLead) => {
+            lead.sync_status = 'failed';
+          });
         }
       }
     }

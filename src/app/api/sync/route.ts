@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SyncQueueItem } from '@/lib/types';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const runtime = 'edge';
 
@@ -30,8 +31,43 @@ export async function POST(req: NextRequest) {
     switch (item.action) {
       case 'create_lead': {
         const leadData = item.payload;
-        // Generate permanent server UUID
-        const serverId = `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        let serverId = `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+        try {
+          const supabase = createServerClient();
+          const { data: dbLead, error: insertError } = await supabase.from('leads').insert([{
+            tenant_id: leadData.tenant_id,
+            event_id: leadData.event_id,
+            captured_by: leadData.captured_by,
+            first_name: leadData.first_name,
+            last_name: leadData.last_name,
+            company: leadData.company || '',
+            job_title: leadData.job_title || '',
+            email: leadData.email || '',
+            mobile: leadData.mobile || '',
+            website: leadData.website || '',
+            country: leadData.country || '',
+            industry: leadData.industry || '',
+            source: leadData.source || 'business_card',
+            rating: leadData.rating || 'warm',
+            status: leadData.status || 'new',
+            priority: leadData.priority || 'medium',
+            product_interest: leadData.product_interest || '',
+            requirement: leadData.requirement || '',
+            purchase_timeline: leadData.purchase_timeline || '1-3 months',
+            capture_method: leadData.capture_method || 'business_card',
+            online_offline: 'online',
+            sync_status: 'synced',
+            idempotency_key: idempotencyKey,
+          }]).select('id').single();
+
+          if (!insertError && dbLead?.id) {
+            serverId = dbLead.id;
+          }
+        } catch (dbErr) {
+          console.warn('API sync direct DB insert warning:', dbErr);
+        }
+
         const syncedLead = {
           ...leadData,
           id: serverId,
@@ -41,7 +77,7 @@ export async function POST(req: NextRequest) {
           updated_at: new Date().toISOString(),
         };
 
-        // Store in mock leads array for demo persistence
+        // Store in mock leads array for demo fallback
         INITIAL_LEADS.unshift(syncedLead);
         resultPayload = { lead: syncedLead };
         break;

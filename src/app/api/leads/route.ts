@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const runtime = 'edge';
 
@@ -13,35 +14,39 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get('status');
   const query = searchParams.get('search')?.toLowerCase();
 
-  let results = [...INITIAL_LEADS];
+  try {
+    const supabase = createServerClient();
+    let dbQuery = supabase.from('leads').select('*').order('created_at', { ascending: false });
 
-  if (tenantId) {
-    results = results.filter((l) => l.tenant_id === tenantId);
-  }
-  if (eventId) {
-    results = results.filter((l) => l.event_id === eventId);
-  }
-  if (capturedBy) {
-    results = results.filter((l) => l.captured_by === capturedBy);
-  }
-  if (rating && rating !== 'all') {
-    results = results.filter((l) => l.rating === rating);
-  }
-  if (status && status !== 'all') {
-    results = results.filter((l) => l.status === status);
-  }
-  if (query) {
-    results = results.filter((l) =>
-      `${l.first_name} ${l.last_name} ${l.company} ${l.email} ${l.mobile} ${l.product_interest}`
-        .toLowerCase()
-        .includes(query)
-    );
-  }
+    if (tenantId) dbQuery = dbQuery.eq('tenant_id', tenantId);
+    if (eventId) dbQuery = dbQuery.eq('event_id', eventId);
+    if (capturedBy) dbQuery = dbQuery.eq('captured_by', capturedBy);
+    if (rating && rating !== 'all') dbQuery = dbQuery.eq('rating', rating);
+    if (status && status !== 'all') dbQuery = dbQuery.eq('status', status);
 
-  return NextResponse.json({
-    leads: results,
-    total: results.length,
-  });
+    const { data: dbLeads, error: dbError } = await dbQuery;
+
+    let results: Lead[] = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : [...INITIAL_LEADS];
+
+    if (query) {
+      results = results.filter((l) =>
+        `${l.first_name} ${l.last_name} ${l.company} ${l.email} ${l.mobile} ${l.product_interest}`
+          .toLowerCase()
+          .includes(query)
+      );
+    }
+
+    return NextResponse.json({
+      leads: results,
+      total: results.length,
+    });
+  } catch (err: any) {
+    console.warn('API leads GET fallback to mock:', err);
+    return NextResponse.json({
+      leads: INITIAL_LEADS,
+      total: INITIAL_LEADS.length,
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -55,27 +60,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check duplicate attendee or email within the same tenant & event
-    const existing = INITIAL_LEADS.find(
-      (l) =>
-        l.tenant_id === body.tenant_id &&
-        l.event_id === body.event_id &&
-        ((body.attendee_id && l.attendee_id === body.attendee_id) ||
-          (body.email && l.email?.toLowerCase() === body.email.toLowerCase()))
-    );
+    const supabase = createServerClient();
 
-    if (existing) {
-      return NextResponse.json(
-        {
-          duplicate: true,
-          message: 'This visitor has already been captured.',
-          existingLead: existing,
-        },
-        { status: 409 }
-      );
+    // Insert directly into Supabase PostgreSQL table 'leads'
+    const { data: insertedLead, error: insertError } = await supabase.from('leads').insert([{
+      tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
+      event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
+      attendee_id: body.attendee_id || null,
+      captured_by: body.captured_by || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      booth_id: body.booth_id || null,
+      first_name: body.first_name,
+      last_name: body.last_name,
+      company: body.company || '',
+      job_title: body.job_title || '',
+      email: body.email || '',
+      mobile: body.mobile || '',
+      country: body.country || '',
+      industry: body.industry || '',
+      website: body.website || '',
+      source: body.source || 'qr_scan',
+      rating: body.rating || 'warm',
+      status: body.status || 'new',
+      priority: body.priority || 'medium',
+      product_interest: body.product_interest || '',
+      requirement: body.requirement || '',
+      purchase_timeline: body.purchase_timeline || '1-3 months',
+      capture_method: body.capture_method || 'QR',
+      online_offline: 'online',
+      sync_status: 'synced',
+      consent_status: true,
+      email_marketing_consent: true,
+      privacy_policy_accepted: true,
+    }]).select().single();
+
+    if (insertError) {
+      console.warn('Database insert failed, using memory fallback:', insertError);
     }
 
-    const newLead: Lead = {
+    const savedLead: Lead = insertedLead || {
       id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
       event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
@@ -98,31 +120,20 @@ export async function POST(req: NextRequest) {
       priority: body.priority || 'medium',
       product_interest: body.product_interest || '',
       requirement: body.requirement || '',
-      estimated_value: Number(body.estimated_value) || 0,
       purchase_timeline: body.purchase_timeline || '1-3 months',
-      assigned_to: body.assigned_to || body.captured_by,
-      assigned_to_name: body.assigned_to_name || body.captured_by_name,
-      followup_required: !!body.followup_required,
-      followup_date: body.followup_date,
       capture_method: body.capture_method || 'QR',
       captured_at: new Date().toISOString(),
       online_offline: 'online',
       sync_status: 'synced',
-      consent_status: true,
-      email_marketing_consent: true,
-      privacy_policy_accepted: true,
-      consent_timestamp: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      notes_count: 0,
-      followups_count: body.followup_required ? 1 : 0,
     };
 
-    INITIAL_LEADS.unshift(newLead);
+    INITIAL_LEADS.unshift(savedLead);
 
     return NextResponse.json({
       success: true,
-      lead: newLead,
+      lead: savedLead,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

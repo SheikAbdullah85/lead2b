@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { exportLeadsToExcel, exportLeadsToCsv } from '@/lib/utils/export-excel';
@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Search, Download, Filter, ChevronRight, Eye, Phone, Mail, Building2, User, Sparkles, CheckSquare, ShieldCheck, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ExhibitorLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -16,6 +17,24 @@ export default function ExhibitorLeadsPage() {
   const [ratingFilter, setRatingFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    async function loadExhibitorLeads() {
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (data && data.length > 0) {
+          setLeads(data as Lead[]);
+        }
+      } catch (e) {
+        console.warn('Error loading exhibitor leads from Supabase:', e);
+      }
+    }
+    loadExhibitorLeads();
+  }, []);
 
   const filteredLeads = leads.filter((l) => {
     const textMatch = `${l.first_name} ${l.last_name} ${l.company} ${l.email} ${l.mobile} ${l.product_interest} ${l.captured_by_name}`

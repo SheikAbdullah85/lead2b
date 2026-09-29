@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { localDb } from '@/lib/db/dexie';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
+import { supabase } from '@/lib/supabase/client';
 
 export default function MobileLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -17,16 +18,23 @@ export default function MobileLeadsPage() {
   useEffect(() => {
     const loadAllLeads = async () => {
       try {
+        // Query live Supabase database
+        const { data: dbLeads } = await supabase
+          .from('leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+
         const localList = await localDb.leads.toArray();
-        if (localList.length > 0) {
-          const ids = new Set(localList.map((l) => l.id));
-          const merged = [...localList, ...INITIAL_LEADS.filter((l) => !ids.has(l.id))];
-          setLeads(merged);
-        } else {
-          setLeads(INITIAL_LEADS);
-        }
+        const serverLeads = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : INITIAL_LEADS;
+        
+        // Merge offline/local Dexie leads with server leads
+        const serverIds = new Set(serverLeads.map((l) => l.id));
+        const pendingLocal = localList.filter((l) => !serverIds.has(l.id));
+
+        setLeads([...pendingLocal, ...serverLeads]);
       } catch (e) {
-        setLeads(INITIAL_LEADS);
+        const localList = await localDb.leads.toArray();
+        setLeads(localList.length > 0 ? localList : INITIAL_LEADS);
       }
     };
 

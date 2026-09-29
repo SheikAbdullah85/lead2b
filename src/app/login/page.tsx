@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, Suspense } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, DEMO_USERS, DEFAULT_CREDENTIALS } from '@/lib/auth/context';
 import { Button } from '@/components/ui/Button';
@@ -26,6 +27,7 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
+  const isDemoMode = searchParams.get('demo') === 'true';
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -118,99 +120,101 @@ function LoginForm() {
         </div>
       )}
 
-      {/* 1-Click Fast Persona Fill / Login */}
-      <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
-        <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5">
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-[#00838f]" />
-            <span>Select System Persona:</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setShowCredentialsCheatSheet(!showCredentialsCheatSheet)}
-            className="text-[10px] text-[#00838f] hover:underline font-bold"
-          >
-            {showCredentialsCheatSheet ? 'Hide Credentials' : 'View Passwords'}
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('sales_rep')}
-            className="px-2.5 py-2 rounded-xl bg-white border border-teal-200 hover:border-teal-400 hover:bg-teal-50/50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-          >
-            <Smartphone className="w-4 h-4 text-[#00838f] shrink-0" />
-            <div>
-              <p className="leading-none text-slate-900">Sales Rep</p>
-              <p className="text-[10px] text-slate-400 font-normal mt-0.5">Mobile Badge PWA</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('exhibitor_admin')}
-            className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-          >
-            <Building2 className="w-4 h-4 text-slate-700 shrink-0" />
-            <div>
-              <p className="leading-none text-slate-900">Exhibitor</p>
-              <p className="text-[10px] text-slate-400 font-normal mt-0.5">Booth Manager</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('organizer_admin')}
-            className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-          >
-            <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
-            <div>
-              <p className="leading-none text-slate-900">Organizer</p>
-              <p className="text-[10px] text-slate-400 font-normal mt-0.5">GITEX Portal</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickDemoLogin('super_admin')}
-            className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-          >
-            <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
-            <div>
-              <p className="leading-none text-slate-900">Super Admin</p>
-              <p className="text-[10px] text-slate-400 font-normal mt-0.5">Platform Owner</p>
-            </div>
-          </button>
-        </div>
-
-        {/* Cheat sheet table */}
-        {showCredentialsCheatSheet && (
-          <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5 text-[11px] text-slate-600 font-mono">
-            <p className="font-sans font-bold text-slate-800 text-xs mb-1">Live Supabase Credentials:</p>
-            <div className="flex justify-between bg-teal-50/80 p-1.5 rounded border border-teal-200">
-              <span className="font-semibold text-slate-900">sheik85@gmail.com (Super Admin)</span>
-              <span className="text-[#00838f] font-bold">Craftix@2026</span>
-            </div>
-            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>admin@lead2b.com (Super Admin)</span>
-              <span className="text-[#00838f] font-bold">Craftix@2026</span>
-            </div>
-            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>organizer@gitex.com (Organizer)</span>
-              <span className="text-[#00838f] font-bold">Craftix@2026</span>
-            </div>
-            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>exhibitor@alphatech.com (Exhibitor)</span>
-              <span className="text-[#00838f] font-bold">Craftix@2026</span>
-            </div>
-            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>tariq@alphatech.com (Sales Rep)</span>
-              <span className="text-[#00838f] font-bold">Craftix@2026</span>
-            </div>
+      {/* 1-Click Fast Persona Fill / Login (Visible only when ?demo=true) */}
+      {isDemoMode && (
+        <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
+          <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5">
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-[#00838f]" />
+              <span>Select System Persona:</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowCredentialsCheatSheet(!showCredentialsCheatSheet)}
+              className="text-[10px] text-[#00838f] hover:underline font-bold"
+            >
+              {showCredentialsCheatSheet ? 'Hide Credentials' : 'View Passwords'}
+            </button>
           </div>
-        )}
-      </div>
+
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('sales_rep')}
+              className="px-2.5 py-2 rounded-xl bg-white border border-teal-200 hover:border-teal-400 hover:bg-teal-50/50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
+            >
+              <Smartphone className="w-4 h-4 text-[#00838f] shrink-0" />
+              <div>
+                <p className="leading-none text-slate-900">Sales Rep</p>
+                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Mobile Badge PWA</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('exhibitor_admin')}
+              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
+            >
+              <Building2 className="w-4 h-4 text-slate-700 shrink-0" />
+              <div>
+                <p className="leading-none text-slate-900">Exhibitor</p>
+                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Booth Manager</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('organizer_admin')}
+              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
+            >
+              <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
+              <div>
+                <p className="leading-none text-slate-900">Organizer</p>
+                <p className="text-[10px] text-slate-400 font-normal mt-0.5">GITEX Portal</p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleQuickDemoLogin('super_admin')}
+              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
+            >
+              <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div>
+                <p className="leading-none text-slate-900">Super Admin</p>
+                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Platform Owner</p>
+              </div>
+            </button>
+          </div>
+
+          {/* Cheat sheet table */}
+          {showCredentialsCheatSheet && (
+            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5 text-[11px] text-slate-600 font-mono">
+              <p className="font-sans font-bold text-slate-800 text-xs mb-1">Live Supabase Credentials:</p>
+              <div className="flex justify-between bg-teal-50/80 p-1.5 rounded border border-teal-200">
+                <span className="font-semibold text-slate-900">sheik85@gmail.com (Super Admin)</span>
+                <span className="text-[#00838f] font-bold">Craftix@2026</span>
+              </div>
+              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
+                <span>admin@lead2b.com (Super Admin)</span>
+                <span className="text-[#00838f] font-bold">Craftix@2026</span>
+              </div>
+              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
+                <span>organizer@gitex.com (Organizer)</span>
+                <span className="text-[#00838f] font-bold">Craftix@2026</span>
+              </div>
+              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
+                <span>exhibitor@alphatech.com (Exhibitor)</span>
+                <span className="text-[#00838f] font-bold">Craftix@2026</span>
+              </div>
+              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
+                <span>tariq@alphatech.com (Sales Rep)</span>
+                <span className="text-[#00838f] font-bold">Craftix@2026</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Error Message */}
       {errorMessage && (
@@ -292,9 +296,19 @@ function LoginForm() {
         </Button>
       </form>
 
-      <p className="text-center text-[11px] text-slate-400 mt-6 font-medium">
-        Multi-tenant isolation • PostgreSQL Row-Level Security
-      </p>
+      <div className="text-center mt-6 pt-4 border-t border-slate-100">
+        <p className="text-[11px] text-slate-400 font-medium">
+          Multi-tenant isolation • Enterprise Workspace
+        </p>
+        {!isDemoMode && (
+          <Link
+            href="/login?demo=true"
+            className="text-[10px] text-slate-300 hover:text-slate-500 transition block mt-1.5"
+          >
+            Demo tester? Enable demo personas
+          </Link>
+        )}
+      </div>
     </div>
   );
 }
