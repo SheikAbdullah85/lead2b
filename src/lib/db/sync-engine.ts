@@ -132,10 +132,16 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
         });
 
         if (item.action === 'create_lead') {
-          await localDb.leads.where('id').equals(item.payload.id).modify({ sync_status: 'syncing' });
+          await localDb.leads.where('local_id').equals(item.payload.local_id).modify((lead: LocalLead) => {
+            lead.sync_status = 'syncing';
+          });
           const p = item.payload;
 
           let serverLeadId: string | null = null;
+
+          // Helper to check valid UUID
+          const isUuid = (val?: string) =>
+            typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
           // Attempt 1: Direct Supabase PostgreSQL Insertion
           try {
@@ -143,8 +149,10 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
               tenant_id: p.tenant_id,
               event_id: p.event_id,
               captured_by: p.captured_by,
-              first_name: p.first_name,
-              last_name: p.last_name,
+              attendee_id: isUuid(p.attendee_id) ? p.attendee_id : null,
+              booth_id: isUuid(p.booth_id) ? p.booth_id : null,
+              first_name: p.first_name || 'Lead',
+              last_name: p.last_name || '',
               company: p.company || '',
               job_title: p.job_title || '',
               email: p.email || '',
