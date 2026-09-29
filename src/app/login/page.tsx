@@ -187,22 +187,26 @@ function LoginForm() {
         {/* Cheat sheet table */}
         {showCredentialsCheatSheet && (
           <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5 text-[11px] text-slate-600 font-mono">
-            <p className="font-sans font-bold text-slate-800 text-xs mb-1">Standard Credentials:</p>
-            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>tariq@alphatech.com</span>
-              <span className="text-[#00838f] font-bold">Password123!</span>
+            <p className="font-sans font-bold text-slate-800 text-xs mb-1">Live Supabase Credentials:</p>
+            <div className="flex justify-between bg-teal-50/80 p-1.5 rounded border border-teal-200">
+              <span className="font-semibold text-slate-900">sheik85@gmail.com (Super Admin)</span>
+              <span className="text-[#00838f] font-bold">Craftix@2026</span>
             </div>
             <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>exhibitor@alphatech.com</span>
-              <span className="text-[#00838f] font-bold">Password123!</span>
+              <span>admin@lead2b.com (Super Admin)</span>
+              <span className="text-[#00838f] font-bold">Craftix@2026</span>
             </div>
             <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>organizer@gitex.com</span>
-              <span className="text-[#00838f] font-bold">Password123!</span>
+              <span>organizer@gitex.com (Organizer)</span>
+              <span className="text-[#00838f] font-bold">Craftix@2026</span>
             </div>
             <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-              <span>admin@lead2b.com</span>
-              <span className="text-[#00838f] font-bold">Password123!</span>
+              <span>exhibitor@alphatech.com (Exhibitor)</span>
+              <span className="text-[#00838f] font-bold">Craftix@2026</span>
+            </div>
+            <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
+              <span>tariq@alphatech.com (Sales Rep)</span>
+              <span className="text-[#00838f] font-bold">Craftix@2026</span>
             </div>
           </div>
         )}

@@ -2,12 +2,23 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, SystemRole } from '../types';
+import { supabase } from '../supabase/client';
 
 export interface CredentialUser extends UserProfile {
   password?: string;
 }
 
 export const DEMO_USERS: Record<string, UserProfile> = {
+  super_admin: {
+    id: 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+    email: 'sheik85@gmail.com',
+    full_name: 'Sheik Abdullah',
+    mobile: '+971 50 123 4567',
+    system_role: 'super_admin',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    is_active: true,
+    created_at: '2026-09-01T00:00:00Z',
+  },
   sales_rep: {
     id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
     email: 'tariq@alphatech.com',
@@ -60,8 +71,8 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     is_active: true,
     created_at: '2026-09-01T00:00:00Z',
   },
-  super_admin: {
-    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  lead2b_admin: {
+    id: 'e3c151e6-54a3-428d-a482-85f084ffde2a',
     email: 'admin@lead2b.com',
     full_name: 'System Administrator',
     mobile: '+971 50 123 4567',
@@ -73,10 +84,12 @@ export const DEMO_USERS: Record<string, UserProfile> = {
 
 // Standard pre-configured accounts with password credentials
 export const DEFAULT_CREDENTIALS: Record<string, { email: string; password: string; role: SystemRole }> = {
-  'tariq@alphatech.com': { email: 'tariq@alphatech.com', password: 'Password123!', role: 'sales_rep' },
-  'exhibitor@alphatech.com': { email: 'exhibitor@alphatech.com', password: 'Password123!', role: 'exhibitor_admin' },
-  'organizer@gitex.com': { email: 'organizer@gitex.com', password: 'Password123!', role: 'organizer_admin' },
-  'admin@lead2b.com': { email: 'admin@lead2b.com', password: 'Password123!', role: 'super_admin' },
+  'sheik85@gmail.com': { email: 'sheik85@gmail.com', password: 'Craftix@2026', role: 'super_admin' },
+  'admin@lead2b.com': { email: 'admin@lead2b.com', password: 'Craftix@2026', role: 'super_admin' },
+  'organizer@gitex.com': { email: 'organizer@gitex.com', password: 'Craftix@2026', role: 'organizer_admin' },
+  'exhibitor@alphatech.com': { email: 'exhibitor@alphatech.com', password: 'Craftix@2026', role: 'exhibitor_admin' },
+  'tariq@alphatech.com': { email: 'tariq@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
+  'sarah@alphatech.com': { email: 'sarah@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
 };
 
 interface AuthResult {
@@ -108,20 +121,86 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for an active authenticated session
-    try {
-      const stored = localStorage.getItem('lead2b_active_user');
-      if (stored) {
-        setUser(JSON.parse(stored));
-      } else {
-        // NO AUTO-LOGIN: user must authenticate with credentials
-        setUser(null);
+    // 1. Initial check for active Supabase session
+    async function checkSession() {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile) {
+            const mappedUser: UserProfile = {
+              id: profile.id,
+              email: profile.email,
+              full_name: profile.full_name || profile.email.split('@')[0],
+              mobile: profile.mobile,
+              system_role: profile.system_role as SystemRole,
+              tenant_id: profile.tenant_id,
+              is_active: profile.is_active,
+              created_at: profile.created_at,
+            };
+            setUser(mappedUser);
+            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
+            setIsLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase session check error:', err);
       }
-    } catch (e) {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
+
+      // Fallback: Check local storage for offline session
+      try {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) {
+          setUser(JSON.parse(stored));
+        } else {
+          setUser(null);
+        }
+      } catch (e) {
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
     }
+
+    checkSession();
+
+    // Listen to Supabase auth state changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (profile) {
+            const mappedUser: UserProfile = {
+              id: profile.id,
+              email: profile.email,
+              full_name: profile.full_name || profile.email.split('@')[0],
+              mobile: profile.mobile,
+              system_role: profile.system_role as SystemRole,
+              tenant_id: profile.tenant_id,
+              is_active: profile.is_active,
+              created_at: profile.created_at,
+            };
+            setUser(mappedUser);
+            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
+          }
+        } catch (e) {}
+      }
+    });
+
+    return () => {
+      authListener?.subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (
@@ -131,36 +210,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<AuthResult> => {
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
+    const inputPassword = password || 'Craftix@2026';
 
-    // Check custom registered users first (e.g. from invite links)
-    let registeredUsers: Record<string, CredentialUser> = {};
+    // 1. Try real Supabase Auth
     try {
-      const customStored = localStorage.getItem('lead2b_registered_users');
-      if (customStored) {
-        registeredUsers = JSON.parse(customStored);
-      }
-    } catch (e) {}
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: inputPassword,
+      });
 
-    // 1. Check known persona accounts
+      if (!authError && authData.user) {
+        // Fetch user profile from database
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', authData.user.id)
+          .single();
+
+        const authenticatedUser: UserProfile = {
+          id: authData.user.id,
+          email: authData.user.email || cleanEmail,
+          full_name: profile?.full_name || authData.user.user_metadata?.full_name || cleanEmail.split('@')[0],
+          mobile: profile?.mobile,
+          system_role: (profile?.system_role as SystemRole) || role || 'super_admin',
+          tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+          is_active: true,
+          created_at: profile?.created_at || new Date().toISOString(),
+        };
+
+        setUser(authenticatedUser);
+        localStorage.setItem('lead2b_active_user', JSON.stringify(authenticatedUser));
+        setIsLoading(false);
+        return { success: true, user: authenticatedUser };
+      }
+    } catch (sbErr) {
+      console.warn('Supabase auth network attempt failed, checking local credentials fallback...', sbErr);
+    }
+
+    // 2. Fallback for offline mode or local persona verification
     let matchedUser = Object.values(DEMO_USERS).find((u) => u.email.toLowerCase() === cleanEmail);
-    let expectedPassword = 'Password123!';
+    let expectedPassword = 'Craftix@2026';
 
     if (DEFAULT_CREDENTIALS[cleanEmail]) {
       expectedPassword = DEFAULT_CREDENTIALS[cleanEmail].password;
     }
 
-    // 2. Check custom registered users
-    if (registeredUsers[cleanEmail]) {
-      matchedUser = registeredUsers[cleanEmail];
-      if (registeredUsers[cleanEmail].password) {
-        expectedPassword = registeredUsers[cleanEmail].password!;
-      }
-    }
-
-    // 3. Password Verification (if provided)
     if (password) {
       const isValidPassword =
         password === expectedPassword ||
+        password === 'Craftix@2026' ||
         password === 'Password123!' ||
         password === 'lead2b-pass-2026';
 
@@ -168,12 +266,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return {
           success: false,
-          error: 'Incorrect password. Please verify your credentials or use Password123!',
+          error: 'Incorrect password. Use Craftix@2026 or Password123!',
         };
       }
     }
 
-    // If user does not exist yet, dynamically provision account
     if (!matchedUser) {
       matchedUser = {
         id: `usr_${Date.now()}`,
@@ -201,53 +298,88 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true);
     const cleanEmail = newUser.email.trim().toLowerCase();
 
+    // 1. Try Supabase signUp
     try {
-      const customStored = localStorage.getItem('lead2b_registered_users');
-      const registered = customStored ? JSON.parse(customStored) : {};
-      registered[cleanEmail] = {
-        ...newUser,
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: cleanEmail,
-      };
-      localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
+        password: newUser.password || 'Craftix@2026',
+        options: {
+          data: {
+            full_name: newUser.full_name,
+            system_role: newUser.system_role,
+            tenant_id: newUser.tenant_id,
+          },
+        },
+      });
 
-      setUser(newUser);
-      localStorage.setItem('lead2b_active_user', JSON.stringify(newUser));
-      setIsLoading(false);
-      return { success: true, user: newUser };
-    } catch (e: any) {
-      setIsLoading(false);
-      return { success: false, error: e.message || 'Registration failed' };
+      if (!signUpError && signUpData.user) {
+        const registered: UserProfile = {
+          ...newUser,
+          id: signUpData.user.id,
+          email: cleanEmail,
+        };
+        setUser(registered);
+        localStorage.setItem('lead2b_active_user', JSON.stringify(registered));
+        setIsLoading(false);
+        return { success: true, user: registered };
+      }
+    } catch (e) {
+      console.warn('Supabase registration failed, falling back to local storage:', e);
     }
+
+    // 2. Local Storage Fallback
+    try {
+      const stored = localStorage.getItem('lead2b_registered_users');
+      const existing = stored ? JSON.parse(stored) : {};
+      existing[cleanEmail] = newUser;
+      localStorage.setItem('lead2b_registered_users', JSON.stringify(existing));
+    } catch (e) {}
+
+    setUser(newUser);
+    localStorage.setItem('lead2b_active_user', JSON.stringify(newUser));
+    setIsLoading(false);
+    return { success: true, user: newUser };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {}
     setUser(null);
     try {
       localStorage.removeItem('lead2b_active_user');
     } catch (e) {}
-
-    if (typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
   };
 
-  const switchRole = (role: SystemRole) => {
-    const targetUser = DEMO_USERS[role];
-    if (targetUser) {
-      setUser(targetUser);
-      try {
-        localStorage.setItem('lead2b_active_user', JSON.stringify(targetUser));
-      } catch (e) {}
-    }
+  const switchRole = (newRole: SystemRole) => {
+    if (!user) return;
+    const updated = { ...user, system_role: newRole };
+    setUser(updated);
+    try {
+      localStorage.setItem('lead2b_active_user', JSON.stringify(updated));
+    } catch (e) {}
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, switchRole, registerUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isLoading,
+        login,
+        logout,
+        switchRole,
+        registerUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  return useContext(AuthContext);
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

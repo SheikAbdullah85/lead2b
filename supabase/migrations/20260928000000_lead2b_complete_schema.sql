@@ -507,6 +507,7 @@ ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
 -- Sales Rep can create leads and view own leads (or all if granted).
 -- Super Admin / Organizer Admin can view event leads.
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Leads access policy" ON leads;
 CREATE POLICY "Leads access policy" ON leads
     FOR ALL
     USING (
@@ -538,6 +539,7 @@ CREATE POLICY "Leads access policy" ON leads
 -- ------------------------------------------------------------------------------
 -- RLS POLICIES FOR ORGANIZATIONS
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Organizations isolation" ON organizations;
 CREATE POLICY "Organizations isolation" ON organizations
     FOR SELECT
     USING (
@@ -548,6 +550,7 @@ CREATE POLICY "Organizations isolation" ON organizations
         )
     );
 
+DROP POLICY IF EXISTS "Organizations admin update" ON organizations;
 CREATE POLICY "Organizations admin update" ON organizations
     FOR UPDATE
     USING (
@@ -561,6 +564,7 @@ CREATE POLICY "Organizations admin update" ON organizations
 -- ------------------------------------------------------------------------------
 -- RLS POLICIES FOR ATTENDEES (Organizers manage, Exhibitors search within registered event)
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Attendees access policy" ON attendees;
 CREATE POLICY "Attendees access policy" ON attendees
     FOR SELECT
     USING (
@@ -570,6 +574,7 @@ CREATE POLICY "Attendees access policy" ON attendees
         )
     );
 
+DROP POLICY IF EXISTS "Attendees organizer management" ON attendees;
 CREATE POLICY "Attendees organizer management" ON attendees
     FOR ALL
     USING (
@@ -583,6 +588,7 @@ CREATE POLICY "Attendees organizer management" ON attendees
 -- ------------------------------------------------------------------------------
 -- RLS POLICIES FOR FORMS & FOLLOWUPS
 -- ------------------------------------------------------------------------------
+DROP POLICY IF EXISTS "Forms tenant isolation" ON lead_forms;
 CREATE POLICY "Forms tenant isolation" ON lead_forms
     FOR ALL
     USING (
@@ -593,6 +599,7 @@ CREATE POLICY "Forms tenant isolation" ON lead_forms
         )
     );
 
+DROP POLICY IF EXISTS "Followups tenant isolation" ON followups;
 CREATE POLICY "Followups tenant isolation" ON followups
     FOR ALL
     USING (
@@ -603,6 +610,7 @@ CREATE POLICY "Followups tenant isolation" ON followups
         )
     );
 
+DROP POLICY IF EXISTS "Branding tenant isolation" ON branding_settings;
 CREATE POLICY "Branding tenant isolation" ON branding_settings
     FOR ALL
     USING (
