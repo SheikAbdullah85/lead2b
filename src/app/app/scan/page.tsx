@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrScannerView } from '@/components/scanner/QrScannerView';
 import { QuickQualifyForm } from '@/components/forms/QuickQualifyForm';
-import { Attendee, Lead, LeadRating, PriorityLevel, PurchaseTimeline } from '@/lib/types';
+import { Attendee, Lead, LeadNote, LeadRating, PriorityLevel, PurchaseTimeline } from '@/lib/types';
 import { localDb } from '@/lib/db/dexie';
 import { INITIAL_ATTENDEES, INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Modal } from '@/components/ui/Modal';
@@ -33,6 +33,7 @@ import {
   RefreshCw,
   Clock,
   Mic,
+  Check,
 } from 'lucide-react';
 import { playSuccessBeep, playWarningBeep } from '@/lib/utils/sound';
 import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoiceInput';
@@ -86,6 +87,74 @@ export default function ScanPage() {
     if (data.product_interest) setProductInterest(data.product_interest);
     if (data.purchase_timeline) setTimeline(data.purchase_timeline);
     if (data.raw_transcript) setNotes(data.raw_transcript);
+  };
+
+  // Duplicate Lead Re-engagement / Note Appending states
+  const [appendNoteText, setAppendNoteText] = useState('');
+  const [appendRating, setAppendRating] = useState<LeadRating | ''>('');
+  const [isAppendingNote, setIsAppendingNote] = useState(false);
+  const [appendSuccess, setAppendSuccess] = useState(false);
+
+  const handleAppendInteractionNote = async () => {
+    if (!duplicateLead || !appendNoteText.trim()) return;
+
+    setIsAppendingNote(true);
+    try {
+      const noteId = `note_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const repName = user?.full_name || 'Tariq Mansoor';
+      const noteEntry: LeadNote = {
+        id: noteId,
+        lead_id: duplicateLead.id,
+        tenant_id: duplicateLead.tenant_id,
+        user_id: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        user_name: repName,
+        note_text: `📝 [Re-engagement by ${repName}]: ${appendNoteText.trim()}`,
+        created_at: new Date().toISOString(),
+        sync_status: 'pending',
+      };
+
+      // Save note to local Dexie
+      await localDb.leadNotes.put(noteEntry);
+
+      // Update lead's existing requirement text & optionally elevate rating
+      const updatedRating = appendRating ? appendRating : duplicateLead.rating;
+      const existingReq = duplicateLead.requirement ? `${duplicateLead.requirement}\n` : '';
+      const updatedReq = `${existingReq}• [${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by ${repName}]: ${appendNoteText.trim()}`;
+
+      await localDb.leads.where('id').equals(duplicateLead.id).modify((l) => {
+        l.rating = updatedRating;
+        l.requirement = updatedReq;
+        l.updated_at = new Date().toISOString();
+      });
+
+      // Enqueue sync queue item
+      await localDb.syncQueue.put({
+        id: `queue_${noteId}`,
+        tenant_id: duplicateLead.tenant_id,
+        user_id: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        idempotency_key: `note_idemp_${noteId}`,
+        action: 'add_note',
+        payload: noteEntry,
+        status: 'pending',
+        retry_count: 0,
+        created_at: new Date().toISOString(),
+      });
+
+      playSuccessBeep();
+      setAppendSuccess(true);
+      setTimeout(() => {
+        setAppendSuccess(false);
+        setAppendNoteText('');
+        setAppendRating('');
+        setDuplicateLead(null);
+        setScannedAttendee(null);
+      }, 1500);
+    } catch (err) {
+      console.error('Error appending interaction note to duplicate lead:', err);
+      alert('Failed to save note. Please retry.');
+    } finally {
+      setIsAppendingNote(false);
+    }
   };
 
   // Handle scanned QR code text
@@ -833,49 +902,129 @@ export default function ScanPage() {
         )}
       </Modal>
 
-      {/* Duplicate Lead Detection Modal */}
+      {/* Duplicate Lead Detection & Smart Re-Engagement Modal */}
       <Modal
         isOpen={!!duplicateLead}
         onClose={() => setDuplicateLead(null)}
-        title="Duplicate Lead Detected"
+        title="Visitor Previously Captured"
       >
         {duplicateLead && (
-          <div className="space-y-4 text-left">
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 flex items-start gap-2.5">
+          <div className="space-y-3.5 text-left">
+            <div className="p-3 bg-amber-50/90 border border-amber-200 rounded-xl text-amber-900 flex items-start gap-2.5">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold">This visitor has already been captured.</p>
-                <p className="text-[11px] text-amber-700 mt-0.5">
-                  Captured at{' '}
-                  {new Date(duplicateLead.captured_at || duplicateLead.created_at).toLocaleString()}{' '}
-                  by {duplicateLead.captured_by_name || 'Booth Rep'}.
+                <p className="text-xs font-bold leading-tight">
+                  {duplicateLead.first_name} {duplicateLead.last_name} was already captured at our booth!
+                </p>
+                <p className="text-[11px] text-amber-700 mt-1">
+                  Scanned on{' '}
+                  <span className="font-semibold">
+                    {new Date(duplicateLead.captured_at || duplicateLead.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>{' '}
+                  by <span className="font-semibold text-amber-900">{duplicateLead.captured_by_name || 'Booth Rep'}</span>.
                 </p>
               </div>
             </div>
 
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs">
-              <p className="font-bold text-slate-800">{duplicateLead.first_name} {duplicateLead.last_name}</p>
-              <p className="text-slate-500">{duplicateLead.company} • {duplicateLead.job_title}</p>
-              <div className="pt-2 flex items-center gap-2">
-                <Badge variant={duplicateLead.rating as any}>{duplicateLead.rating.toUpperCase()}</Badge>
-                <Badge variant="outline">{duplicateLead.status}</Badge>
+            {/* Existing Profile Snippet */}
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
+              <div>
+                <p className="font-black text-slate-900">{duplicateLead.first_name} {duplicateLead.last_name}</p>
+                <p className="text-slate-500 text-[11px]">{duplicateLead.company} • {duplicateLead.job_title}</p>
+                <p className="text-[10px] text-slate-400 font-mono mt-0.5">{duplicateLead.email}</p>
+              </div>
+              <div className="text-right">
+                <Badge variant={duplicateLead.rating as any} size="sm">
+                  {duplicateLead.rating.toUpperCase()}
+                </Badge>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            {/* Smart Interaction Note Appender (Prevents Duplicate Records) */}
+            <div className="p-3.5 bg-gradient-to-br from-brand-50/60 to-indigo-50/40 rounded-xl border border-brand-200/80 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-brand-950 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+                  Append New Interaction Note
+                </span>
+                <span className="text-[10px] text-brand-700 font-bold bg-brand-100/70 px-2 py-0.5 rounded-full">
+                  Keep Single Lead ID
+                </span>
+              </div>
+
+              <textarea
+                value={appendNoteText}
+                onChange={(e) => setAppendNoteText(e.target.value)}
+                placeholder="Spoke again at demo station, asked about custom integrations, upgrade interest..."
+                rows={2}
+                className="w-full text-xs rounded-xl border border-slate-300 p-2.5 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+              />
+
+              {/* Rating Elevation */}
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Elevate Priority (Optional):
+                </span>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {[
+                    { val: 'hot', label: '🔥 Upgrade to Hot' },
+                    { val: 'warm', label: '☀️ Keep as Warm' },
+                    { val: 'cold', label: '❄️ Cold' },
+                  ].map((r) => (
+                    <button
+                      key={r.val}
+                      type="button"
+                      onClick={() => setAppendRating(appendRating === r.val ? '' : (r.val as any))}
+                      className={`py-1.5 text-[10px] font-bold rounded-lg border transition ${
+                        appendRating === r.val
+                          ? 'border-brand-600 bg-brand-600 text-white shadow-2xs'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {appendSuccess ? (
+                <div className="p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold text-center flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Interaction Note Appended to Existing Lead!</span>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={handleAppendInteractionNote}
+                  disabled={!appendNoteText.trim() || isAppendingNote}
+                  isLoading={isAppendingNote}
+                  className="w-full font-bold text-xs shadow-xs"
+                >
+                  <Check className="w-3.5 h-3.5 mr-1 text-cyan-200" />
+                  Append Note &amp; Update Record
+                </Button>
+              )}
+            </div>
+
+            {/* Footer Navigation */}
+            <div className="flex items-center gap-2 pt-1">
               <Button
                 variant="outline"
-                className="flex-1"
+                size="sm"
+                className="flex-1 text-xs"
                 onClick={() => setDuplicateLead(null)}
               >
-                Scan Next
+                Scan Next Visitor
               </Button>
               <Button
-                variant="primary"
-                className="flex-1 font-bold"
+                variant="secondary"
+                size="sm"
+                className="flex-1 text-xs font-bold"
                 onClick={() => router.push(`/app/lead/${duplicateLead.id}`)}
               >
-                View Existing Lead
+                View Full Lead Profile →
               </Button>
             </div>
           </div>

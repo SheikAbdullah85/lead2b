@@ -44,6 +44,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, result: testResult });
     }
 
+    if (body.action === 'hot_lead_alert') {
+      const activeWebhooks = webhooksStore.filter((w) => w.is_active);
+      const results = [];
+
+      for (const wh of activeWebhooks) {
+        try {
+          const res = await dispatchWebhookEvent(wh, 'lead.qualified.hot', body.payload);
+          results.push({ webhook_id: wh.id, ...res });
+        } catch (e: any) {
+          results.push({ webhook_id: wh.id, success: false, error: e.message });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `Hot lead alert dispatched to ${results.length} active enterprise endpoint(s).`,
+        results,
+      });
+    }
+
     // Create new webhook
     const newWebhook: WebhookEndpoint = {
       id: `wh_${Date.now()}`,

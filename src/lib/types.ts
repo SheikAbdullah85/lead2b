@@ -140,6 +140,7 @@ export interface Lead {
   assigned_to?: string;
   followup_required: boolean;
   followup_date?: string;
+  collateral_sent?: string[];
 
   // Metadata & Sync
   capture_method: CaptureMethod;
@@ -330,4 +331,28 @@ export interface WebhookEndpoint {
   failure_count: number;
   last_triggered_at?: string;
   created_at: string;
+}
+
+export interface CollateralAsset {
+  id: string;
+  title: string;
+  category: 'whitepaper' | 'brochure' | 'pricing' | 'case_study';
+  file_name: string;
+  file_size: string;
+  download_url: string;
+  description: string;
+  thumbnail_icon?: string;
+}
+
+export interface CollateralDispatch {
+  id: string;
+  lead_id: string;
+  lead_email: string;
+  lead_name: string;
+  asset_ids: string[];
+  asset_titles: string[];
+  dispatch_status: 'queued' | 'sent' | 'opened';
+  dispatched_at: string;
+  sent_by_user_id: string;
+  sent_by_name: string;
 }

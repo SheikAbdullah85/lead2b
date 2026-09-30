@@ -4,9 +4,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Attendee, LeadRating, PurchaseTimeline, Lead } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Flame, Clock, Tag, FileText, CheckCircle2, User, Building2, Mail, Phone, MapPin, Sparkles, Mic, Volume2 } from 'lucide-react';
+import { Flame, Clock, Tag, FileText, CheckCircle2, User, Building2, Mail, Phone, MapPin, Sparkles, Mic, Volume2, PackageCheck, Check } from 'lucide-react';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
+import { DEFAULT_COLLATERAL_ASSETS, dispatchCollateralToLead } from '@/lib/collateral/collateral-store';
 import {
   createSpeechRecognizer,
   SpeechRecognizerController,
@@ -34,7 +35,14 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const [isSpeakingNote, setIsSpeakingNote] = useState(false);
+  const [selectedCollateralIds, setSelectedCollateralIds] = useState<string[]>([]);
   const recognizerRef = useRef<SpeechRecognizerController | null>(null);
+
+  const toggleCollateral = (id: string) => {
+    setSelectedCollateralIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
 
   useEffect(() => {
     return () => {
@@ -147,6 +155,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         capture_method: 'QR',
         captured_at: new Date().toISOString(),
         online_offline: isOnline ? 'online' : 'offline',
+        collateral_sent: selectedCollateralIds,
         consent_status: true,
         email_marketing_consent: true,
         privacy_policy_accepted: true,
@@ -157,10 +166,22 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
       const savedLead = await saveLeadLocally(leadPayload);
 
+      // Trigger instant digital collateral fulfillment if assets selected
+      if (selectedCollateralIds.length > 0) {
+        dispatchCollateralToLead({
+          leadId: savedLead.id,
+          leadEmail: attendee.email,
+          leadName: `${attendee.first_name} ${attendee.last_name}`,
+          assetIds: selectedCollateralIds,
+          sentByUserId: user?.id,
+          sentByName: user?.full_name,
+        }).catch((err) => console.warn('Collateral dispatch error:', err));
+      }
+
       setSaveSuccess(true);
       setTimeout(() => {
         onSuccess(savedLead);
-      }, 1000);
+      }, 1200);
     } catch (err) {
       console.error('Error saving lead:', err);
       setIsSaving(false);
@@ -178,6 +199,14 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         <p className="text-xs text-slate-500 mt-1 max-w-xs font-medium">
           {attendee.first_name} {attendee.last_name} ({attendee.company})
         </p>
+
+        {selectedCollateralIds.length > 0 && (
+          <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
+            <Check className="w-3.5 h-3.5 text-teal-600" />
+            <span>Dispatched {selectedCollateralIds.length} collateral doc(s) to visitor</span>
+          </div>
+        )}
+
         <div className="mt-4">
           {isOnline ? (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -380,6 +409,49 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
             Listening... Speak in natural language to auto-classify lead temperature and solution.
           </p>
         )}
+      </div>
+
+      {/* 5. Instant Digital Collateral Fulfillment */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+            <PackageCheck className="w-3.5 h-3.5 text-[#00838f]" />
+            <span>Instant Digital Collateral Fulfillment</span>
+          </label>
+          <span className="text-[10px] text-slate-400 font-medium">Auto-emailed to visitor</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+          {DEFAULT_COLLATERAL_ASSETS.map((asset) => {
+            const isSelected = selectedCollateralIds.includes(asset.id);
+            return (
+              <button
+                key={asset.id}
+                type="button"
+                onClick={() => toggleCollateral(asset.id)}
+                className={`p-2 rounded-xl border text-left transition flex items-center justify-between gap-2 cursor-pointer ${
+                  isSelected
+                    ? 'border-[#00838f] bg-teal-50/80 text-teal-950 font-bold shadow-2xs'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base shrink-0">{asset.thumbnail_icon || '📄'}</span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] leading-tight truncate font-bold">{asset.title}</p>
+                    <p className="text-[10px] text-slate-400">{asset.file_size} • PDF</p>
+                  </div>
+                </div>
+                <div
+                  className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition ${
+                    isSelected ? 'bg-[#00838f] border-[#00838f] text-white' : 'border-slate-300 bg-white'
+                  }`}
+                >
+                  {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Action Buttons */}

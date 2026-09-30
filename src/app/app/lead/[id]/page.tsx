@@ -16,8 +16,9 @@ import { ActivityTimeline, TimelineItem } from '@/components/layout/ActivityTime
 import {
   ArrowLeft, Phone, Mail, MessageCircle, CalendarPlus, Clock, Building2, User,
   MapPin, Globe, Plus, CheckCircle2, Flame, Tag, FileText, Send, Sparkles, ShieldCheck,
-  Volume2, VolumeX, Mic
+  Volume2, VolumeX, Mic, PackageCheck
 } from 'lucide-react';
+import { DEFAULT_COLLATERAL_ASSETS } from '@/lib/collateral/collateral-store';
 import {
   speakText,
   stopSpeaking,
@@ -318,6 +319,29 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               Visitor Pain Point & Notes:
             </span>
             <p className="mt-1 text-xs font-medium leading-relaxed">{lead.requirement}</p>
+          </div>
+        )}
+
+        {/* Digital Marketing Collateral Dispatched */}
+        {lead.collateral_sent && lead.collateral_sent.length > 0 && (
+          <div className="p-3 rounded-xl bg-teal-50/80 border border-teal-200/70 text-xs space-y-2">
+            <span className="text-[10px] text-teal-800 font-black uppercase tracking-wider flex items-center gap-1">
+              <PackageCheck className="w-3.5 h-3.5 text-teal-600" />
+              <span>Digital Collateral Dispatched ({lead.collateral_sent.length})</span>
+            </span>
+            <div className="space-y-1.5">
+              {DEFAULT_COLLATERAL_ASSETS.filter((a) => lead.collateral_sent?.includes(a.id)).map((asset) => (
+                <div key={asset.id} className="flex items-center justify-between p-2 rounded-lg bg-white border border-teal-100 text-[11px]">
+                  <span className="font-semibold text-slate-800 flex items-center gap-1.5 truncate mr-2">
+                    <span className="shrink-0">{asset.thumbnail_icon || '📄'}</span>
+                    <span className="truncate">{asset.title}</span>
+                  </span>
+                  <span className="text-[9px] text-teal-700 font-bold px-2 py-0.5 rounded bg-teal-50 border border-teal-200 shrink-0">
+                    Emailed
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>

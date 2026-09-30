@@ -1,6 +1,7 @@
 import { localDb, LocalLead } from './dexie';
 import { SyncQueueItem, Lead } from '../types';
 import { supabase } from '../supabase/client';
+import { dispatchHotLeadAlert } from '../crm/webhook-dispatcher';
 
 export interface SyncStats {
   synced: number;
@@ -84,6 +85,11 @@ export async function saveLeadLocally(leadData: Omit<Lead, 'id' | 'local_id' | '
 
   const stats = await getSyncStats();
   notifyListeners(stats);
+
+  // Trigger real-time hot lead webhook alert if qualified as hot
+  if (localLead.rating === 'hot' || localLead.rating === 'urgent') {
+    dispatchHotLeadAlert(localLead).catch(() => {});
+  }
 
   // Background trigger
   triggerSync();
