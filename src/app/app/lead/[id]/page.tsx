@@ -15,8 +15,15 @@ import { VoiceRecorder } from '@/components/audio/VoiceRecorder';
 import { ActivityTimeline, TimelineItem } from '@/components/layout/ActivityTimeline';
 import {
   ArrowLeft, Phone, Mail, MessageCircle, CalendarPlus, Clock, Building2, User,
-  MapPin, Globe, Plus, CheckCircle2, Flame, Tag, FileText, Send, Sparkles, ShieldCheck
+  MapPin, Globe, Plus, CheckCircle2, Flame, Tag, FileText, Send, Sparkles, ShieldCheck,
+  Volume2, VolumeX, Mic
 } from 'lucide-react';
+import {
+  speakText,
+  stopSpeaking,
+  isSpeechSynthesisSupported,
+  generateLeadVoiceBriefing,
+} from '@/lib/utils/speech';
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -25,6 +32,8 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const [followups, setFollowups] = useState<FollowupTask[]>([]);
   const [newNoteText, setNewNoteText] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [isPlayingBriefing, setIsPlayingBriefing] = useState(false);
+  const [playingNoteId, setPlayingNoteId] = useState<string | null>(null);
 
   // Follow-up modal state
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
@@ -105,6 +114,37 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     setFollowups([newTask, ...followups]);
     setIsFollowupModalOpen(false);
     setTaskTitle('');
+  };
+
+  const handleToggleLeadBriefing = () => {
+    if (!lead) return;
+    if (isPlayingBriefing) {
+      stopSpeaking();
+      setIsPlayingBriefing(false);
+      return;
+    }
+    const text = generateLeadVoiceBriefing(lead);
+    setIsPlayingBriefing(true);
+    setPlayingNoteId(null);
+    speakText(text, {
+      onEnd: () => setIsPlayingBriefing(false),
+      onError: () => setIsPlayingBriefing(false),
+    });
+  };
+
+  const handlePlayNoteVoice = (noteId: string, noteText: string) => {
+    if (playingNoteId === noteId) {
+      stopSpeaking();
+      setPlayingNoteId(null);
+      return;
+    }
+    stopSpeaking();
+    setIsPlayingBriefing(false);
+    setPlayingNoteId(noteId);
+    speakText(noteText, {
+      onEnd: () => setPlayingNoteId(null),
+      onError: () => setPlayingNoteId(null),
+    });
   };
 
   const timelineItems: TimelineItem[] = [
@@ -232,6 +272,27 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
             <span className="text-[10px] font-bold">Task</span>
           </button>
         </div>
+
+        {/* Lead Audio Briefing (Text Information to Voice Note) */}
+        {isSpeechSynthesisSupported() && (
+          <button
+            type="button"
+            onClick={handleToggleLeadBriefing}
+            className={`w-full py-2.5 px-3 rounded-xl border flex items-center justify-between text-xs font-bold transition shadow-2xs ${
+              isPlayingBriefing
+                ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                : 'bg-gradient-to-r from-amber-50 to-orange-50/70 text-amber-900 border-amber-200/80 hover:bg-amber-100/70'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <Volume2 className={`w-4 h-4 ${isPlayingBriefing ? 'animate-bounce text-white' : 'text-amber-600'}`} />
+              <span>{isPlayingBriefing ? 'Playing Lead Audio Briefing...' : 'Play Lead Audio Briefing (Voice Note)'}</span>
+            </div>
+            <span className="text-[10px] font-mono uppercase tracking-wider bg-white/80 px-2 py-0.5 rounded-full text-amber-800 border border-amber-200/60 font-black">
+              {isPlayingBriefing ? 'Tap to Stop' : 'Text to Voice'}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Qualification Highlights */}
@@ -261,19 +322,22 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
         )}
       </div>
 
-      {/* Voice Notes Component */}
+      {/* Voice Notes Component with Natural Language Transcription */}
       <VoiceRecorder
-        onAudioRecorded={(blob, duration) => {
+        onAudioRecorded={(blob, duration, transcribedText, extractedLead) => {
           const newNote: LeadNote = {
             id: `voice_${Date.now()}`,
             lead_id: lead.id,
             tenant_id: lead.tenant_id,
             user_id: lead.captured_by,
             user_name: lead.captured_by_name || 'Tariq Mansoor',
-            note_text: `🎙️ [Voice Memo: ${duration}s duration recorded at booth]`,
+            note_text: transcribedText || `🎙️ [Voice Memo: ${duration}s duration recorded at booth]`,
             created_at: new Date().toISOString(),
           };
           setNotes([newNote, ...notes]);
+          if (extractedLead?.rating && extractedLead.rating !== lead.rating) {
+            setLead({ ...lead, rating: extractedLead.rating });
+          }
         }}
       />
 
@@ -314,9 +378,25 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
         <div className="space-y-2">
           {notes.map((n) => (
-            <div key={n.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs">
-              <p className="text-slate-800 font-medium leading-relaxed">{n.note_text}</p>
-              <span className="text-[10px] text-slate-400 block mt-1.5 font-mono">
+            <div key={n.id} className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-1.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-slate-800 font-medium leading-relaxed flex-1">{n.note_text}</p>
+                {isSpeechSynthesisSupported() && (
+                  <button
+                    type="button"
+                    onClick={() => handlePlayNoteVoice(n.id, n.note_text)}
+                    className={`p-1.5 rounded-lg border text-xs font-bold transition shrink-0 ${
+                      playingNoteId === n.id
+                        ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                        : 'bg-white hover:bg-slate-100 text-slate-600 border-slate-200'
+                    }`}
+                    title="Play text as Voice Note"
+                  >
+                    <Volume2 className="w-3.5 h-3.5 text-amber-600" />
+                  </button>
+                )}
+              </div>
+              <span className="text-[10px] text-slate-400 block font-mono">
                 {new Date(n.created_at).toLocaleString()} • {n.user_name}
               </span>
             </div>

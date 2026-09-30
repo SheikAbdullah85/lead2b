@@ -1,12 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Attendee, LeadRating, PurchaseTimeline, Lead } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Flame, Clock, Tag, FileText, CheckCircle2, User, Building2, Mail, Phone, MapPin, Sparkles } from 'lucide-react';
+import { Flame, Clock, Tag, FileText, CheckCircle2, User, Building2, Mail, Phone, MapPin, Sparkles, Mic, Volume2 } from 'lucide-react';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
+import {
+  createSpeechRecognizer,
+  SpeechRecognizerController,
+  isSpeechRecognitionSupported,
+  isSpeechSynthesisSupported,
+  speakText,
+  stopSpeaking,
+  parseNaturalLanguageText,
+} from '@/lib/utils/speech';
 
 interface QuickQualifyFormProps {
   attendee: Attendee;
@@ -23,6 +32,16 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   const [isFollowupRequired, setIsFollowupRequired] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isListeningVoice, setIsListeningVoice] = useState(false);
+  const [isSpeakingNote, setIsSpeakingNote] = useState(false);
+  const recognizerRef = useRef<SpeechRecognizerController | null>(null);
+
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+      recognizerRef.current?.abort();
+    };
+  }, []);
 
   const productOptions = [
     'Enterprise AI Platform',
@@ -44,6 +63,56 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
     { value: '3-6 months', label: '3 - 6 Months' },
     { value: '6-12 months', label: '6 - 12 Months' },
   ];
+
+  const handleToggleVoiceInput = () => {
+    if (isListeningVoice) {
+      recognizerRef.current?.stop();
+      setIsListeningVoice(false);
+      return;
+    }
+
+    if (!isSpeechRecognitionSupported()) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+
+    const recognizer = createSpeechRecognizer({
+      continuous: true,
+      interimResults: true,
+      onResult: (finalText, interim) => {
+        const full = (finalText || interim).trim();
+        if (full) {
+          setQuickNote(full);
+          const parsed = parseNaturalLanguageText(full);
+          if (parsed.rating) setRating(parsed.rating);
+          if (parsed.product_interest) setProductInterest(parsed.product_interest);
+          if (parsed.purchase_timeline) setPurchaseTimeline(parsed.purchase_timeline);
+        }
+      },
+      onEnd: () => setIsListeningVoice(false),
+      onError: () => setIsListeningVoice(false),
+    });
+
+    if (recognizer) {
+      recognizerRef.current = recognizer;
+      setIsListeningVoice(true);
+      recognizer.start();
+    }
+  };
+
+  const handleTogglePlayNote = () => {
+    if (isSpeakingNote) {
+      stopSpeaking();
+      setIsSpeakingNote(false);
+      return;
+    }
+    if (!quickNote.trim()) return;
+    setIsSpeakingNote(true);
+    speakText(quickNote.trim(), {
+      onEnd: () => setIsSpeakingNote(false),
+      onError: () => setIsSpeakingNote(false),
+    });
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -254,19 +323,63 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         </div>
       </div>
 
-      {/* 4. Quick Note */}
+      {/* 4. Quick Note & Voice Note */}
       <div>
-        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1 flex items-center gap-1">
-          <FileText className="w-3.5 h-3.5 text-slate-400" />
-          <span>Quick Note (Optional)</span>
-        </label>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
+            <FileText className="w-3.5 h-3.5 text-slate-400" />
+            <span>Quick Note & Voice Note</span>
+          </label>
+          <div className="flex items-center gap-1.5">
+            {isSpeechRecognitionSupported() && (
+              <button
+                type="button"
+                onClick={handleToggleVoiceInput}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                  isListeningVoice
+                    ? 'bg-rose-600 text-white animate-pulse shadow-sm'
+                    : 'bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200/80'
+                }`}
+                title="Speak to dictate note and auto-qualify"
+              >
+                <Mic className={`w-3.5 h-3.5 ${isListeningVoice ? 'animate-bounce' : 'text-brand-600'}`} />
+                <span>{isListeningVoice ? 'Listening...' : 'Speak Note'}</span>
+              </button>
+            )}
+
+            {isSpeechSynthesisSupported() && quickNote.trim() && (
+              <button
+                type="button"
+                onClick={handleTogglePlayNote}
+                className={`p-1 px-2 rounded-lg border text-xs font-bold transition flex items-center gap-1 ${
+                  isSpeakingNote
+                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
+                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                }`}
+                title="Convert note text to Voice Note (TTS)"
+              >
+                <Volume2 className="w-3.5 h-3.5 text-amber-600" />
+                <span className="text-[10px]">{isSpeakingNote ? 'Stop' : 'Play Note'}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
         <textarea
           value={quickNote}
           onChange={(e) => setQuickNote(e.target.value)}
-          placeholder="e.g. Budget approved, requested Arabic NLP demo..."
+          placeholder="Speak or type details. Say e.g. 'Very hot lead, wants demo next week for Enterprise AI' to auto-classify..."
           rows={2}
-          className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-[#00838f]"
+          className={`w-full text-xs rounded-xl border p-2.5 focus:outline-none focus:ring-2 focus:ring-[#00838f] transition ${
+            isListeningVoice ? 'border-rose-400 ring-2 ring-rose-400/30 bg-rose-50/20' : 'border-slate-300'
+          }`}
         />
+        {isListeningVoice && (
+          <p className="text-[10px] text-rose-600 font-bold mt-1 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
+            Listening... Speak in natural language to auto-classify lead temperature and solution.
+          </p>
+        )}
       </div>
 
       {/* Action Buttons */}

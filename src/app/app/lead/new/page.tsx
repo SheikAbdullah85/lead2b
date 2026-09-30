@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/Input';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
 import { Lead, LeadRating, PriorityLevel, PurchaseTimeline } from '@/lib/types';
-import { ArrowLeft, UserPlus, Flame, Sparkles, Building2, CheckCircle2, WifiOff, ListFilter } from 'lucide-react';
+import { ArrowLeft, UserPlus, Flame, Sparkles, Building2, CheckCircle2, WifiOff, ListFilter, Mic } from 'lucide-react';
+import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoiceInput';
+import { ParsedNaturalLanguageLead } from '@/lib/utils/speech';
 
 export default function ManualLeadPage() {
   const router = useRouter();
@@ -27,6 +29,20 @@ export default function ManualLeadPage() {
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [savedLead, setSavedLead] = useState<Lead | null>(null);
+
+  const handleApplyVoiceData = (data: ParsedNaturalLanguageLead) => {
+    if (data.first_name) setFirstName(data.first_name);
+    if (data.last_name) setLastName(data.last_name);
+    if (data.company) setCompany(data.company);
+    if (data.job_title) setJobTitle(data.job_title);
+    if (data.email) setEmail(data.email);
+    if (data.mobile) setMobile(data.mobile);
+    if (data.rating) setRating(data.rating);
+    if (data.priority) setPriority(data.priority);
+    if (data.product_interest) setProductInterest(data.product_interest);
+    if (data.purchase_timeline) setTimeline(data.purchase_timeline);
+    if (data.raw_transcript) setNotes(data.raw_transcript);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -169,6 +185,12 @@ export default function ManualLeadPage() {
               Instant offline-first entry for walk-ins or visitors without printed badges
             </p>
           </div>
+
+          {/* Natural Language Voice Dictation & Audio Note Assistant */}
+          <NaturalLanguageVoiceInput
+            onApplyExtractedData={handleApplyVoiceData}
+            defaultExpanded={true}
+          />
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-2.5">

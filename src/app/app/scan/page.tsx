@@ -32,8 +32,11 @@ import {
   Layers,
   RefreshCw,
   Clock,
+  Mic,
 } from 'lucide-react';
 import { playSuccessBeep, playWarningBeep } from '@/lib/utils/sound';
+import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoiceInput';
+import { ParsedNaturalLanguageLead } from '@/lib/utils/speech';
 
 export default function ScanPage() {
   const router = useRouter();
@@ -70,6 +73,20 @@ export default function ScanPage() {
   const [notes, setNotes] = useState('');
   const [isSavingManual, setIsSavingManual] = useState(false);
   const [manualSaveSuccess, setManualSaveSuccess] = useState<Lead | null>(null);
+
+  const handleApplyVoiceData = (data: ParsedNaturalLanguageLead) => {
+    if (data.first_name) setFirstName(data.first_name);
+    if (data.last_name) setLastName(data.last_name);
+    if (data.company) setCompany(data.company);
+    if (data.job_title) setJobTitle(data.job_title);
+    if (data.email) setEmail(data.email);
+    if (data.mobile) setMobile(data.mobile);
+    if (data.rating) setRating(data.rating);
+    if (data.priority) setPriority(data.priority);
+    if (data.product_interest) setProductInterest(data.product_interest);
+    if (data.purchase_timeline) setTimeline(data.purchase_timeline);
+    if (data.raw_transcript) setNotes(data.raw_transcript);
+  };
 
   // Handle scanned QR code text
   const handleQrDecoded = async (qrText: string) => {
@@ -532,17 +549,20 @@ export default function ScanPage() {
             </div>
           )}
 
-          {/* Quick Direct Link to Manual Form */}
+          {/* Quick Direct Link to Manual Form / Voice Dictation */}
           <div className="flex items-center justify-between p-2.5 bg-cyan-50/70 border border-cyan-200/80 rounded-2xl text-xs">
-            <span className="text-cyan-900 font-medium text-[11px]">No physical badge to scan?</span>
+            <div>
+              <span className="text-cyan-950 font-bold text-[11px] block">No physical badge to scan?</span>
+              <span className="text-cyan-700 text-[10px]">Use Voice Dictation or Manual Form</span>
+            </div>
             <Button
               size="sm"
               variant="primary"
-              className="text-[11px] font-bold py-1 px-3"
+              className="text-[11px] font-bold py-1.5 px-3 shadow-xs"
               onClick={() => setActiveTab('manual')}
             >
-              <UserPlus className="w-3.5 h-3.5 mr-1" />
-              Enter Details Manually
+              <Mic className="w-3.5 h-3.5 mr-1 text-cyan-200" />
+              Voice &amp; Form
             </Button>
           </div>
 
@@ -640,6 +660,12 @@ export default function ScanPage() {
                   Instant offline capture for walk-ins without QR badges
                 </p>
               </div>
+
+              {/* Natural Language Voice Dictation & Audio Note Assistant */}
+              <NaturalLanguageVoiceInput
+                onApplyExtractedData={handleApplyVoiceData}
+                defaultExpanded={true}
+              />
 
               <form onSubmit={handleSaveManualLead} className="space-y-3">
                 <div className="grid grid-cols-2 gap-2">
