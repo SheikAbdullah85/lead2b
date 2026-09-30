@@ -3,23 +3,16 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, DEMO_USERS, DEFAULT_CREDENTIALS } from '@/lib/auth/context';
+import { useAuth } from '@/lib/auth/context';
 import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
 import { Logo } from '@/components/ui/Logo';
 import {
   Lock,
   Mail,
   Sparkles,
-  Smartphone,
-  Building2,
-  UserCheck,
-  Shield,
   Eye,
   EyeOff,
   AlertCircle,
-  KeyRound,
-  CheckCircle2,
   Info,
 } from 'lucide-react';
 
@@ -27,7 +20,6 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get('redirect');
-  const isDemoMode = searchParams.get('demo') === 'true';
   const { login } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -35,7 +27,6 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [showCredentialsCheatSheet, setShowCredentialsCheatSheet] = useState(false);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -66,42 +57,6 @@ function LoginForm() {
     }
   };
 
-  const handlePreFillPersona = (emailToFill: string, passwordToFill: string) => {
-    setEmail(emailToFill);
-    setPassword(passwordToFill);
-    setErrorMessage(null);
-  };
-
-  const handleQuickDemoLogin = async (demoKey: keyof typeof DEMO_USERS) => {
-    const user = DEMO_USERS[demoKey];
-    const cred = DEFAULT_CREDENTIALS[user.email] || { password: 'Password123!' };
-    setEmail(user.email);
-    setPassword(cred.password);
-    setErrorMessage(null);
-    setIsLoading(true);
-
-    const result = await login(user.email, cred.password, user.system_role);
-    setIsLoading(false);
-
-    if (!result.success) {
-      setErrorMessage(result.error || 'Login failed.');
-      return;
-    }
-
-    if (redirectParam && redirectParam.startsWith('/')) {
-      router.push(redirectParam);
-      return;
-    }
-
-    if (user.system_role === 'sales_rep') {
-      router.push('/app/dashboard');
-    } else if (user.system_role === 'exhibitor_admin') {
-      router.push('/exhibitor/dashboard');
-    } else {
-      router.push('/admin/dashboard');
-    }
-  };
-
   return (
     <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-6 sm:p-8 border border-slate-200">
       {/* Brand Header */}
@@ -117,102 +72,6 @@ function LoginForm() {
         <div className="mb-4 p-3 bg-teal-50 border border-teal-200 rounded-xl text-xs text-teal-900 flex items-center gap-2">
           <Info className="w-4 h-4 text-[#00838f] shrink-0" />
           <span>Please sign in with your credentials to access that portal.</span>
-        </div>
-      )}
-
-      {/* 1-Click Fast Persona Fill / Login (Visible only when ?demo=true) */}
-      {isDemoMode && (
-        <div className="mb-5 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl">
-          <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider mb-2.5">
-            <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#00838f]" />
-              <span>Select System Persona:</span>
-            </span>
-            <button
-              type="button"
-              onClick={() => setShowCredentialsCheatSheet(!showCredentialsCheatSheet)}
-              className="text-[10px] text-[#00838f] hover:underline font-bold"
-            >
-              {showCredentialsCheatSheet ? 'Hide Credentials' : 'View Passwords'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('sales_rep')}
-              className="px-2.5 py-2 rounded-xl bg-white border border-teal-200 hover:border-teal-400 hover:bg-teal-50/50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-            >
-              <Smartphone className="w-4 h-4 text-[#00838f] shrink-0" />
-              <div>
-                <p className="leading-none text-slate-900">Sales Rep</p>
-                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Mobile Badge PWA</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('exhibitor_admin')}
-              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-            >
-              <Building2 className="w-4 h-4 text-slate-700 shrink-0" />
-              <div>
-                <p className="leading-none text-slate-900">Exhibitor</p>
-                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Booth Manager</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('organizer_admin')}
-              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-            >
-              <UserCheck className="w-4 h-4 text-amber-600 shrink-0" />
-              <div>
-                <p className="leading-none text-slate-900">Organizer</p>
-                <p className="text-[10px] text-slate-400 font-normal mt-0.5">GITEX Portal</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickDemoLogin('super_admin')}
-              className="px-2.5 py-2 rounded-xl bg-white border border-slate-200 hover:border-slate-400 hover:bg-slate-50 text-xs font-bold text-slate-800 text-left flex items-center gap-2 shadow-2xs transition cursor-pointer"
-            >
-              <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
-              <div>
-                <p className="leading-none text-slate-900">Super Admin</p>
-                <p className="text-[10px] text-slate-400 font-normal mt-0.5">Platform Owner</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Cheat sheet table */}
-          {showCredentialsCheatSheet && (
-            <div className="mt-3 pt-3 border-t border-slate-200 space-y-1.5 text-[11px] text-slate-600 font-mono">
-              <p className="font-sans font-bold text-slate-800 text-xs mb-1">Live Supabase Credentials:</p>
-              <div className="flex justify-between bg-teal-50/80 p-1.5 rounded border border-teal-200">
-                <span className="font-semibold text-slate-900">sheik85@gmail.com (Super Admin)</span>
-                <span className="text-[#00838f] font-bold">Craftix@2026</span>
-              </div>
-              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-                <span>admin@lead2b.com (Super Admin)</span>
-                <span className="text-[#00838f] font-bold">Craftix@2026</span>
-              </div>
-              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-                <span>organizer@gitex.com (Organizer)</span>
-                <span className="text-[#00838f] font-bold">Craftix@2026</span>
-              </div>
-              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-                <span>exhibitor@alphatech.com (Exhibitor)</span>
-                <span className="text-[#00838f] font-bold">Craftix@2026</span>
-              </div>
-              <div className="flex justify-between bg-white p-1.5 rounded border border-slate-200">
-                <span>tariq@alphatech.com (Sales Rep)</span>
-                <span className="text-[#00838f] font-bold">Craftix@2026</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
@@ -236,7 +95,7 @@ function LoginForm() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. tariq@alphatech.com"
+              placeholder="name@company.com"
               required
               className="w-full text-xs rounded-xl border border-slate-300 pl-10 pr-3 py-3 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30 focus:border-[#00838f] text-slate-800 font-medium"
             />
@@ -244,9 +103,17 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-            Password
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Password
+            </label>
+            <a
+              href="mailto:support@lead2b.com?subject=Password%20Reset%20Request"
+              className="text-[11px] text-[#00838f] hover:underline font-medium"
+            >
+              Forgot password?
+            </a>
+          </div>
           <div className="relative">
             <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
             <input
@@ -260,7 +127,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -274,15 +141,8 @@ function LoginForm() {
               defaultChecked
               className="rounded border-slate-300 text-[#00838f] focus:ring-[#00838f]"
             />
-            <span>Remember session</span>
+            <span>Remember session on this device</span>
           </label>
-          <button
-            type="button"
-            onClick={() => handlePreFillPersona('tariq@alphatech.com', 'Password123!')}
-            className="font-bold text-[#00838f] hover:underline"
-          >
-            Fill Demo Rep
-          </button>
         </div>
 
         <Button
@@ -290,24 +150,26 @@ function LoginForm() {
           variant="primary"
           size="lg"
           isLoading={isLoading}
-          className="w-full font-black mt-2 shadow-lg shadow-teal-700/25 py-3 text-sm"
+          className="w-full font-black mt-2 shadow-lg shadow-teal-700/25 py-3 text-sm cursor-pointer"
         >
-          Sign In with Credentials
+          Sign In to Workspace
         </Button>
       </form>
 
       <div className="text-center mt-6 pt-4 border-t border-slate-100">
         <p className="text-[11px] text-slate-400 font-medium">
-          Multi-tenant isolation • Enterprise Workspace
+          Encrypted 256-bit TLS • Multi-tenant Data Isolation
         </p>
-        {!isDemoMode && (
+        <div className="mt-3 pt-3 border-t border-slate-50 flex items-center justify-center gap-2 text-xs">
+          <span className="text-slate-400">Evaluating lead2b?</span>
           <Link
-            href="/login?demo=true"
-            className="text-[10px] text-slate-300 hover:text-slate-500 transition block mt-1.5"
+            href="/demo"
+            className="font-bold text-[#00838f] hover:text-[#006978] transition flex items-center gap-1"
           >
-            Demo tester? Enable demo personas
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Launch Interactive Demo Sandbox →</span>
           </Link>
-        )}
+        </div>
       </div>
     </div>
   );
