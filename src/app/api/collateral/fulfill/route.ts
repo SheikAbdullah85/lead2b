@@ -16,7 +16,8 @@ export async function POST(req: NextRequest) {
 
     // In production, this calls SendGrid, Postmark, or AWS SES with trackable links.
     // We log the fulfillment and return simulated delivery confirmation.
-    console.log(`[Fulfillment] Instant digital collateral dispatched to: ${dispatch.lead_email} (${dispatch.asset_titles.join(', ')})`);
+    const titles = dispatch.asset_titles?.join(', ') || dispatch.asset_ids.join(', ');
+    console.log(`[Fulfillment] Instant digital collateral dispatched to: ${dispatch.lead_email} (${titles})`);
 
     const result = {
       success: true,

@@ -11,13 +11,17 @@ export function ServiceWorkerRegister() {
           .then((reg) => {
             console.log('[lead2b] ServiceWorker registered with scope:', reg.scope);
             
+            // Force update check on every load
+            reg.update().catch(() => {});
+
             // Check for updates periodically
             reg.onupdatefound = () => {
               const installingWorker = reg.installing;
               if (installingWorker) {
                 installingWorker.onstatechange = () => {
                   if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                    console.log('[lead2b] New content available; please refresh.');
+                    console.log('[lead2b] New version detected; refreshing to load latest code.');
+                    window.location.reload();
                   }
                 };
               }

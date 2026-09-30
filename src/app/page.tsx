@@ -20,14 +20,20 @@ export default function HomePage() {
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/demo">
+            <Button size="sm" variant="outline" className="font-bold border-teal-500/40 text-teal-300 hover:bg-teal-950/50 flex items-center gap-1.5">
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span>Demo Sandbox</span>
+            </Button>
+          </Link>
           <Link href="/login">
             <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-800/70 font-bold">
               Sign In
             </Button>
           </Link>
           <Link href="/app/dashboard">
-            <Button size="sm" variant="primary" className="font-extrabold shadow-lg shadow-teal-900/40">
+            <Button size="sm" variant="primary" className="font-extrabold shadow-lg shadow-teal-900/40 hidden sm:inline-flex">
               Open App
             </Button>
           </Link>
@@ -52,6 +58,22 @@ export default function HomePage() {
         <p className="mt-4 text-sm sm:text-base md:text-lg text-slate-300 max-w-2xl leading-relaxed font-normal">
           Ultra-fast, mobile-first lead capture for exhibitors. Works 100% offline in crowded exhibition venues, scans visitor badges in 5 seconds, qualifies instantly, and syncs seamlessly with any enterprise CRM.
         </p>
+
+        {/* Action CTAs */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-8">
+          <Link href="/demo">
+            <Button size="lg" variant="primary" className="font-black px-6 py-3.5 shadow-xl shadow-teal-700/30 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-teal-300" />
+              <span>Launch Interactive Demo Sandbox</span>
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </Link>
+          <Link href="/login">
+            <Button size="lg" variant="outline" className="font-bold border-slate-700 hover:border-slate-500 text-white px-6 py-3.5 bg-slate-900/60">
+              <span>Client Workspace Sign In</span>
+            </Button>
+          </Link>
+        </div>
 
         {/* Feature Badges */}
         <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-8 text-xs font-bold text-slate-300">
