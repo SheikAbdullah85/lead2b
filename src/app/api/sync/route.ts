@@ -31,16 +31,23 @@ export async function POST(req: NextRequest) {
     switch (item.action) {
       case 'create_lead': {
         const leadData = item.payload;
-        let serverId = `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const isUuid = (val?: string) =>
+          typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+        const targetUuid = isUuid(leadData.id) ? leadData.id : (isUuid(leadData.server_id) ? leadData.server_id : crypto.randomUUID());
+        let serverId = targetUuid;
 
         try {
           const supabase = createServerClient();
-          const { data: dbLead, error: insertError } = await supabase.from('leads').insert([{
+          const { error: insertError } = await supabase.from('leads').insert([{
+            id: targetUuid,
             tenant_id: leadData.tenant_id,
             event_id: leadData.event_id,
             captured_by: leadData.captured_by,
-            first_name: leadData.first_name,
-            last_name: leadData.last_name,
+            attendee_id: isUuid(leadData.attendee_id) ? leadData.attendee_id : null,
+            booth_id: isUuid(leadData.booth_id) ? leadData.booth_id : null,
+            first_name: leadData.first_name || 'Visitor',
+            last_name: leadData.last_name || '',
             company: leadData.company || '',
             job_title: leadData.job_title || '',
             email: leadData.email || '',
@@ -48,24 +55,24 @@ export async function POST(req: NextRequest) {
             website: leadData.website || '',
             country: leadData.country || '',
             industry: leadData.industry || '',
-            source: leadData.source || 'business_card',
+            source: leadData.source || 'qr_scan',
             rating: leadData.rating || 'warm',
             status: leadData.status || 'new',
             priority: leadData.priority || 'medium',
             product_interest: leadData.product_interest || '',
             requirement: leadData.requirement || '',
             purchase_timeline: leadData.purchase_timeline || '1-3 months',
-            capture_method: leadData.capture_method || 'business_card',
+            capture_method: leadData.capture_method || 'QR',
             online_offline: 'online',
             sync_status: 'synced',
             idempotency_key: idempotencyKey,
-          }]).select('id').single();
+          }]);
 
-          if (!insertError && dbLead?.id) {
-            serverId = dbLead.id;
+          if (insertError) {
+            console.warn('API sync direct DB insert warning:', insertError);
           }
         } catch (dbErr) {
-          console.warn('API sync direct DB insert warning:', dbErr);
+          console.warn('API sync direct DB insert exception:', dbErr);
         }
 
         const syncedLead = {

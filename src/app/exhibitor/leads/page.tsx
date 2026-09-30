@@ -8,8 +8,10 @@ import { Lead, LeadRating, LeadStatus } from '@/lib/types';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Search, Download, Filter, ChevronRight, Eye, Phone, Mail, Building2, User, Sparkles, CheckSquare, ShieldCheck, X } from 'lucide-react';
+import { Search, Download, Filter, ChevronRight, Eye, Phone, Mail, Building2, User, Sparkles, CheckSquare, ShieldCheck, X, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { localDb } from '@/lib/db/dexie';
+import { triggerSync } from '@/lib/db/sync-engine';
 
 export default function ExhibitorLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -17,23 +19,94 @@ export default function ExhibitorLeadsPage() {
   const [ratingFilter, setRatingFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshedAt, setLastRefreshedAt] = useState<string>(new Date().toLocaleTimeString());
+
+  const refreshAllLeads = async () => {
+    setIsRefreshing(true);
+    try {
+      // 1. Flush any pending offline sync queue items to Supabase
+      await triggerSync().catch(() => {});
+
+      // 2. Fetch live leads from Supabase PostgreSQL
+      const { data: dbLeads, error: sbErr } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      // 3. Fetch local leads from Dexie
+      const localLeads = await localDb.leads.toArray().catch(() => []);
+
+      const serverList = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : [];
+      
+      // 4. Merge server and local leads, deduplicating by ID or idempotency_key or email
+      const seenIds = new Set<string>();
+      const merged: Lead[] = [];
+
+      for (const lead of serverList) {
+        if (!seenIds.has(lead.id)) {
+          seenIds.add(lead.id);
+          merged.push(lead);
+        }
+      }
+
+      for (const localLead of localLeads) {
+        const alreadyExists = merged.some(
+          (m) =>
+            m.id === localLead.id ||
+            m.id === (localLead as any).server_id ||
+            (localLead.idempotency_key && (m as any).idempotency_key === localLead.idempotency_key) ||
+            (localLead.email && m.email && localLead.email === m.email && localLead.company === m.company)
+        );
+
+        if (!alreadyExists && !seenIds.has(localLead.id)) {
+          seenIds.add(localLead.id);
+          merged.push(localLead as Lead);
+        }
+      }
+
+      // If database is brand new / empty, merge in INITIAL_LEADS as well
+      if (merged.length === 0) {
+        setLeads(INITIAL_LEADS);
+      } else {
+        // Also ensure demo baseline leads are present if no server records match them
+        const baselineIds = new Set(merged.map((m) => m.email));
+        const extraInitial = INITIAL_LEADS.filter((init) => !baselineIds.has(init.email));
+        setLeads([...merged, ...extraInitial]);
+      }
+
+      setLastRefreshedAt(new Date().toLocaleTimeString());
+    } catch (e) {
+      console.warn('Error refreshing exhibitor leads:', e);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadExhibitorLeads() {
-      try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
+    refreshAllLeads();
 
-        if (data && data.length > 0) {
-          setLeads(data as Lead[]);
+    // Set up real-time subscription for new leads inserted via badge/batch scan
+    const channel = supabase
+      .channel('exhibitor-leads-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'leads' },
+        () => {
+          refreshAllLeads();
         }
-      } catch (e) {
-        console.warn('Error loading exhibitor leads from Supabase:', e);
-      }
-    }
-    loadExhibitorLeads();
+      )
+      .subscribe();
+
+    // Auto-refresh interval every 15 seconds
+    const interval = setInterval(() => {
+      refreshAllLeads();
+    }, 15000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(interval);
+    };
   }, []);
 
   const filteredLeads = leads.filter((l) => {
@@ -83,6 +156,18 @@ export default function ExhibitorLeadsPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={refreshAllLeads}
+            disabled={isRefreshing}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 hover:border-brand-300 text-slate-700"
+            title={`Last synced: ${lastRefreshedAt}`}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-brand-600' : 'text-slate-500'}`} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync Cloud'}</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"

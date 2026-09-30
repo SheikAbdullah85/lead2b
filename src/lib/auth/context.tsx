@@ -190,6 +190,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
           setIsLoading(false);
           return;
+        } else {
+          // Auto sign-in so real Supabase Auth session is active
+          const targetEmail = cachedUser?.email || 'tariq@alphatech.com';
+          const authRes = await supabase.auth.signInWithPassword({
+            email: targetEmail,
+            password: 'Craftix@2026',
+          });
+          if (authRes.data.user) {
+            const mappedUser: UserProfile = cachedUser || DEMO_USERS.sales_rep;
+            setUser(mappedUser);
+            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
+          }
         }
       } catch (err) {
         console.warn('Supabase session check error, using cached session:', err);
@@ -383,11 +395,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = (newRole: SystemRole) => {
     if (!user) return;
-    const updated = { ...user, system_role: newRole };
-    setUser(updated);
+    const persona = Object.values(DEMO_USERS).find((u) => u.system_role === newRole) || { ...user, system_role: newRole };
+    setUser(persona);
     try {
-      localStorage.setItem('lead2b_active_user', JSON.stringify(updated));
+      localStorage.setItem('lead2b_active_user', JSON.stringify(persona));
     } catch (e) {}
+
+    // Auto sign in as target persona in Supabase Auth if online
+    if (typeof navigator !== 'undefined' && navigator.onLine && persona.email) {
+      supabase.auth.signInWithPassword({
+        email: persona.email,
+        password: 'Craftix@2026',
+      }).catch(() => {});
+    }
   };
 
   return (

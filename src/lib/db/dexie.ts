@@ -40,7 +40,7 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
 
   const demoAttendees: Attendee[] = [
     {
-      id: 'att00001-0000-0000-0000-000000000001',
+      id: 'a0000001-0000-0000-0000-000000000001',
       event_id: eventId,
       badge_id: 'GITEX2026-ATT-00101',
       qr_token: 'lead2b:badge:GITEX2026-ATT-00101',
@@ -57,7 +57,7 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
       consent_status: true,
     },
     {
-      id: 'att00002-0000-0000-0000-000000000002',
+      id: 'a0000002-0000-0000-0000-000000000002',
       event_id: eventId,
       badge_id: 'GITEX2026-ATT-00102',
       qr_token: 'lead2b:badge:GITEX2026-ATT-00102',
@@ -74,7 +74,7 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
       consent_status: true,
     },
     {
-      id: 'att00003-0000-0000-0000-000000000003',
+      id: 'a0000003-0000-0000-0000-000000000003',
       event_id: eventId,
       badge_id: 'GITEX2026-ATT-00103',
       qr_token: 'lead2b:badge:GITEX2026-ATT-00103',
@@ -91,7 +91,7 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
       consent_status: true,
     },
     {
-      id: 'att00004-0000-0000-0000-000000000004',
+      id: 'a0000004-0000-0000-0000-000000000004',
       event_id: eventId,
       badge_id: 'GITEX2026-ATT-00104',
       qr_token: 'lead2b:badge:GITEX2026-ATT-00104',
@@ -108,7 +108,7 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
       consent_status: true,
     },
     {
-      id: 'att00005-0000-0000-0000-000000000005',
+      id: 'a0000005-0000-0000-0000-000000000005',
       event_id: eventId,
       badge_id: 'GITEX2026-ATT-00105',
       qr_token: 'lead2b:badge:GITEX2026-ATT-00105',

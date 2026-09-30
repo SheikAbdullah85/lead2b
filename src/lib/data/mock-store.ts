@@ -39,7 +39,7 @@ export const INITIAL_EVENTS: Event[] = [
 
 export const INITIAL_ATTENDEES: Attendee[] = [
   {
-    id: 'att00001-0000-0000-0000-000000000001',
+    id: 'a0000001-0000-0000-0000-000000000001',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88219',
     badge_id: 'GITEX2026-ATT-00101',
@@ -57,7 +57,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     consent_status: true,
   },
   {
-    id: 'att00002-0000-0000-0000-000000000002',
+    id: 'a0000002-0000-0000-0000-000000000002',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88220',
     badge_id: 'GITEX2026-ATT-00102',
@@ -75,7 +75,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     consent_status: true,
   },
   {
-    id: 'att00003-0000-0000-0000-000000000003',
+    id: 'a0000003-0000-0000-0000-000000000003',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88221',
     badge_id: 'GITEX2026-ATT-00103',
@@ -93,7 +93,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     consent_status: true,
   },
   {
-    id: 'att00004-0000-0000-0000-000000000004',
+    id: 'a0000004-0000-0000-0000-000000000004',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88222',
     badge_id: 'GITEX2026-ATT-00104',
@@ -111,7 +111,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     consent_status: true,
   },
   {
-    id: 'att00005-0000-0000-0000-000000000005',
+    id: 'a0000005-0000-0000-0000-000000000005',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88223',
     badge_id: 'GITEX2026-ATT-00105',
@@ -129,7 +129,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     consent_status: true,
   },
   {
-    id: 'att00006-0000-0000-0000-000000000006',
+    id: 'a0000006-0000-0000-0000-000000000006',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
     registration_id: 'REG-88224',
     badge_id: 'GITEX2026-ATT-00106',
@@ -153,7 +153,7 @@ export const INITIAL_LEADS: Lead[] = [
     id: 'lead0001-0000-0000-0000-000000000001',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
-    attendee_id: 'att00001-0000-0000-0000-000000000001',
+    attendee_id: 'a0000001-0000-0000-0000-000000000001',
     captured_by: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
     captured_by_name: 'Tariq Mansoor',
     booth_id: 'b0001111-1111-1111-1111-111111111111',
@@ -194,7 +194,7 @@ export const INITIAL_LEADS: Lead[] = [
     id: 'lead0002-0000-0000-0000-000000000002',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
-    attendee_id: 'att00002-0000-0000-0000-000000000002',
+    attendee_id: 'a0000002-0000-0000-0000-000000000002',
     captured_by: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
     captured_by_name: 'Tariq Mansoor',
     booth_id: 'b0001111-1111-1111-1111-111111111111',
@@ -235,7 +235,7 @@ export const INITIAL_LEADS: Lead[] = [
     id: 'lead0003-0000-0000-0000-000000000003',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     event_id: 'eeee1111-1111-1111-1111-111111111111',
-    attendee_id: 'att00003-0000-0000-0000-000000000003',
+    attendee_id: 'a0000003-0000-0000-0000-000000000003',
     captured_by: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
     captured_by_name: 'Sarah Jenkins',
     booth_id: 'b0001111-1111-1111-1111-111111111111',

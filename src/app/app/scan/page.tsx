@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { QrScannerView } from '@/components/scanner/QrScannerView';
 import { QuickQualifyForm } from '@/components/forms/QuickQualifyForm';
@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/Input';
 import { parseBadgeQr } from '@/lib/utils/qr-parser';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
+import { supabase } from '@/lib/supabase/client';
 import {
   Search,
   AlertTriangle,
@@ -27,8 +28,12 @@ import {
   Flame,
   Sun,
   ShieldCheck,
+  Zap,
+  Layers,
+  RefreshCw,
+  Clock,
 } from 'lucide-react';
-import { playWarningBeep } from '@/lib/utils/sound';
+import { playSuccessBeep, playWarningBeep } from '@/lib/utils/sound';
 
 export default function ScanPage() {
   const router = useRouter();
@@ -36,6 +41,13 @@ export default function ScanPage() {
 
   // Mode: Camera Scanner vs. Direct Manual Entry Form
   const [activeTab, setActiveTab] = useState<'scan' | 'manual'>('scan');
+
+  // Batch / Continuous Scan Mode state
+  const [isBatchMode, setIsBatchMode] = useState(false);
+  const [batchDefaultRating, setBatchDefaultRating] = useState<LeadRating>('warm');
+  const [batchFeed, setBatchFeed] = useState<Lead[]>([]);
+  const [batchNotice, setBatchNotice] = useState<{ type: 'success' | 'warning'; message: string } | null>(null);
+  const lastScanTimeRef = useRef<{ badge: string; time: number }>({ badge: '', time: 0 });
 
   // Scanner states
   const [scannedAttendee, setScannedAttendee] = useState<Attendee | null>(null);
@@ -64,6 +76,10 @@ export default function ScanPage() {
     const parsed = parseBadgeQr(qrText);
     const badgeId = parsed.badgeId;
 
+    // Helper to validate UUID
+    const isUuid = (val?: string) =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
     // 1. Check local Dexie first for offline lookup, then mock store
     let matchedAttendee = await localDb.attendees
       .where('badge_id')
@@ -76,15 +92,37 @@ export default function ScanPage() {
       );
     }
 
+    // 1b. Check Supabase online if not found in local cache
+    if (!matchedAttendee && typeof navigator !== 'undefined' && navigator.onLine) {
+      try {
+        const { data: dbAtt } = await supabase
+          .from('attendees')
+          .select('*')
+          .or(`badge_id.ilike.${badgeId},qr_token.eq.${qrText}`)
+          .maybeSingle();
+
+        if (dbAtt) {
+          matchedAttendee = dbAtt as Attendee;
+          await localDb.attendees.put(matchedAttendee).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('Online attendee lookup failed:', err);
+      }
+    }
+
     if (!matchedAttendee) {
-      // Create on the fly using parsed QR information (e.g., vCard, JSON, or badge token)
+      // Create on the fly with a valid UUID so PostgreSQL foreign keys are satisfied
+      const generatedAttUuid = typeof crypto !== 'undefined' && crypto.randomUUID 
+        ? crypto.randomUUID() 
+        : 'a0000000-0000-0000-0000-' + Date.now().toString(16).padStart(12, '0');
+
       matchedAttendee = {
-        id: `att_${Date.now()}`,
+        id: generatedAttUuid,
         event_id: 'eeee1111-1111-1111-1111-111111111111',
         badge_id: badgeId,
         qr_token: qrText,
         first_name: parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : 'Visitor'),
-        last_name: parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : badgeId.slice(-4)),
+        last_name: parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : 'Badge'),
         company: parsed.company || 'Exhibition Visitor',
         job_title: parsed.jobTitle || 'Visitor',
         email: parsed.email || `visitor_${badgeId.slice(-4).toLowerCase()}@event.example.com`,
@@ -93,9 +131,90 @@ export default function ScanPage() {
         visitor_type: (parsed.visitorType as any) || 'Trade Visitor',
         consent_status: true,
       };
+      await localDb.attendees.put(matchedAttendee).catch(() => {});
     }
 
-    // 2. Duplicate Detection Check
+    // 2. Continuous Batch Scan Mode
+    if (isBatchMode) {
+      const now = Date.now();
+      if (lastScanTimeRef.current.badge === badgeId && now - lastScanTimeRef.current.time < 3000) {
+        return;
+      }
+      lastScanTimeRef.current = { badge: badgeId, time: now };
+
+      // Duplicate Detection Check
+      const localExisting = await localDb.leads
+        .where('attendee_id')
+        .equals(matchedAttendee.id)
+        .first();
+      const memExisting = INITIAL_LEADS.find((l) => l.attendee_id === matchedAttendee?.id);
+      const existing = localExisting || memExisting;
+
+      if (existing) {
+        playWarningBeep();
+        setBatchNotice({
+          type: 'warning',
+          message: `Already captured: ${matchedAttendee.first_name} ${matchedAttendee.last_name} (${matchedAttendee.company})`,
+        });
+        setTimeout(() => setBatchNotice(null), 3500);
+        return;
+      }
+
+      // Instant auto-save and background cloud sync
+      playSuccessBeep();
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+      const leadPayload: Omit<Lead, 'id' | 'local_id' | 'sync_status'> = {
+        tenant_id: user?.tenant_id || '11111111-1111-1111-1111-111111111111',
+        event_id: matchedAttendee.event_id || 'eeee1111-1111-1111-1111-111111111111',
+        attendee_id: isUuid(matchedAttendee.id) ? matchedAttendee.id : undefined,
+        captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        captured_by_name: user?.full_name || 'Tariq Mansoor',
+        booth_id: 'b0001111-1111-1111-1111-111111111111',
+        first_name: matchedAttendee.first_name,
+        last_name: matchedAttendee.last_name || 'Visitor',
+        full_name: `${matchedAttendee.first_name} ${matchedAttendee.last_name || 'Visitor'}`.trim(),
+        company: matchedAttendee.company || 'Exhibition Visitor',
+        job_title: matchedAttendee.job_title || 'Visitor',
+        email: matchedAttendee.email || `badge_${badgeId.slice(-4).toLowerCase()}@event.example.com`,
+        mobile: matchedAttendee.mobile || '',
+        country: matchedAttendee.country || 'United Arab Emirates',
+        industry: matchedAttendee.industry || '',
+        source: 'qr_scan',
+        rating: batchDefaultRating,
+        status: batchDefaultRating === 'hot' ? 'demo_required' : 'new',
+        priority: batchDefaultRating === 'hot' ? 'high' : 'medium',
+        product_interest: 'Enterprise AI Platform',
+        requirement: 'Rapid Batch Scan at booth',
+        purchase_timeline: '1-3 months',
+        followup_required: true,
+        followup_date: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10),
+        capture_method: 'QR',
+        captured_at: new Date().toISOString(),
+        online_offline: isOnline ? 'online' : 'offline',
+        consent_status: true,
+        email_marketing_consent: true,
+        privacy_policy_accepted: true,
+        consent_timestamp: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      try {
+        const savedLead = await saveLeadLocally(leadPayload);
+        setBatchFeed((prev) => [savedLead as Lead, ...prev]);
+        setBatchNotice({
+          type: 'success',
+          message: `✓ Batch Synced: ${matchedAttendee.first_name} ${matchedAttendee.last_name} (${matchedAttendee.company})`,
+        });
+        setTimeout(() => setBatchNotice(null), 3500);
+      } catch (err) {
+        console.error('Batch lead auto-save error:', err);
+      }
+      return;
+    }
+
+    // 3. Standard Mode: Duplicate Check & Open Qualification Form
     const localExisting = await localDb.leads
       .where('attendee_id')
       .equals(matchedAttendee.id)
@@ -111,7 +230,7 @@ export default function ScanPage() {
       return;
     }
 
-    // 3. Open Quick Qualify immediately
+    // Open Quick Qualify modal
     setScannedAttendee(matchedAttendee);
   };
 
@@ -270,8 +389,148 @@ export default function ScanPage() {
       {/* VIEW 1: CAMERA SCANNER */}
       {activeTab === 'scan' && (
         <div className="space-y-3 animate-in fade-in-50 duration-150">
+          {/* Continuous Batch Scan Toggle Card */}
+          <div className="p-3 bg-gradient-to-r from-slate-900 to-brand-950 text-white rounded-2xl shadow-md border border-slate-800">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isBatchMode ? 'bg-amber-400 text-slate-950' : 'bg-slate-800 text-slate-300'}`}>
+                  <Zap className={`w-4 h-4 ${isBatchMode ? 'fill-current' : ''}`} />
+                </div>
+                <div>
+                  <div className="text-xs font-black flex items-center gap-1.5">
+                    <span>Continuous Batch Scan</span>
+                    {isBatchMode && (
+                      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/40 uppercase tracking-wider font-extrabold animate-pulse">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {isBatchMode
+                      ? 'Camera stays live • Auto-saves & syncs in real-time'
+                      : 'Opens qualify form on each scan'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBatchMode(!isBatchMode)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-black transition shadow-sm ${
+                  isBatchMode
+                    ? 'bg-amber-400 text-slate-950 hover:bg-amber-300'
+                    : 'bg-white/10 text-white hover:bg-white/20 border border-white/10'
+                }`}
+              >
+                {isBatchMode ? 'ON' : 'Enable'}
+              </button>
+            </div>
+
+            {/* Quick Rating Selector for Batch Mode */}
+            {isBatchMode && (
+              <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between">
+                <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">
+                  Default Rating:
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setBatchDefaultRating('hot')}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                      batchDefaultRating === 'hot'
+                        ? 'bg-rose-500 text-white shadow-sm ring-1 ring-white/30'
+                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                    }`}
+                  >
+                    🔥 Hot
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBatchDefaultRating('warm')}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                      batchDefaultRating === 'warm'
+                        ? 'bg-amber-500 text-white shadow-sm ring-1 ring-white/30'
+                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                    }`}
+                  >
+                    ☀️ Warm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBatchDefaultRating('cold')}
+                    className={`px-2 py-0.5 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
+                      batchDefaultRating === 'cold'
+                        ? 'bg-teal-500 text-white shadow-sm ring-1 ring-white/30'
+                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                    }`}
+                  >
+                    ❄️ Cold
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Real-time Notification Banner */}
+          {batchNotice && (
+            <div
+              className={`p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-in slide-in-from-top-2 duration-200 ${
+                batchNotice.type === 'success'
+                  ? 'bg-emerald-50 border border-emerald-300 text-emerald-900'
+                  : 'bg-amber-50 border border-amber-300 text-amber-900'
+              }`}
+            >
+              {batchNotice.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              )}
+              <span>{batchNotice.message}</span>
+            </div>
+          )}
+
           {/* Main Viewfinder Scanner */}
           <QrScannerView onScanSuccess={handleQrDecoded} isScanningActive={!scannedAttendee} />
+
+          {/* Batch Scan Live Stream Feed */}
+          {isBatchMode && batchFeed.length > 0 && (
+            <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs space-y-2 animate-in fade-in-50">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-brand-600" />
+                  <span>Current Batch Session ({batchFeed.length})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => router.push('/app/leads')}
+                  className="text-[11px] font-bold text-brand-600 hover:text-brand-700 hover:underline"
+                >
+                  View All Leads →
+                </button>
+              </div>
+
+              <div className="divide-y divide-slate-100 max-h-48 overflow-y-auto pr-1">
+                {batchFeed.map((lead, idx) => (
+                  <div key={lead.id || idx} className="py-2 flex items-center justify-between text-xs">
+                    <div>
+                      <div className="font-bold text-slate-900">
+                        {lead.first_name} {lead.last_name}
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-medium">
+                        {lead.company} • {lead.email}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Synced
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quick Direct Link to Manual Form */}
           <div className="flex items-center justify-between p-2.5 bg-cyan-50/70 border border-cyan-200/80 rounded-2xl text-xs">

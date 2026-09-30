@@ -62,13 +62,20 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServerClient();
 
+    const targetUuid = crypto.randomUUID();
+
+    // Helper to check valid UUID
+    const isUuid = (val?: string) =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
     // Insert directly into Supabase PostgreSQL table 'leads'
-    const { data: insertedLead, error: insertError } = await supabase.from('leads').insert([{
+    const { error: insertError } = await supabase.from('leads').insert([{
+      id: targetUuid,
       tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
       event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
-      attendee_id: body.attendee_id || null,
-      captured_by: body.captured_by || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-      booth_id: body.booth_id || null,
+      attendee_id: isUuid(body.attendee_id) ? body.attendee_id : null,
+      captured_by: isUuid(body.captured_by) ? body.captured_by : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      booth_id: isUuid(body.booth_id) ? body.booth_id : null,
       first_name: body.first_name,
       last_name: body.last_name,
       company: body.company || '',
@@ -91,14 +98,14 @@ export async function POST(req: NextRequest) {
       consent_status: true,
       email_marketing_consent: true,
       privacy_policy_accepted: true,
-    }]).select().single();
+    }]);
 
     if (insertError) {
       console.warn('Database insert failed, using memory fallback:', insertError);
     }
 
-    const savedLead: Lead = insertedLead || {
-      id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    const savedLead: Lead = {
+      id: targetUuid,
       tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
       event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
       attendee_id: body.attendee_id,
@@ -125,6 +132,11 @@ export async function POST(req: NextRequest) {
       captured_at: new Date().toISOString(),
       online_offline: 'online',
       sync_status: 'synced',
+      followup_required: true,
+      consent_status: true,
+      email_marketing_consent: true,
+      privacy_policy_accepted: true,
+      consent_timestamp: new Date().toISOString(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

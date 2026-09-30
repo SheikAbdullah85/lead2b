@@ -143,9 +143,12 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
           const isUuid = (val?: string) =>
             typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
 
+          const generatedUuid = isUuid(p.id) ? p.id : (isUuid(p.server_id) ? p.server_id : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'c0000000-0000-0000-0000-' + Date.now().toString(16).padStart(12, '0')));
+
           // Attempt 1: Direct Supabase PostgreSQL Insertion
           try {
-            const { data: dbLead, error: sbError } = await supabase.from('leads').insert([{
+            const { error: sbError } = await supabase.from('leads').insert([{
+              id: generatedUuid,
               tenant_id: p.tenant_id,
               event_id: p.event_id,
               captured_by: p.captured_by,
@@ -160,22 +163,22 @@ export async function triggerSync(): Promise<{ success: boolean; syncedCount: nu
               website: p.website || '',
               country: p.country || '',
               industry: p.industry || '',
-              source: p.source || 'business_card',
+              source: p.source || 'qr_scan',
               rating: p.rating || 'warm',
               status: p.status || 'new',
               priority: p.priority || 'medium',
               product_interest: p.product_interest || '',
               requirement: p.requirement || '',
               purchase_timeline: p.purchase_timeline || '1-3 months',
-              capture_method: p.capture_method || 'business_card',
+              capture_method: p.capture_method || 'QR',
               online_offline: 'online',
               sync_status: 'synced',
               idempotency_key: item.idempotency_key,
-            }]).select('id').single();
+            }]);
 
-            if (!sbError && dbLead?.id) {
-              serverLeadId = dbLead.id;
-            } else if (sbError) {
+            if (!sbError) {
+              serverLeadId = generatedUuid;
+            } else {
               console.warn('Direct Supabase insert returned error:', sbError);
             }
           } catch (sbErr) {

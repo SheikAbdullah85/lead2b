@@ -2,50 +2,94 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Filter, Plus, Building2, Flame, Sun, ChevronRight, User, Phone, MessageCircle, QrCode, CheckCircle2, CloudOff, Sparkles, X } from 'lucide-react';
+import { Search, Filter, Plus, Building2, Flame, Sun, ChevronRight, User, Phone, MessageCircle, QrCode, CheckCircle2, CloudOff, Sparkles, X, RefreshCw } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { localDb } from '@/lib/db/dexie';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
 import { supabase } from '@/lib/supabase/client';
+import { triggerSync } from '@/lib/db/sync-engine';
 
 export default function MobileLeadsPage() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadAllLeads = async () => {
+    setIsRefreshing(true);
+    // Instant offline fast-path
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const localList = await localDb.leads.toArray().catch(() => []);
+      setLeads(localList.length > 0 ? (localList as Lead[]) : INITIAL_LEADS);
+      setIsRefreshing(false);
+      return;
+    }
+
+    try {
+      // 1. Flush any pending queue to cloud
+      await triggerSync().catch(() => {});
+
+      // 2. Query live Supabase database
+      const { data: dbLeads } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      const localList = await localDb.leads.toArray().catch(() => []);
+      const serverLeads = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : [];
+      
+      // 3. Merge offline/local Dexie leads with server leads
+      const seenIds = new Set<string>();
+      const merged: Lead[] = [];
+
+      for (const lead of serverLeads) {
+        if (!seenIds.has(lead.id)) {
+          seenIds.add(lead.id);
+          merged.push(lead);
+        }
+      }
+
+      for (const localLead of localList) {
+        const alreadyExists = merged.some(
+          (m) =>
+            m.id === localLead.id ||
+            m.id === (localLead as any).server_id ||
+            (localLead.idempotency_key && (m as any).idempotency_key === localLead.idempotency_key) ||
+            (localLead.email && m.email && localLead.email === m.email && localLead.company === m.company)
+        );
+
+        if (!alreadyExists && !seenIds.has(localLead.id)) {
+          seenIds.add(localLead.id);
+          merged.push(localLead as Lead);
+        }
+      }
+
+      if (merged.length === 0) {
+        setLeads(INITIAL_LEADS);
+      } else {
+        const baselineEmails = new Set(merged.map((m) => m.email));
+        const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
+        setLeads([...merged, ...extraInitial]);
+      }
+    } catch (e) {
+      const localList = await localDb.leads.toArray().catch(() => []);
+      setLeads(localList.length > 0 ? (localList as Lead[]) : INITIAL_LEADS);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    const loadAllLeads = async () => {
-      // Instant offline fast-path
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        const localList = await localDb.leads.toArray();
-        setLeads(localList.length > 0 ? localList : INITIAL_LEADS);
-        return;
-      }
-
-      try {
-        // Query live Supabase database
-        const { data: dbLeads } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        const localList = await localDb.leads.toArray();
-        const serverLeads = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : INITIAL_LEADS;
-        
-        // Merge offline/local Dexie leads with server leads
-        const serverIds = new Set(serverLeads.map((l) => l.id));
-        const pendingLocal = localList.filter((l) => !serverIds.has(l.id));
-
-        setLeads([...pendingLocal, ...serverLeads]);
-      } catch (e) {
-        const localList = await localDb.leads.toArray();
-        setLeads(localList.length > 0 ? localList : INITIAL_LEADS);
-      }
-    };
-
     loadAllLeads();
+
+    // Auto-refresh every 12 seconds
+    const interval = setInterval(() => {
+      loadAllLeads();
+    }, 12000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const filteredLeads = leads.filter((lead) => {
