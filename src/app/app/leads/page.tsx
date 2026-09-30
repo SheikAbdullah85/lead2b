@@ -17,6 +17,13 @@ export default function MobileLeadsPage() {
 
   useEffect(() => {
     const loadAllLeads = async () => {
+      // Instant offline fast-path
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const localList = await localDb.leads.toArray();
+        setLeads(localList.length > 0 ? localList : INITIAL_LEADS);
+        return;
+      }
+
       try {
         // Query live Supabase database
         const { data: dbLeads } = await supabase

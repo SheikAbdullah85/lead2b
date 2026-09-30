@@ -110,7 +110,7 @@ export default function MobileDashboardPage() {
       </div>
 
       {/* Primary Action Button (SCAN VISITOR LEAD) */}
-      <Link href="/app/scan" className="block">
+      <Link href="/app/scan" prefetch={true} className="block">
         <button className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#006d77] via-[#00838f] to-[#0891b2] text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-teal-700/35 hover:shadow-teal-700/55 active:scale-[0.98] transition-all cursor-pointer border border-teal-400/30">
           <QrCode className="w-7 h-7 text-cyan-200 animate-pulse stroke-[2.4]" />
           <span className="tracking-wide">SCAN VISITOR LEAD</span>
@@ -119,7 +119,7 @@ export default function MobileDashboardPage() {
 
       {/* Secondary Actions: Business Card & Manual Lead */}
       <div className="grid grid-cols-2 gap-2.5">
-        <Link href="/app/lead/card" className="block">
+        <Link href="/app/lead/card" prefetch={true} className="block">
           <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:bg-teal-50/20 active:scale-[0.98] transition flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-teal-50 text-[#00838f] border border-teal-200/70">
               <CreditCard className="w-5 h-5" />
@@ -131,7 +131,7 @@ export default function MobileDashboardPage() {
           </div>
         </Link>
 
-        <Link href="/app/lead/new" className="block">
+        <Link href="/app/lead/new" prefetch={true} className="block">
           <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:bg-teal-50/20 active:scale-[0.98] transition flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
               <UserPlus className="w-5 h-5" />
@@ -148,7 +148,7 @@ export default function MobileDashboardPage() {
       <div className="space-y-2 pt-1">
         <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider px-1">
           <span>Recent Captured Leads</span>
-          <Link href="/app/leads" className="text-[#00838f] hover:underline normal-case font-bold flex items-center gap-0.5">
+          <Link href="/app/leads" prefetch={true} className="text-[#00838f] hover:underline normal-case font-bold flex items-center gap-0.5">
             <span>View All ({leads.length})</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>

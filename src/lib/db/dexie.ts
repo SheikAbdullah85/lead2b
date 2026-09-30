@@ -128,3 +128,8 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
 
   await localDb.attendees.bulkPut(demoAttendees);
 }
+
+// Auto-seed in browser if empty
+if (typeof window !== 'undefined') {
+  seedLocalDatabaseIfNeeded('eeee1111-1111-1111-1111-111111111111').catch(() => {});
+}

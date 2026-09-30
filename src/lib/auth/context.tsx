@@ -117,12 +117,56 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) return JSON.parse(stored);
+      } catch (e) {}
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) return false;
+      } catch (e) {}
+    }
+    return true;
+  });
 
   useEffect(() => {
     // 1. Initial check for active Supabase session
     async function checkSession() {
+      const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+
+      // Fast-path: Check local storage for offline session first
+      let cachedUser: UserProfile | null = null;
+      try {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) {
+          cachedUser = JSON.parse(stored);
+          setUser(cachedUser);
+          setIsLoading(false);
+        }
+      } catch (e) {}
+
+      // If offline, do NOT attempt remote Supabase network queries
+      if (!isOnline) {
+        if (!cachedUser) {
+          // Provide default offline booth rep so sales reps are never blocked at the booth
+          const defaultOfflineRep: UserProfile = DEMO_USERS.tariq_mansoor;
+          setUser(defaultOfflineRep);
+          try {
+            localStorage.setItem('lead2b_active_user', JSON.stringify(defaultOfflineRep));
+          } catch (e) {}
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      // Online: Verify with Supabase Auth
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
@@ -132,37 +176,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             .eq('id', session.user.id)
             .single();
 
-          if (profile) {
-            const mappedUser: UserProfile = {
-              id: profile.id,
-              email: profile.email,
-              full_name: profile.full_name || profile.email.split('@')[0],
-              mobile: profile.mobile,
-              system_role: profile.system_role as SystemRole,
-              tenant_id: profile.tenant_id,
-              is_active: profile.is_active,
-              created_at: profile.created_at,
-            };
-            setUser(mappedUser);
-            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
-            setIsLoading(false);
-            return;
-          }
+          const mappedUser: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || profile?.email || 'sales@alphatech.com',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Sales Rep',
+            mobile: profile?.mobile,
+            system_role: (profile?.system_role as SystemRole) || 'sales_rep',
+            tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+            is_active: profile?.is_active ?? true,
+            created_at: profile?.created_at || session.user.created_at || new Date().toISOString(),
+          };
+          setUser(mappedUser);
+          localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
+          setIsLoading(false);
+          return;
         }
       } catch (err) {
-        console.warn('Supabase session check error:', err);
-      }
-
-      // Fallback: Check local storage for offline session
-      try {
-        const stored = localStorage.getItem('lead2b_active_user');
-        if (stored) {
-          setUser(JSON.parse(stored));
-        } else {
-          setUser(null);
-        }
-      } catch (e) {
-        setUser(null);
+        console.warn('Supabase session check error, using cached session:', err);
       } finally {
         setIsLoading(false);
       }
