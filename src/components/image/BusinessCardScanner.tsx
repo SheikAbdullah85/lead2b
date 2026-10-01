@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { compressBusinessCardImage } from '@/lib/utils/compress-image';
 import { parseBusinessCardText, ParsedBusinessCard } from '@/lib/ocr/card-parser';
-import { Camera, RefreshCw, Sparkles, Check, AlertCircle, Loader2, Image as ImageIcon, FileText } from 'lucide-react';
+import { preprocessCardForOcr } from '@/lib/ocr/card-preprocessor';
+import { Camera, RefreshCw, Sparkles, Check, AlertCircle, Loader2, Image as ImageIcon, FileText, PhoneCall } from 'lucide-react';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
 import { Lead } from '@/lib/types';
@@ -37,15 +38,23 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
   const [designation, setDesignation] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [landline, setLandline] = useState('');
   const [website, setWebsite] = useState('');
   const [notes, setNotes] = useState('');
 
-  const processImageOcr = async (imageUrl: string) => {
+  const processImageOcr = async (fileOrUrl: File | string) => {
     setIsScanning(true);
-    setScanStatus('Initializing OCR engine...');
+    setScanStatus('Optimizing image contrast & text boundaries...');
     setScanSuccess(false);
 
     try {
+      // 1. Client-side adaptive contrast enhancement and sharpening specifically for OCR
+      const ocrOptimizedDataUrl = await preprocessCardForOcr(fileOrUrl, {
+        maxDimension: 2048,
+        contrastBoost: 1.35,
+        sharpen: true,
+      });
+
       setScanStatus('Scanning card text with on-device OCR...');
       
       // Dynamic import ensures client-side execution only
@@ -59,7 +68,11 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         },
       });
 
-      const ret = await worker.recognize(imageUrl);
+      await worker.setParameters({
+        preserve_interword_spaces: '1',
+      });
+
+      const ret = await worker.recognize(ocrOptimizedDataUrl);
       await worker.terminate();
 
       const extractedText = ret?.data?.text || '';
@@ -75,13 +88,18 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         if (parsed.designation) setDesignation(parsed.designation);
         if (parsed.email) setEmail(parsed.email);
         if (parsed.phone) setPhone(parsed.phone);
+        if (parsed.landline) setLandline(parsed.landline);
         if (parsed.website) setWebsite(parsed.website);
         if (parsed.address) {
           setNotes((prev) => (prev ? `${prev}\nAddress: ${parsed.address}` : `Address: ${parsed.address}`));
         }
 
         setScanSuccess(true);
-        setScanStatus('Card read successfully! Review details below.');
+        if (parsed.phone) {
+          setScanStatus(`Card read! Mobile detected: ${parsed.phone}`);
+        } else {
+          setScanStatus('Card read! Please review or enter mobile number if missing.');
+        }
       } else {
         setScanStatus('Could not clearly read text. You can fill details manually or retake.');
       }
@@ -106,8 +124,8 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         compKB: Math.round(result.compressedSize / 1024),
       });
 
-      // Run live on-device OCR on the captured image
-      await processImageOcr(result.dataUrl);
+      // Run live high-contrast on-device OCR on the original camera file
+      await processImageOcr(file);
     } catch (err) {
       console.error('Image compression failed:', err);
     } finally {
@@ -144,7 +162,7 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         status: 'new',
         priority: 'medium',
         product_interest: 'Smart Analytics & CRM Suite',
-        requirement: notes,
+        requirement: [notes, landline ? `Office Line: ${landline}` : ''].filter(Boolean).join('\n'),
         purchase_timeline: '1-3 months',
         followup_required: true,
         followup_date: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10),
@@ -334,13 +352,41 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
           onChange={(e) => setEmail(e.target.value)}
           placeholder="name@company.com"
         />
-        <Input
-          label="Mobile / Phone"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          placeholder="+971 50 000 0000"
-        />
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-700">
+              Mobile / Phone
+            </label>
+            {phone && (
+              <span className="text-[10px] bg-teal-50 text-teal-700 font-semibold px-2 py-0.5 rounded-full border border-teal-200">
+                Direct
+              </span>
+            )}
+          </div>
+          <Input
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+971 50 000 0000"
+          />
+        </div>
       </div>
+
+      {landline && (
+        <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between text-xs text-slate-700">
+          <div className="flex items-center gap-1.5">
+            <PhoneCall className="w-3.5 h-3.5 text-slate-500" />
+            <span className="font-semibold text-slate-500">Office Line:</span>
+            <span className="font-mono font-medium text-slate-900">{landline}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotes((prev) => (prev ? `${prev}\nOffice: ${landline}` : `Office: ${landline}`))}
+            className="text-[11px] text-teal-700 font-bold hover:underline cursor-pointer"
+          >
+            + Add to Notes
+          </button>
+        </div>
+      )}
 
       <div>
         <Input
