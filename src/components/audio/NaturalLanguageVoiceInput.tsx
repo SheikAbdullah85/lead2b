@@ -13,6 +13,9 @@ import {
   VolumeX,
   Play,
   Lightbulb,
+  AlertCircle,
+  FileText,
+  Radio,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import {
@@ -50,6 +53,7 @@ export function NaturalLanguageVoiceInput({
   const [extractedData, setExtractedData] = useState<ParsedNaturalLanguageLead | null>(null);
   const [isPlayingTTS, setIsPlayingTTS] = useState(false);
   const [browserSupported, setBrowserSupported] = useState(true);
+  const [speechError, setSpeechError] = useState<string | null>(null);
 
   const recognizerRef = useRef<SpeechRecognizerController | null>(null);
 
@@ -62,8 +66,12 @@ export function NaturalLanguageVoiceInput({
   }, []);
 
   const handleStartListening = () => {
+    setSpeechError(null);
+
     if (!isSpeechRecognitionSupported()) {
-      alert('Speech recognition is not supported in this browser. Please use Chrome, Safari or Edge, or use the "Try Sample" button.');
+      setSpeechError(
+        'Web Speech Recognition is not supported on this browser (supported on Chrome, Edge, Safari). You can type below or test with a sample voice prompt.'
+      );
       return;
     }
 
@@ -79,18 +87,23 @@ export function NaturalLanguageVoiceInput({
       onResult: (finalText, interim) => {
         setTranscript(finalText);
         setInterimText(interim);
-        const combined = (finalText + ' ' + interim).trim();
+        const combined = (finalText ? finalText + ' ' + interim : interim).trim();
         if (combined.length > 5) {
           const parsed = parseNaturalLanguageText(combined);
           setExtractedData(parsed);
         }
       },
-      onError: (err) => {
-        console.warn('Speech recognition error:', err);
+      onError: (friendlyError) => {
+        setSpeechError(friendlyError);
         setIsListening(false);
       },
-      onStart: () => setIsListening(true),
-      onEnd: () => setIsListening(false),
+      onStart: () => {
+        setIsListening(true);
+        setSpeechError(null);
+      },
+      onEnd: () => {
+        setIsListening(false);
+      },
     });
 
     if (recognizer) {
@@ -111,8 +124,10 @@ export function NaturalLanguageVoiceInput({
   };
 
   const handleApplyNow = () => {
-    if (extractedData) {
-      onApplyExtractedData(extractedData);
+    const textToProcess = transcript.trim();
+    if (textToProcess) {
+      const parsed = extractedData || parseNaturalLanguageText(textToProcess);
+      onApplyExtractedData(parsed);
     }
   };
 
@@ -123,7 +138,7 @@ export function NaturalLanguageVoiceInput({
       return;
     }
 
-    const textToSpeak = transcript || (extractedData ? extractedData.raw_transcript : '');
+    const textToSpeak = transcript.trim() || (extractedData ? extractedData.raw_transcript : '');
     if (!textToSpeak) return;
 
     setIsPlayingTTS(true);
@@ -136,6 +151,7 @@ export function NaturalLanguageVoiceInput({
   const handleApplySample = (sampleText: string) => {
     stopSpeaking();
     setIsPlayingTTS(false);
+    setSpeechError(null);
     setTranscript(sampleText);
     setInterimText('');
     const parsed = parseNaturalLanguageText(sampleText);
@@ -148,6 +164,7 @@ export function NaturalLanguageVoiceInput({
     recognizerRef.current?.abort();
     setIsListening(false);
     setIsPlayingTTS(false);
+    setSpeechError(null);
     setTranscript('');
     setInterimText('');
     setExtractedData(null);
@@ -165,14 +182,14 @@ export function NaturalLanguageVoiceInput({
           </div>
           <div>
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-black text-slate-900">Voice Dictation & NLP</span>
+              <span className="text-xs font-black text-slate-900">AI Voice Dictation & Audio Note</span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-brand-100 text-brand-700 flex items-center gap-1">
                 <Sparkles className="w-2.5 h-2.5" />
-                Speech-to-Lead
+                Natural Language
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-medium">
-              Speak naturally to auto-fill visitor details & convert notes to voice audio
+              Speak naturally to extract lead fields, or convert written notes into spoken voice audio
             </p>
           </div>
         </div>
@@ -180,7 +197,7 @@ export function NaturalLanguageVoiceInput({
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
+          className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
           aria-label={isExpanded ? 'Collapse voice dictation' : 'Expand voice dictation'}
         >
           {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -197,10 +214,10 @@ export function NaturalLanguageVoiceInput({
                 variant="primary"
                 size="sm"
                 onClick={handleStartListening}
-                className="font-bold text-xs shadow-xs"
+                className="font-bold text-xs shadow-xs cursor-pointer"
               >
                 <Mic className="w-3.5 h-3.5 mr-1 text-cyan-200" />
-                Start Speaking
+                <span>Start Speaking</span>
               </Button>
             ) : (
               <Button
@@ -208,31 +225,31 @@ export function NaturalLanguageVoiceInput({
                 variant="danger"
                 size="sm"
                 onClick={handleStopListening}
-                className="font-bold text-xs animate-pulse shadow-xs"
+                className="font-bold text-xs animate-pulse shadow-xs cursor-pointer"
               >
                 <MicOff className="w-3.5 h-3.5 mr-1" />
-                Done Speaking (Auto-Extract)
+                <span>Done Speaking (Apply NLP)</span>
               </Button>
             )}
 
-            {(transcript || extractedData) && (
+            {transcript.trim() && (
               <>
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
                   onClick={handlePlayVoiceNote}
-                  className="font-bold text-xs"
+                  className="font-bold text-xs cursor-pointer"
                 >
                   {isPlayingTTS ? (
                     <>
                       <VolumeX className="w-3.5 h-3.5 mr-1 text-rose-500 animate-pulse" />
-                      Stop Voice Note
+                      <span>Stop Voice Note</span>
                     </>
                   ) : (
                     <>
                       <Volume2 className="w-3.5 h-3.5 mr-1 text-brand-600" />
-                      Play Spoken Voice Note
+                      <span>Convert Text to Voice Audio</span>
                     </>
                   )}
                 </Button>
@@ -242,16 +259,16 @@ export function NaturalLanguageVoiceInput({
                   variant="outline"
                   size="sm"
                   onClick={handleApplyNow}
-                  className="font-bold text-xs text-brand-700 border-brand-300 hover:bg-brand-50"
+                  className="font-bold text-xs text-brand-700 border-brand-300 hover:bg-brand-50 cursor-pointer"
                 >
                   <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                  Apply to Form
+                  <span>Apply to Form</span>
                 </Button>
 
                 <button
                   type="button"
                   onClick={handleClear}
-                  className="text-xs text-slate-400 hover:text-slate-600 p-1.5 transition ml-auto"
+                  className="text-xs text-slate-400 hover:text-slate-600 p-1.5 transition ml-auto cursor-pointer"
                   title="Clear text"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -260,121 +277,146 @@ export function NaturalLanguageVoiceInput({
             )}
           </div>
 
-          {/* Listening Indicator / Audio Waveform visual */}
+          {/* Error Banner with Guided Recovery */}
+          {speechError && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs space-y-1.5 animate-in fade-in-50">
+              <div className="flex items-center gap-1.5 font-bold text-amber-800">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Microphone / Speech Notice:</span>
+              </div>
+              <p className="leading-relaxed text-[11px] text-amber-800">{speechError}</p>
+              <div className="pt-1 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-amber-700">Quick Test:</span>
+                <button
+                  type="button"
+                  onClick={() => handleApplySample(SAMPLE_VOICE_PROMPTS[0])}
+                  className="text-[10px] font-bold bg-white text-brand-700 px-2 py-0.5 rounded border border-amber-300 hover:bg-amber-100 transition cursor-pointer"
+                >
+                  Load Sample Voice Dictation →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Active Listening Waveform */}
           {isListening && (
             <div className="flex items-center gap-2 px-3 py-2 bg-rose-50/90 border border-rose-200/80 rounded-xl animate-in fade-in-50">
               <span className="relative flex h-2.5 w-2.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
               </span>
-              <span className="text-xs font-bold text-rose-900">
-                Listening... Speak details (e.g. &ldquo;Met Dr. Sarah from Cleveland Clinic, VP of Health, email sarah@clinic.ae, hot lead...&rdquo;)
+              <span className="text-xs font-bold text-rose-900 flex-1">
+                Listening... Speak naturally (e.g. &ldquo;Met Dr. Sarah from Cleveland Clinic, VP of Health, email sarah@clinic.ae, hot lead...&rdquo;)
               </span>
             </div>
           )}
 
-          {/* Live Streaming Speech Transcript Display */}
-          {(transcript || interimText) && (
-            <div className="p-3 bg-white rounded-xl border border-slate-200/80 text-xs text-slate-800 shadow-2xs">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1 flex items-center justify-between">
-                <span>Spoken Voice Transcript:</span>
-                {extractedData && (
-                  <span className="text-emerald-600 font-bold flex items-center gap-1">
-                    <Check className="w-3 h-3" /> Extracted & Applied
-                  </span>
-                )}
-              </div>
-              <p className="leading-relaxed">
-                <span>{transcript}</span>
-                {interimText && <span className="text-slate-400 italic"> {interimText}</span>}
+          {/* Editable Transcript Display */}
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-1 flex items-center justify-between">
+              <span>Voice Note Transcript:</span>
+              <span className="text-brand-600 font-bold">Type or Speak</span>
+            </label>
+            <textarea
+              value={transcript}
+              onChange={(e) => {
+                const val = e.target.value;
+                setTranscript(val);
+                if (val.trim()) {
+                  const parsed = parseNaturalLanguageText(val);
+                  setExtractedData(parsed);
+                }
+              }}
+              rows={2}
+              placeholder="Speak using the button above, or type conversation details to auto-classify..."
+              className="w-full text-xs font-medium rounded-xl border border-slate-200 p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 text-slate-800"
+            />
+            {interimText && (
+              <p className="text-[11px] text-slate-400 italic mt-0.5 px-1">
+                Streaming: &ldquo;{interimText}&rdquo;
               </p>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Extracted NLP Lead Attributes Pill Badges */}
-          {extractedData && (
-            <div className="p-3 bg-white/90 rounded-xl border border-indigo-100 shadow-2xs space-y-2">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-indigo-900 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-brand-600" />
-                <span>Extracted Lead Attributes</span>
+          {extractedData && (extractedData.full_name || extractedData.company || extractedData.email || extractedData.rating) && (
+            <div className="p-3 bg-white/95 rounded-xl border border-teal-200 shadow-2xs space-y-2">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-800 flex items-center justify-between">
+                <span className="flex items-center gap-1 font-black">
+                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                  <span>AI Extracted Lead Profile</span>
+                </span>
+                <span className="text-[10px] text-teal-600 font-bold">Ready to Apply</span>
               </div>
-              <div className="flex flex-wrap gap-1.5 text-[11px]">
-                {extractedData.first_name && (
-                  <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-800 font-semibold border border-slate-200">
-                    👤 {extractedData.first_name} {extractedData.last_name || ''}
-                  </span>
-                )}
-                {extractedData.company && (
-                  <span className="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-800 font-semibold border border-blue-200">
-                    🏢 {extractedData.company}
+
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {extractedData.full_name && (
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-semibold text-slate-800">
+                    👤 {extractedData.full_name}
                   </span>
                 )}
                 {extractedData.job_title && (
-                  <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-purple-800 font-semibold border border-purple-200">
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-medium text-slate-700">
                     💼 {extractedData.job_title}
                   </span>
                 )}
+                {extractedData.company && (
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-semibold text-slate-800">
+                    🏢 {extractedData.company}
+                  </span>
+                )}
                 {extractedData.email && (
-                  <span className="px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-800 font-semibold border border-emerald-200">
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-mono text-[11px] text-teal-800">
                     ✉️ {extractedData.email}
                   </span>
                 )}
                 {extractedData.mobile && (
-                  <span className="px-2 py-0.5 rounded-lg bg-teal-50 text-teal-800 font-semibold border border-teal-200">
-                    📞 {extractedData.mobile}
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-mono text-[11px] text-teal-800">
+                    📱 {extractedData.mobile}
                   </span>
                 )}
                 {extractedData.rating && (
                   <span
-                    className={`px-2 py-0.5 rounded-lg font-bold border ${
+                    className={`px-2.5 py-1 rounded-lg font-black uppercase text-[10px] tracking-wide ${
                       extractedData.rating === 'hot'
-                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        ? 'bg-rose-100 text-rose-800 border border-rose-200'
                         : extractedData.rating === 'warm'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : 'bg-cyan-50 text-cyan-700 border-cyan-200'
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : 'bg-teal-100 text-teal-800 border border-teal-200'
                     }`}
                   >
-                    {extractedData.rating === 'hot'
-                      ? '🔥 Hot Lead'
-                      : extractedData.rating === 'warm'
-                      ? '☀️ Warm Lead'
-                      : '❄️ Cold Lead'}
+                    🔥 Rating: {extractedData.rating}
                   </span>
                 )}
                 {extractedData.product_interest && (
-                  <span className="px-2 py-0.5 rounded-lg bg-indigo-50 text-indigo-800 font-semibold border border-indigo-200">
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-medium text-slate-700">
                     🎯 {extractedData.product_interest}
                   </span>
                 )}
                 {extractedData.purchase_timeline && (
-                  <span className="px-2 py-0.5 rounded-lg bg-cyan-50 text-cyan-800 font-semibold border border-cyan-200">
-                    ⏳ {extractedData.purchase_timeline}
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-50 border border-teal-200 font-medium text-slate-700">
+                    ⏱️ {extractedData.purchase_timeline}
                   </span>
                 )}
               </div>
             </div>
           )}
 
-          {/* Quick Sample Voice Prompts for Rapid Testing / No-Mic Situations */}
-          <div className="pt-1 border-t border-brand-100/60">
-            <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1.5 font-medium">
-              <span className="flex items-center gap-1">
-                <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
-                Try Sample Voice Notes (Instant Test):
-              </span>
-            </div>
-            <div className="flex flex-col gap-1.5">
+          {/* Sample Prompts Tray */}
+          <div className="pt-1">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+              <Lightbulb className="w-3 h-3 text-amber-500" />
+              <span>Or try instant sample speech prompts:</span>
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
               {SAMPLE_VOICE_PROMPTS.map((prompt, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleApplySample(prompt)}
-                  className="text-left p-2 rounded-lg bg-white/80 hover:bg-white text-[11px] text-slate-700 border border-slate-200/80 hover:border-brand-300 transition flex items-center justify-between group"
+                  className="p-2 text-left rounded-xl bg-white/80 hover:bg-white border border-slate-200/80 text-[11px] text-slate-700 font-medium leading-snug line-clamp-2 transition hover:border-brand-300 cursor-pointer shadow-2xs"
                 >
-                  <span className="line-clamp-1 italic font-medium">&ldquo;{prompt}&rdquo;</span>
-                  <span className="text-[10px] text-brand-600 font-bold opacity-0 group-hover:opacity-100 transition whitespace-nowrap ml-2 flex items-center gap-0.5">
-                    <Play className="w-2.5 h-2.5" /> Test NLP
-                  </span>
+                  &ldquo;{prompt.substring(0, 75)}...&rdquo;
                 </button>
               ))}
             </div>

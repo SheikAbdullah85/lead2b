@@ -35,6 +35,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isListeningVoice, setIsListeningVoice] = useState(false);
   const [isSpeakingNote, setIsSpeakingNote] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [selectedCollateralIds, setSelectedCollateralIds] = useState<string[]>([]);
   const recognizerRef = useRef<SpeechRecognizerController | null>(null);
 
@@ -79,8 +80,9 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
       return;
     }
 
+    setVoiceError(null);
     if (!isSpeechRecognitionSupported()) {
-      alert('Speech recognition is not supported in this browser.');
+      setVoiceError('Speech recognition is not supported in this browser. Please type notes or use Chrome/Safari.');
       return;
     }
 
@@ -88,7 +90,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
       continuous: true,
       interimResults: true,
       onResult: (finalText, interim) => {
-        const full = (finalText || interim).trim();
+        const full = (finalText ? finalText + ' ' + interim : interim).trim();
         if (full) {
           setQuickNote(full);
           const parsed = parseNaturalLanguageText(full);
@@ -97,8 +99,11 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
           if (parsed.purchase_timeline) setPurchaseTimeline(parsed.purchase_timeline);
         }
       },
+      onError: (friendlyError) => {
+        setVoiceError(friendlyError);
+        setIsListeningVoice(false);
+      },
       onEnd: () => setIsListeningVoice(false),
-      onError: () => setIsListeningVoice(false),
     });
 
     if (recognizer) {
@@ -408,6 +413,18 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
             Listening... Speak in natural language to auto-classify lead temperature and solution.
           </p>
+        )}
+        {voiceError && (
+          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-center justify-between gap-1.5 mt-1.5">
+            <span>{voiceError}</span>
+            <button
+              type="button"
+              onClick={() => setVoiceError(null)}
+              className="text-amber-700 hover:text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-amber-300 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
         )}
       </div>
 
