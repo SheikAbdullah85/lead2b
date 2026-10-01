@@ -34,7 +34,7 @@ export default function ExhibitorReportsPage() {
             <TrendingUp className="w-3 h-3 text-brand-600" />
             Executive Performance Intelligence
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Event Commercial Reports</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Event Executive Reports</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Representative velocity, lead conversion ratios, rating distributions, and pipeline value.
           </p>

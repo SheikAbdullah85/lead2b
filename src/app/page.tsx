@@ -16,7 +16,7 @@ export default function HomePage() {
             <Logo size="sm" />
           </div>
           <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-widest text-[#22d3ee] px-2 py-0.5 bg-teal-950/80 border border-teal-800/60 rounded-full">
-            Commercial SaaS v1.0
+            Live Production Platform
           </span>
         </div>
 

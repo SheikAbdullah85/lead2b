@@ -103,6 +103,7 @@ export interface Attendee {
   company_size?: string;
   website?: string;
   registration_source?: string;
+  source?: string;
   consent_status: boolean;
   created_at?: string;
 }

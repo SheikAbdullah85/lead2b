@@ -26,6 +26,7 @@ import { localDb } from '@/lib/db/dexie';
 import { supabase } from '@/lib/supabase/client';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
+import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
 
 export default function MobileDashboardPage() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
@@ -175,39 +176,117 @@ export default function MobileDashboardPage() {
         </div>
       </div>
 
-      {/* Primary Action Button (SCAN VISITOR LEAD) */}
-      <Link href="/app/scan" prefetch={true} className="block">
-        <button className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-[#006d77] via-[#00838f] to-[#0891b2] text-white font-black text-lg flex items-center justify-center gap-3 shadow-xl shadow-teal-700/35 hover:shadow-teal-700/55 active:scale-[0.98] transition-all cursor-pointer border border-teal-400/30">
-          <QrCode className="w-7 h-7 text-cyan-200 animate-pulse stroke-[2.4]" />
-          <span className="tracking-wide">SCAN VISITOR LEAD</span>
+      {/* 3 Primary Lead Capture Hero Actions (Scan Badge, Business Card, Manual Feed) */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+            Quick Capture Actions
+          </span>
+          <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
+            100% Offline Ready
+          </span>
+        </div>
+
+        {/* Action 1: SCAN BADGE (Camera QR + Badge OCR) */}
+        <Link href="/app/scan" prefetch={true} className="block group">
+          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#005f69] via-[#00838f] to-[#0891b2] text-white shadow-lg shadow-teal-900/20 hover:shadow-xl hover:shadow-teal-800/30 active:scale-[0.98] transition-all cursor-pointer border border-teal-400/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/25 shadow-inner">
+                <QrCode className="w-6 h-6 text-cyan-200 stroke-[2.4]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black tracking-tight text-white leading-tight">
+                    1. SCAN BADGE
+                  </h3>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 text-cyan-100 border border-white/25">
+                    QR &amp; OCR
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 mt-0.5 truncate font-medium">
+                  Camera QR scanner &amp; physical badge photo OCR
+                </p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition">
+              <ChevronRight className="w-5 h-5 text-cyan-200" />
+            </div>
+          </div>
+        </Link>
+
+        {/* Action 2: BUSINESS CARD (Card OCR) */}
+        <Link href="/app/lead/card" prefetch={true} className="block group">
+          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#0d6e67] via-[#0f766e] to-[#14b8a6] text-white shadow-lg shadow-teal-900/15 hover:shadow-xl hover:shadow-teal-800/25 active:scale-[0.98] transition-all cursor-pointer border border-teal-300/30 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/25 shadow-inner">
+                <CreditCard className="w-6 h-6 text-teal-100 stroke-[2.4]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black tracking-tight text-white leading-tight">
+                    2. BUSINESS CARD
+                  </h3>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 text-teal-100 border border-white/25">
+                    Card OCR
+                  </span>
+                </div>
+                <p className="text-xs text-slate-200 mt-0.5 truncate font-medium">
+                  Instant mobile number &amp; contact details extraction
+                </p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition">
+              <ChevronRight className="w-5 h-5 text-teal-100" />
+            </div>
+          </div>
+        </Link>
+
+        {/* Action 3: MANUAL FEED (Voice & Form) */}
+        <Link href="/app/lead/new" prefetch={true} className="block group">
+          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-slate-800 to-[#1e293b] text-white shadow-lg shadow-slate-900/20 hover:shadow-xl hover:shadow-slate-800/30 active:scale-[0.98] transition-all cursor-pointer border border-slate-700/60 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/15 shadow-inner">
+                <UserPlus className="w-6 h-6 text-slate-200 stroke-[2.4]" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-black tracking-tight text-white leading-tight">
+                    3. MANUAL FEED
+                  </h3>
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/15 text-slate-200 border border-white/20">
+                    Voice &amp; Form
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-0.5 truncate font-medium">
+                  Fast form entry with natural language voice dictation
+                </p>
+              </div>
+            </div>
+            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition">
+              <ChevronRight className="w-5 h-5 text-slate-300" />
+            </div>
+          </div>
+        </Link>
+      </div>
+
+      {/* PWA Mobile App Quick Install Banner */}
+      <div className="p-3 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-2xl border border-teal-200/90 flex items-center justify-between gap-2 shadow-2xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-[#00838f] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+            📱
+          </div>
+          <div>
+            <span className="text-xs font-black text-slate-900 block leading-tight">Install Mobile App</span>
+            <span className="text-[10px] text-slate-500">Add to phone home screen for offline booth access</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => triggerGlobalPwaInstall()}
+          className="px-3 py-1.5 rounded-xl bg-white border border-teal-300 text-teal-800 font-black text-xs hover:bg-teal-50 active:scale-95 transition shadow-2xs cursor-pointer shrink-0"
+        >
+          Install App
         </button>
-      </Link>
-
-      {/* Secondary Actions: Business Card & Manual Lead */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <Link href="/app/lead/card" prefetch={true} className="block">
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:bg-teal-50/20 active:scale-[0.98] transition flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-teal-50 text-[#00838f] border border-teal-200/70">
-              <CreditCard className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-bold text-slate-900 leading-none">Business Card</p>
-              <p className="text-[10px] text-slate-400 mt-1">Photo & Auto-Size</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/app/lead/new" prefetch={true} className="block">
-          <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs hover:border-teal-400 hover:bg-teal-50/20 active:scale-[0.98] transition flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
-              <UserPlus className="w-5 h-5" />
-            </div>
-            <div className="text-left">
-              <p className="text-xs font-bold text-slate-900 leading-none">Manual Lead</p>
-              <p className="text-[10px] text-slate-400 mt-1">Form Entry</p>
-            </div>
-          </div>
-        </Link>
       </div>
 
       {/* Booth Velocity & Target HUD */}

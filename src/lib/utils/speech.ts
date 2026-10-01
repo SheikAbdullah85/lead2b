@@ -166,23 +166,21 @@ export function createSpeechRecognizer(options: {
 // 2. Text-to-Speech (Text Information to Voice Note)
 // ----------------------------------------------------
 
+// ----------------------------------------------------
+// 2. Text-to-Speech (Stubbed - TTS Disabled Per System Specifications)
+// ----------------------------------------------------
+
 export function isSpeechSynthesisSupported(): boolean {
-  if (typeof window === 'undefined') return false;
-  return 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+  return false;
 }
 
 export function stopSpeaking(): void {
-  if (isSpeechSynthesisSupported()) {
-    try {
-      window.speechSynthesis.cancel();
-      (window as any).__lead2b_activeUtterance = null;
-    } catch (e) {}
-  }
+  // TTS disabled
 }
 
 export function speakText(
-  text: string,
-  options?: {
+  _text: string,
+  _options?: {
     rate?: number;
     pitch?: number;
     lang?: string;
@@ -191,149 +189,94 @@ export function speakText(
     onError?: (err: any) => void;
   }
 ): { stop: () => void } {
-  if (!isSpeechSynthesisSupported()) {
-    options?.onError?.(new Error('Speech synthesis not supported in this browser.'));
-    return { stop: () => {} };
-  }
+  return { stop: () => {} };
+}
 
-  try {
-    // 1. Cancel previous utterance and resume queue (Chrome bug fix)
-    window.speechSynthesis.cancel();
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-
-    const cleanText = text
-      .replace(/[🎙️🔥☀️❄️✨📝📄]/g, '')
-      .replace(/\[.*?\]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    if (!cleanText) {
-      options?.onEnd?.();
-      return { stop: () => {} };
-    }
-
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = options?.rate ?? 0.95; // Slightly slower for clear enterprise comprehension
-    utterance.pitch = options?.pitch ?? 1.0;
-    utterance.lang = options?.lang || (/[؀-ۿ]/.test(cleanText) ? 'ar-AE' : 'en-US');
-
-    // 2. Resolve natural sounding voice
-    const assignVoice = () => {
-      const voices = window.speechSynthesis.getVoices();
-      if (voices && voices.length > 0) {
-        const langPrefix = utterance.lang.slice(0, 2).toLowerCase();
-        const preferred =
-          voices.find(
-            (v) =>
-              v.lang.toLowerCase().startsWith(langPrefix) &&
-              (v.name.includes('Natural') ||
-                v.name.includes('Google') ||
-                v.name.includes('Premium') ||
-                v.name.includes('Samantha') ||
-                v.name.includes('Enhanced'))
-          ) ||
-          voices.find((v) => v.lang.toLowerCase().startsWith(langPrefix)) ||
-          voices[0];
-
-        if (preferred) utterance.voice = preferred;
-      }
-    };
-
-    assignVoice();
-    if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = assignVoice;
-    }
-
-    // 3. Prevent Chrome Garbage Collection bug by pinning utterance to window
-    (window as any).__lead2b_activeUtterance = utterance;
-
-    utterance.onstart = () => {
-      options?.onStart?.();
-    };
-
-    utterance.onend = () => {
-      (window as any).__lead2b_activeUtterance = null;
-      options?.onEnd?.();
-    };
-
-    utterance.onerror = (e) => {
-      (window as any).__lead2b_activeUtterance = null;
-      // 'interrupted' is expected when user hits stop
-      if (e.error !== 'interrupted') {
-        options?.onError?.(e);
-      } else {
-        options?.onEnd?.();
-      }
-    };
-
-    // Speak
-    window.speechSynthesis.speak(utterance);
-
-    // Keep Chrome alive for longer speeches (Chrome stops speaking after 14s if paused)
-    const keepAliveTimer = setInterval(() => {
-      if (!window.speechSynthesis.speaking) {
-        clearInterval(keepAliveTimer);
-      } else {
-        window.speechSynthesis.pause();
-        window.speechSynthesis.resume();
-      }
-    }, 10000);
-
-    return {
-      stop: () => {
-        clearInterval(keepAliveTimer);
-        stopSpeaking();
-      },
-    };
-  } catch (err: any) {
-    options?.onError?.(err);
-    return { stop: () => {} };
-  }
+export function generateLeadVoiceBriefing(lead: Partial<Lead>): string {
+  const name = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Exhibition Visitor';
+  const company = lead.company ? `from ${lead.company}` : '';
+  return `Lead briefing for ${name} ${company}.`.trim();
 }
 
 // ----------------------------------------------------
-// 3. Natural Language Lead Briefing Generator
+// 3. Spoken Text Normalization Helpers
 // ----------------------------------------------------
 
-export function generateLeadVoiceBriefing(lead: Partial<Lead>): string {
-  const parts: string[] = [];
+const SPOKEN_DIGIT_MAP: Record<string, string> = {
+  zero: '0',
+  oh: '0',
+  one: '1',
+  two: '2',
+  three: '3',
+  four: '4',
+  five: '5',
+  six: '6',
+  seven: '7',
+  eight: '8',
+  nine: '9',
+};
 
-  const name = `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Exhibition Visitor';
-  const company = lead.company ? `from ${lead.company}` : '';
-  const title = lead.job_title ? `, ${lead.job_title},` : '';
+export function normalizeSpokenText(input: string): string {
+  if (!input) return '';
 
-  parts.push(`Voice briefing for ${name}${title} ${company}.`);
+  let text = input.trim();
 
-  if (lead.rating) {
-    const ratingDesc =
-      lead.rating === 'hot'
-        ? 'High priority hot lead'
-        : lead.rating === 'warm'
-        ? 'Warm active lead'
-        : 'Cold informational contact';
-    parts.push(`Status: ${ratingDesc}.`);
+  // Normalize common spoken email tokens
+  text = text
+    .replace(/\s+(?:at\s+the\s+rate|at\s+rate|at)\s+/gi, '@')
+    .replace(/\s+dot\s+/gi, '.')
+    .replace(/\s+underscore\s+/gi, '_')
+    .replace(/\s+hyphen\s+|\s+dash\s+/gi, '-');
+
+  // Fix common TLD spoken artifacts
+  text = text
+    .replace(/@\s+/g, '@')
+    .replace(/\s+\./g, '.')
+    .replace(/\.\s+/g, '.')
+    .replace(/\.(?:com|net|org|io|ae|gov|edu|me|co)\b/gi, (match) => match.toLowerCase());
+
+  // Normalize spoken phone numbers: e.g. "plus nine seven one" -> "+971"
+  text = text.replace(/\bplus\s+nine\s+seven\s+one\b/gi, '+971');
+  text = text.replace(/\bplus\b/gi, '+');
+  text = text.replace(/\bdouble\s+zero\b/gi, '00');
+
+  // Convert sequences of spoken digit words to numbers
+  const words = text.split(/\s+/);
+  const normalizedWords: string[] = [];
+  let digitBuffer: string[] = [];
+
+  const flushDigits = () => {
+    if (digitBuffer.length > 0) {
+      if (digitBuffer.length >= 3) {
+        normalizedWords.push(digitBuffer.join(''));
+      } else {
+        // If only 1-2 words like "one step", keep original
+        normalizedWords.push(...digitBuffer);
+      }
+      digitBuffer = [];
+    }
+  };
+
+  for (const w of words) {
+    const cleanW = w.toLowerCase().replace(/[^a-z]/g, '');
+    if (SPOKEN_DIGIT_MAP[cleanW] !== undefined) {
+      digitBuffer.push(SPOKEN_DIGIT_MAP[cleanW]);
+    } else {
+      flushDigits();
+      normalizedWords.push(w);
+    }
   }
+  flushDigits();
 
-  if (lead.product_interest) {
-    parts.push(`Interested in ${lead.product_interest}.`);
-  }
+  return normalizedWords.join(' ');
+}
 
-  if (lead.purchase_timeline) {
-    parts.push(`Purchase timeline is ${lead.purchase_timeline}.`);
-  }
-
-  if (lead.requirement) {
-    const cleanReq = lead.requirement.replace(/[🎙️🔥☀️❄️✨📝📄]/g, '').trim();
-    if (cleanReq) parts.push(`Booth notes: ${cleanReq}.`);
-  }
-
-  if (lead.followup_date) {
-    parts.push(`Follow-up scheduled for ${lead.followup_date}.`);
-  }
-
-  return parts.join(' ');
+function capitalizeWords(str: string): string {
+  if (!str) return '';
+  return str
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 }
 
 // ----------------------------------------------------
@@ -341,10 +284,11 @@ export function generateLeadVoiceBriefing(lead: Partial<Lead>): string {
 // ----------------------------------------------------
 
 export function parseNaturalLanguageText(transcript: string): ParsedNaturalLanguageLead {
-  const text = transcript.trim();
+  const normalized = normalizeSpokenText(transcript);
+  const text = normalized.trim();
   const lower = text.toLowerCase();
   const result: ParsedNaturalLanguageLead = {
-    raw_transcript: text,
+    raw_transcript: transcript.trim(),
   };
 
   // 1. Rating extraction
@@ -356,7 +300,9 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('high priority') ||
     lower.includes('contract ready') ||
     lower.includes('vip') ||
-    lower.includes('live demo')
+    lower.includes('live demo') ||
+    lower.includes('top priority') ||
+    lower.includes('decision maker')
   ) {
     result.rating = 'hot';
     result.priority = 'high';
@@ -365,14 +311,17 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('just looking') ||
     lower.includes('student') ||
     lower.includes('no budget') ||
-    lower.includes('not interested')
+    lower.includes('not interested') ||
+    lower.includes('low priority')
   ) {
     result.rating = 'cold';
     result.priority = 'low';
   } else if (
     lower.includes('warm') ||
     lower.includes('interested') ||
-    lower.includes('follow up')
+    lower.includes('follow up') ||
+    lower.includes('evaluate') ||
+    lower.includes('proposal')
   ) {
     result.rating = 'warm';
     result.priority = 'medium';
@@ -381,16 +330,17 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     result.priority = 'medium';
   }
 
-  // 2. Email extraction
-  const emailMatch = text.match(/([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+)/);
+  // 2. Email extraction (handles both standard and spoken-normalized formats)
+  const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
   if (emailMatch) {
     result.email = emailMatch[1].toLowerCase();
   }
 
-  // 3. Mobile / Phone extraction
-  const phoneMatch = text.match(/(?:\+971|00971|0)?(?:50|51|52|54|55|56|58|2|3|4|6|7|9)\s?[0-9]{3}\s?[0-9]{4}/);
+  // 3. Mobile / Phone extraction (UAE +971, 05X, GCC, and international formats)
+  const phoneMatch = text.match(/(?:\+?971|00971|0)?(?:50|51|52|54|55|56|58|2|3|4|6|7|9)\s?[0-9]{3}\s?[0-9]{4}/) ||
+    text.match(/\+?[0-9]{1,4}[-.\s]?[0-9]{2,4}[-.\s]?[0-9]{3,4}[-.\s]?[0-9]{3,4}/);
   if (phoneMatch) {
-    result.mobile = phoneMatch[0].replace(/\s+/g, '');
+    result.mobile = phoneMatch[0].replace(/[\s.-]/g, '');
   }
 
   // 4. Product / Solution matching
@@ -400,7 +350,8 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('machine learning') ||
     lower.includes('copilot') ||
     lower.includes('gpt') ||
-    lower.includes('llm')
+    lower.includes('llm') ||
+    lower.includes('agent')
   ) {
     result.product_interest = 'Enterprise AI Platform';
   } else if (
@@ -409,7 +360,8 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('azure') ||
     lower.includes('infrastructure') ||
     lower.includes('hosting') ||
-    lower.includes('server')
+    lower.includes('server') ||
+    lower.includes('devops')
   ) {
     result.product_interest = 'Cloud Infrastructure & Security';
   } else if (
@@ -417,7 +369,8 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('crm') ||
     lower.includes('reporting') ||
     lower.includes('dashboard') ||
-    lower.includes('bi')
+    lower.includes('bi') ||
+    lower.includes('sales')
   ) {
     result.product_interest = 'Smart Analytics & CRM Suite';
   } else if (
@@ -425,14 +378,16 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('security') ||
     lower.includes('compliance') ||
     lower.includes('firewall') ||
-    lower.includes('penetration')
+    lower.includes('penetration') ||
+    lower.includes('soc')
   ) {
     result.product_interest = 'Cybersecurity & Compliance';
   } else if (
     lower.includes('custom') ||
     lower.includes('outsourcing') ||
     lower.includes('development') ||
-    lower.includes('software services')
+    lower.includes('software services') ||
+    lower.includes('app development')
   ) {
     result.product_interest = 'Custom Software Services';
   }
@@ -444,70 +399,79 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     lower.includes('this month') ||
     lower.includes('right away') ||
     lower.includes('in two weeks') ||
-    lower.includes('in 2 weeks')
+    lower.includes('in 2 weeks') ||
+    lower.includes('next week')
   ) {
     result.purchase_timeline = 'immediate';
   } else if (
     lower.includes('1 to 3 months') ||
     lower.includes('1-3 months') ||
     lower.includes('next quarter') ||
-    lower.includes('next month')
+    lower.includes('next month') ||
+    lower.includes('few months')
   ) {
     result.purchase_timeline = '1-3 months';
   } else if (
     lower.includes('3 to 6 months') ||
-    lower.includes('3-6 months')
+    lower.includes('3-6 months') ||
+    lower.includes('mid year')
   ) {
     result.purchase_timeline = '3-6 months';
   } else if (
     lower.includes('6 to 12 months') ||
-    lower.includes('next year')
+    lower.includes('next year') ||
+    lower.includes('annual')
   ) {
     result.purchase_timeline = '6-12 months';
   }
 
   // 6. Name and Company Extraction
-  const metPattern = /(?:met|spoke with|speaking with|talking to|visitor is|name is)\s+((?:(?:Dr\.|Dr|Mr\.|Mr|Ms\.|Ms|Eng\.|Eng|Sheikh)\s+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:from|at|with)\s+([A-Z0-9][A-Za-z0-9\s&]+?)(?:\.|\,|$|\s+(?:who|interested|he|she|phone|email|mobile))/i;
+  // Pattern A: "met [Name] from [Company]" or "spoke with [Name] at [Company]"
+  const metPattern = /(?:met|spoke with|speaking with|talking to|visitor is|contact is)\s+((?:(?:dr\.|dr|mr\.|mr|ms\.|ms|eng\.|eng|sheikh)\s+)?[a-z\.\'\-]+(?:\s+[a-z\.\'\-]+){1,3})\s+(?:from|at|with|works for|working at)\s+([a-z0-9\.\'\-&]+(?:\s+[a-z0-9\.\'\-&]+){0,4})/i;
   const matchMet = text.match(metPattern);
 
   if (matchMet) {
     let rawName = matchMet[1].trim();
-    // Strip honorific for first/last name fields
-    const cleanName = rawName.replace(/^(?:Dr\.|Dr|Mr\.|Mr|Ms\.|Ms|Eng\.|Eng|Sheikh)\s+/i, '');
+    const cleanName = rawName.replace(/^(?:dr\.|dr|mr\.|mr|ms\.|ms|eng\.|eng|sheikh)\s+/i, '');
     const nameParts = cleanName.split(/\s+/);
-    result.first_name = nameParts[0];
-    result.last_name = nameParts.slice(1).join(' ') || 'Visitor';
-    result.full_name = rawName;
-    result.company = matchMet[2].trim();
+    result.first_name = capitalizeWords(nameParts[0]);
+    result.last_name = capitalizeWords(nameParts.slice(1).join(' ') || 'Visitor');
+    result.full_name = capitalizeWords(cleanName);
+    result.company = capitalizeWords(matchMet[2].trim().replace(/[.,;]$/, ''));
   } else {
-    // Check separate "from [Company]"
-    const companyMatch = text.match(/(?:from|at|works for|working at)\s+([A-Z][A-Za-z0-9\s&]+?)(?:\.|\,|$|\s+(?:interested|phone|email|he|she))/i);
-    if (companyMatch) {
-      result.company = companyMatch[1].trim();
-    }
-
-    // Check separate name pattern e.g., "Name: Dr. Ahmed Al Mansoor"
-    const nameMatch = text.match(/(?:name is|called|contact is)\s+((?:(?:Dr\.|Dr|Mr\.|Mr|Ms\.|Ms|Eng\.|Eng|Sheikh)\s+)?[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i);
+    // Pattern B: "name is [Name] ... company is [Company]"
+    const nameOnlyPattern = /(?:name is|called|visitor name is|rep is)\s+((?:(?:dr\.|dr|mr\.|mr|ms\.|ms|eng\.|eng|sheikh)\s+)?[a-z\.\'\-]+(?:\s+[a-z\.\'\-]+){1,3})/i;
+    const nameMatch = text.match(nameOnlyPattern);
     if (nameMatch) {
       let rawName = nameMatch[1].trim();
-      const cleanName = rawName.replace(/^(?:Dr\.|Dr|Mr\.|Mr|Ms\.|Ms|Eng\.|Eng|Sheikh)\s+/i, '');
+      const cleanName = rawName.replace(/^(?:dr\.|dr|mr\.|mr|ms\.|ms|eng\.|eng|sheikh)\s+/i, '');
       const parts = cleanName.split(/\s+/);
-      result.first_name = parts[0];
-      result.last_name = parts.slice(1).join(' ') || 'Visitor';
-      result.full_name = rawName;
+      result.first_name = capitalizeWords(parts[0]);
+      result.last_name = capitalizeWords(parts.slice(1).join(' ') || 'Visitor');
+      result.full_name = capitalizeWords(cleanName);
+    }
+
+    const companyOnlyPattern = /(?:company is|organization is|working at|works for|from company|from)\s+([a-z0-9\.\'\-&]+(?:\s+[a-z0-9\.\'\-&]+){0,4})/i;
+    const compMatch = text.match(companyOnlyPattern);
+    if (compMatch) {
+      const candidateComp = compMatch[1].trim().replace(/[.,;]$/, '');
+      // Avoid matching generic stop words
+      if (!/^(the|a|an|him|her|them|urgent|hot|cold|immediate)$/i.test(candidateComp)) {
+        result.company = capitalizeWords(candidateComp);
+      }
     }
   }
 
   // 7. Job Title Extraction
   const titlePatterns = [
-    /(?:is|as)\s+(?:a|the)\s+([A-Za-z\s]+?(?:director|manager|officer|vp|vice president|head of [a-z\s]+|cto|ceo|cfo|cmo|founder|consultant|engineer|specialist))/i,
-    /\b(cto|ceo|cfo|cmo|managing director|general manager|vice president|vp|head of [a-z\s]+|senior software engineer|solution architect)\b/i,
+    /(?:is|as)\s+(?:a|the)\s+([a-z\s]+?(?:director|manager|officer|vp|vice president|head of [a-z\s]+|cto|ceo|cfo|cmo|coo|founder|partner|consultant|engineer|specialist|lead|architect))/i,
+    /\b(chief executive officer|chief technology officer|chief operating officer|managing director|general manager|vice president|head of [a-z\s]+|director of [a-z\s]+|sales manager|solution architect|senior engineer|marketing director|cto|ceo|cfo|cmo|coo|vp)\b/i,
   ];
 
   for (const pat of titlePatterns) {
     const titleMatch = text.match(pat);
     if (titleMatch) {
-      result.job_title = titleMatch[1].trim().replace(/\b\w/g, (c) => c.toUpperCase());
+      result.job_title = capitalizeWords(titleMatch[1].trim());
       break;
     }
   }
@@ -523,7 +487,7 @@ export function parseNaturalLanguageText(transcript: string): ParsedNaturalLangu
     result.followup_date = new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10);
   }
 
-  // 9. Requirement / Notes
+  // 9. Requirement / Clean Spoken Notes
   result.requirement = text;
 
   return result;

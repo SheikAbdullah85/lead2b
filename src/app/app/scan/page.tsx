@@ -38,13 +38,23 @@ import {
 import { playSuccessBeep, playWarningBeep } from '@/lib/utils/sound';
 import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoiceInput';
 import { ParsedNaturalLanguageLead } from '@/lib/utils/speech';
+import { preprocessCardForOcr } from '@/lib/ocr/card-preprocessor';
+import { parseBusinessCardText } from '@/lib/ocr/card-parser';
 
 export default function ScanPage() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // Mode: Camera Scanner vs. Direct Manual Entry Form
-  const [activeTab, setActiveTab] = useState<'scan' | 'manual'>('scan');
+  // Mode: Camera QR Scanner vs. Physical Badge Photo OCR vs. Direct Manual & Voice Form
+  const [activeTab, setActiveTab] = useState<'scan' | 'badge_ocr' | 'manual'>('scan');
+
+  // Badge Photo OCR states
+  const badgeCameraInputRef = useRef<HTMLInputElement>(null);
+  const badgeGalleryInputRef = useRef<HTMLInputElement>(null);
+  const [badgeImagePreview, setBadgeImagePreview] = useState<string | null>(null);
+  const [isProcessingBadgeOcr, setIsProcessingBadgeOcr] = useState(false);
+  const [badgeOcrStatus, setBadgeOcrStatus] = useState('');
+  const [badgeOcrError, setBadgeOcrError] = useState<string | null>(null);
 
   // Batch / Continuous Scan Mode state
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -59,6 +69,89 @@ export default function ScanPage() {
   const [manualQuery, setManualQuery] = useState('');
   const [isSearchingManual, setIsSearchingManual] = useState(false);
   const [searchNotFound, setSearchNotFound] = useState(false);
+
+  // Process Photo of Physical Badge via OCR
+  const handleProcessBadgeImage = async (fileOrUrl: File | string) => {
+    setIsProcessingBadgeOcr(true);
+    setBadgeOcrStatus('Optimizing badge image contrast...');
+    setBadgeOcrError(null);
+
+    try {
+      if (typeof fileOrUrl !== 'string') {
+        const preview = URL.createObjectURL(fileOrUrl);
+        setBadgeImagePreview(preview);
+      } else {
+        setBadgeImagePreview(fileOrUrl);
+      }
+
+      const ocrOptimizedDataUrl = await preprocessCardForOcr(fileOrUrl, {
+        maxDimension: 2048,
+        contrastBoost: 1.35,
+        sharpen: true,
+      });
+
+      setBadgeOcrStatus('Scanning badge with on-device OCR...');
+
+      const { createWorker } = await import('tesseract.js');
+      const worker = await createWorker('eng', 1, {
+        logger: (m) => {
+          if (m.status === 'recognizing text') {
+            const pct = Math.round((m.progress || 0) * 100);
+            setBadgeOcrStatus(`Reading badge text: ${pct}%`);
+          }
+        },
+      });
+
+      await worker.setParameters({
+        preserve_interword_spaces: '1',
+      });
+
+      const ret = await worker.recognize(ocrOptimizedDataUrl);
+      await worker.terminate();
+
+      const extractedText = ret?.data?.text || '';
+
+      if (!extractedText.trim()) {
+        setBadgeOcrError('No legible text found on badge. Please retake photo with better lighting or enter details manually.');
+        setIsProcessingBadgeOcr(false);
+        return;
+      }
+
+      setBadgeOcrStatus('Extracting visitor name & organization...');
+      const parsed = parseBusinessCardText(extractedText);
+
+      const generatedAttUuid = typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'b0000000-0000-0000-0000-' + Date.now().toString(16).padStart(12, '0');
+
+      const ocrAttendee: Attendee = {
+        id: generatedAttUuid,
+        event_id: 'eeee1111-1111-1111-1111-111111111111',
+        badge_id: 'OCR-' + Date.now().toString(36).toUpperCase().slice(-5),
+        qr_token: 'ocr_badge_' + Date.now(),
+        first_name: parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : 'Visitor'),
+        last_name: parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : ''),
+        company: parsed.company || 'Exhibition Visitor',
+        job_title: parsed.designation || 'Visitor',
+        email: parsed.email || '',
+        mobile: parsed.phone || '',
+        website: parsed.website || '',
+        visitor_type: 'Trade Visitor',
+        consent_status: true,
+        source: 'badge_ocr',
+      };
+
+      await localDb.attendees.put(ocrAttendee).catch(() => {});
+      playSuccessBeep();
+      setIsProcessingBadgeOcr(false);
+      setBadgeOcrStatus('');
+      setScannedAttendee(ocrAttendee);
+    } catch (err: any) {
+      console.error('Badge OCR error:', err);
+      setBadgeOcrError('Unable to process badge image. Please retry or enter details manually.');
+      setIsProcessingBadgeOcr(false);
+    }
+  };
 
   // Manual Form States (Instant offline-ready in-memory form)
   const [firstName, setFirstName] = useState('');
@@ -440,35 +533,54 @@ export default function ScanPage() {
         </span>
       </div>
 
-      {/* Mode Switcher Tabs: Camera vs. Manual Form */}
-      <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl border border-slate-200">
+      {/* Mode Switcher Tabs: QR Scanner vs. Badge Photo OCR vs. Manual Form */}
+      <div className="grid grid-cols-3 p-1 bg-slate-100 rounded-2xl border border-slate-200">
         <button
           type="button"
           onClick={() => {
             setActiveTab('scan');
             setManualSaveSuccess(null);
           }}
-          className={`py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
+          className={`py-2 text-[11px] font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'scan'
               ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          <Camera className="w-3.5 h-3.5" />
-          <span>Scan Badge QR</span>
+          <QrCode className="w-3.5 h-3.5 text-teal-600" />
+          <span>QR Scanner</span>
         </button>
 
         <button
           type="button"
-          onClick={() => setActiveTab('manual')}
-          className={`py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
-            activeTab === 'manual'
+          onClick={() => {
+            setActiveTab('badge_ocr');
+            setManualSaveSuccess(null);
+          }}
+          className={`py-2 text-[11px] font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            activeTab === 'badge_ocr'
               ? 'bg-[#00838f] text-white shadow-sm font-black'
               : 'text-slate-500 hover:text-slate-900'
           }`}
         >
-          <UserPlus className="w-3.5 h-3.5" />
-          <span>Manual Lead Form</span>
+          <Camera className="w-3.5 h-3.5" />
+          <span>Badge OCR</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('manual');
+            setManualSaveSuccess(null);
+          }}
+          className={`py-2 text-[11px] font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            activeTab === 'manual'
+              ? 'bg-white text-slate-900 shadow-sm border border-slate-200 font-bold'
+              : 'text-slate-500 hover:text-slate-900'
+          }`}
+        >
+          <Mic className="w-3.5 h-3.5 text-teal-600" />
+          <span>Manual &amp; Voice</span>
         </button>
       </div>
 
@@ -618,6 +730,27 @@ export default function ScanPage() {
             </div>
           )}
 
+          {/* Quick Direct Link to Badge Photo OCR */}
+          <div className="flex items-center justify-between p-2.5 bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200/90 rounded-2xl text-xs shadow-2xs">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-[#00838f] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-slate-900 font-bold text-xs block leading-tight">Badge has no QR Code?</span>
+                <span className="text-slate-500 text-[10px]">Take a photo to OCR Name &amp; Organization</span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="primary"
+              className="text-[11px] font-bold py-1.5 px-3 shadow-xs bg-[#00838f]"
+              onClick={() => setActiveTab('badge_ocr')}
+            >
+              Badge OCR →
+            </Button>
+          </div>
+
           {/* Quick Direct Link to Manual Form / Voice Dictation */}
           <div className="flex items-center justify-between p-2.5 bg-cyan-50/70 border border-cyan-200/80 rounded-2xl text-xs">
             <div>
@@ -626,11 +759,11 @@ export default function ScanPage() {
             </div>
             <Button
               size="sm"
-              variant="primary"
-              className="text-[11px] font-bold py-1.5 px-3 shadow-xs"
+              variant="outline"
+              className="text-[11px] font-bold py-1.5 px-3 shadow-xs border-cyan-300 text-cyan-800"
               onClick={() => setActiveTab('manual')}
             >
-              <Mic className="w-3.5 h-3.5 mr-1 text-cyan-200" />
+              <Mic className="w-3.5 h-3.5 mr-1 text-cyan-600" />
               Voice &amp; Form
             </Button>
           </div>
@@ -666,6 +799,152 @@ export default function ScanPage() {
                 </Button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* VIEW 2: BADGE PHOTO OCR SCANNER */}
+      {activeTab === 'badge_ocr' && (
+        <div className="space-y-3.5 animate-in fade-in-50 duration-150">
+          {/* Badge OCR Guidance Header */}
+          <div className="p-3.5 bg-gradient-to-br from-slate-900 via-slate-950 to-[#004d53] text-white rounded-2xl shadow-md border border-teal-800/40">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1">
+                  <Camera className="w-3 h-3" />
+                  Physical Badge Reader
+                </span>
+                <h3 className="text-base font-black text-white mt-0.5">Photo Badge OCR</h3>
+                <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">
+                  Snap or upload a photo of the visitor badge to automatically extract Name, Company, and Job Title. Remaining fields remain open to enter or dictate.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Hidden File Inputs */}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={badgeCameraInputRef}
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleProcessBadgeImage(file);
+            }}
+          />
+          <input
+            type="file"
+            accept="image/*"
+            ref={badgeGalleryInputRef}
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleProcessBadgeImage(file);
+            }}
+          />
+
+          {/* Action Trigger Buttons */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              disabled={isProcessingBadgeOcr}
+              onClick={() => badgeCameraInputRef.current?.click()}
+              className="py-4 px-3 rounded-2xl bg-gradient-to-r from-[#006d77] to-[#00838f] text-white font-bold text-xs flex flex-col items-center justify-center gap-2 shadow-md hover:brightness-105 active:scale-95 transition cursor-pointer"
+            >
+              <Camera className="w-6 h-6 text-cyan-200 stroke-[2.2]" />
+              <span>Take Badge Photo</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isProcessingBadgeOcr}
+              onClick={() => badgeGalleryInputRef.current?.click()}
+              className="py-4 px-3 rounded-2xl bg-white border border-slate-200 text-slate-800 font-bold text-xs flex flex-col items-center justify-center gap-2 shadow-2xs hover:bg-slate-50 active:scale-95 transition cursor-pointer"
+            >
+              <Sparkles className="w-6 h-6 text-brand-600 stroke-[2.2]" />
+              <span>Choose from Gallery</span>
+            </button>
+          </div>
+
+          {/* Live OCR Processing Indicator */}
+          {isProcessingBadgeOcr && (
+            <div className="p-4 bg-teal-50 border border-teal-200 rounded-2xl text-center space-y-2.5 animate-in fade-in-50">
+              <div className="w-8 h-8 border-3 border-teal-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <div>
+                <p className="text-xs font-black text-teal-900">{badgeOcrStatus || 'Scanning Badge...'}</p>
+                <p className="text-[10px] text-teal-700 mt-0.5">On-device neural OCR extracting contact details</p>
+              </div>
+            </div>
+          )}
+
+          {/* Badge OCR Error */}
+          {badgeOcrError && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">{badgeOcrError}</p>
+                <button
+                  type="button"
+                  onClick={() => badgeCameraInputRef.current?.click()}
+                  className="mt-1 text-[11px] font-bold text-[#00838f] underline cursor-pointer"
+                >
+                  Retake Photo →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Badge Image Preview if captured */}
+          {badgeImagePreview && (
+            <div className="p-3 bg-white rounded-2xl border border-slate-200 space-y-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                Captured Badge Image:
+              </span>
+              <div className="relative w-full h-44 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={badgeImagePreview}
+                  alt="Badge Preview"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sample Badge Test Button */}
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs flex items-center justify-between">
+            <div>
+              <span className="font-bold text-slate-800 block text-[11px]">Testing without a physical badge?</span>
+              <span className="text-slate-500 text-[10px]">Load sample badge data instantly</span>
+            </div>
+            <button
+              type="button"
+              disabled={isProcessingBadgeOcr}
+              onClick={() => {
+                const sampleBadgeAttendee: Attendee = {
+                  id: 'att_sample_' + Date.now(),
+                  event_id: 'eeee1111-1111-1111-1111-111111111111',
+                  badge_id: 'BADGE-' + Math.floor(1000 + Math.random() * 9000),
+                  qr_token: 'sample_badge_qr',
+                  first_name: 'Dr. Sarah',
+                  last_name: 'Jenkins',
+                  company: 'Cleveland Clinic Abu Dhabi',
+                  job_title: 'VP of Health Informatics',
+                  email: 'sarah.jenkins@clevelandclinic.ae',
+                  mobile: '+971 50 123 4567',
+                  visitor_type: 'VIP Delegate',
+                  consent_status: true,
+                  source: 'badge_ocr',
+                };
+                playSuccessBeep();
+                setScannedAttendee(sampleBadgeAttendee);
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-bold text-[11px] hover:bg-slate-100 transition cursor-pointer"
+            >
+              Test Sample Badge
+            </button>
           </div>
         </div>
       )}

@@ -20,10 +20,7 @@ import { Button } from '@/components/ui/Button';
 import {
   createSpeechRecognizer,
   SpeechRecognizerController,
-  speakText,
-  stopSpeaking,
   isSpeechRecognitionSupported,
-  isSpeechSynthesisSupported,
   parseNaturalLanguageText,
   ParsedNaturalLanguageLead,
 } from '@/lib/utils/speech';
@@ -54,8 +51,6 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
   const [interimText, setInterimText] = useState('');
   const [extractedLead, setExtractedLead] = useState<ParsedNaturalLanguageLead | null>(null);
   
-  // TTS (Text Information to Voice Note)
-  const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -69,7 +64,6 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (audioUrl) URL.revokeObjectURL(audioUrl);
-      stopSpeaking();
       recognizerRef.current?.abort();
     };
   }, [audioUrl]);
@@ -79,8 +73,6 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
   // ----------------------------------------------------
   const startMemoRecording = async () => {
     setErrorMessage(null);
-    stopSpeaking();
-    setIsSpeakingTTS(false);
 
     try {
       audioChunksRef.current = [];
@@ -150,8 +142,6 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
   // ----------------------------------------------------
   const startDictation = () => {
     setErrorMessage(null);
-    stopSpeaking();
-    setIsSpeakingTTS(false);
 
     if (!isSpeechRecognitionSupported()) {
       setErrorMessage('Speech recognition is not supported in this browser. Please use Chrome, Safari or Edge.');
@@ -198,32 +188,7 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
   };
 
   // ----------------------------------------------------
-  // 3. Text to Voice Note (Speech Synthesis Audio Playback)
-  // ----------------------------------------------------
-  const handlePlayTTS = () => {
-    const textToSpeak = transcript.trim();
-    if (!textToSpeak) return;
-
-    if (isSpeakingTTS) {
-      stopSpeaking();
-      setIsSpeakingTTS(false);
-      return;
-    }
-
-    if (audioPlayerRef.current && isPlayingAudio) {
-      audioPlayerRef.current.pause();
-      setIsPlayingAudio(false);
-    }
-
-    setIsSpeakingTTS(true);
-    speakText(textToSpeak, {
-      onEnd: () => setIsSpeakingTTS(false),
-      onError: () => setIsSpeakingTTS(false),
-    });
-  };
-
-  // ----------------------------------------------------
-  // 4. Save Actions
+  // 3. Save Actions
   // ----------------------------------------------------
   const handleSaveVoiceNote = () => {
     const finalNoteText =
@@ -238,13 +203,11 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
 
   const resetAll = () => {
     if (audioUrl) URL.revokeObjectURL(audioUrl);
-    stopSpeaking();
     recognizerRef.current?.abort();
     setAudioUrl(null);
     recordedBlobRef.current = null;
     setRecordingDuration(0);
     setIsPlayingAudio(false);
-    setIsSpeakingTTS(false);
     setIsRecordingMemo(false);
     setIsDictating(false);
     setTranscript('');
@@ -272,7 +235,7 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
               Natural Language Voice Engine
             </h4>
             <p className="text-[11px] text-slate-500">
-              Dictate speech to text, record raw voice memos, or convert text to voice audio
+              Dictate speech to text or record raw voice memos for rapid lead onboarding
             </p>
           </div>
         </div>
@@ -345,29 +308,6 @@ export function VoiceRecorder({ onAudioRecorded, onTranscriptChange }: VoiceReco
               >
                 <Square className="w-3.5 h-3.5 fill-white" />
                 <span>Stop Dictation (Process NLP)</span>
-              </Button>
-            )}
-
-            {/* Convert to Voice Audio Button */}
-            {transcript.trim() && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={handlePlayTTS}
-                className="font-bold text-xs cursor-pointer flex items-center gap-1.5"
-              >
-                {isSpeakingTTS ? (
-                  <>
-                    <VolumeX className="w-3.5 h-3.5 text-rose-600 animate-pulse" />
-                    <span>Stop Voice Audio</span>
-                  </>
-                ) : (
-                  <>
-                    <Volume2 className="w-3.5 h-3.5 text-[#00838f]" />
-                    <span>Convert to Voice Note (Listen)</span>
-                  </>
-                )}
               </Button>
             )}
 

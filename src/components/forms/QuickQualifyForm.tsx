@@ -4,7 +4,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Attendee, LeadRating, PurchaseTimeline, Lead } from '@/lib/types';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { Flame, Clock, Tag, FileText, CheckCircle2, User, Building2, Mail, Phone, MapPin, Sparkles, Mic, Volume2, PackageCheck, Check } from 'lucide-react';
+import {
+  Flame,
+  Clock,
+  Tag,
+  FileText,
+  CheckCircle2,
+  User,
+  Building2,
+  Mail,
+  Phone,
+  Sparkles,
+  Mic,
+  MicOff,
+  PackageCheck,
+  Check,
+  Edit3,
+} from 'lucide-react';
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
 import { DEFAULT_COLLATERAL_ASSETS, dispatchCollateralToLead } from '@/lib/collateral/collateral-store';
@@ -12,9 +28,6 @@ import {
   createSpeechRecognizer,
   SpeechRecognizerController,
   isSpeechRecognitionSupported,
-  isSpeechSynthesisSupported,
-  speakText,
-  stopSpeaking,
   parseNaturalLanguageText,
 } from '@/lib/utils/speech';
 
@@ -26,6 +39,16 @@ interface QuickQualifyFormProps {
 
 export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualifyFormProps) {
   const { user } = useAuth();
+
+  // Editable Contact Fields (ensures fast onboarding even when organizer attendee DB is not accessible)
+  const [firstName, setFirstName] = useState(attendee.first_name || '');
+  const [lastName, setLastName] = useState(attendee.last_name || '');
+  const [company, setCompany] = useState(attendee.company || '');
+  const [jobTitle, setJobTitle] = useState(attendee.job_title || '');
+  const [email, setEmail] = useState(attendee.email || '');
+  const [mobile, setMobile] = useState(attendee.mobile || '');
+
+  // Qualification State
   const [rating, setRating] = useState<LeadRating>('warm');
   const [productInterest, setProductInterest] = useState('Enterprise AI Platform');
   const [purchaseTimeline, setPurchaseTimeline] = useState<PurchaseTimeline>('1-3 months');
@@ -33,10 +56,11 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   const [isFollowupRequired, setIsFollowupRequired] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const [isListeningVoice, setIsListeningVoice] = useState(false);
-  const [isSpeakingNote, setIsSpeakingNote] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [selectedCollateralIds, setSelectedCollateralIds] = useState<string[]>([]);
+
+  // Voice to Fill Form State
+  const [isListeningVoice, setIsListeningVoice] = useState(false);
+  const [voiceNotice, setVoiceNotice] = useState<string | null>(null);
   const recognizerRef = useRef<SpeechRecognizerController | null>(null);
 
   const toggleCollateral = (id: string) => {
@@ -47,7 +71,6 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
   useEffect(() => {
     return () => {
-      stopSpeaking();
       recognizerRef.current?.abort();
     };
   }, []);
@@ -61,9 +84,24 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
   ];
 
   const ratingOptions: { value: LeadRating; label: string; icon: string; activeClass: string }[] = [
-    { value: 'hot', label: 'HOT (Urgent)', icon: '🔥', activeClass: 'border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/30' },
-    { value: 'warm', label: 'WARM (Active)', icon: '☀️', activeClass: 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/30' },
-    { value: 'cold', label: 'COLD (Info)', icon: '❄️', activeClass: 'border-teal-500 bg-teal-50 text-teal-800 ring-2 ring-teal-500/30' },
+    {
+      value: 'hot',
+      label: 'HOT (Urgent)',
+      icon: '🔥',
+      activeClass: 'border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-500/30',
+    },
+    {
+      value: 'warm',
+      label: 'WARM (Active)',
+      icon: '☀️',
+      activeClass: 'border-amber-500 bg-amber-50 text-amber-800 ring-2 ring-amber-500/30',
+    },
+    {
+      value: 'cold',
+      label: 'COLD (Info)',
+      icon: '❄️',
+      activeClass: 'border-teal-500 bg-teal-50 text-teal-800 ring-2 ring-teal-500/30',
+    },
   ];
 
   const timelineOptions: { value: PurchaseTimeline; label: string }[] = [
@@ -73,16 +111,17 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
     { value: '6-12 months', label: '6 - 12 Months' },
   ];
 
-  const handleToggleVoiceInput = () => {
+  // 1-Tap "Voice to Fill Form" handler
+  const handleToggleVoiceToFillForm = () => {
     if (isListeningVoice) {
       recognizerRef.current?.stop();
       setIsListeningVoice(false);
       return;
     }
 
-    setVoiceError(null);
+    setVoiceNotice(null);
     if (!isSpeechRecognitionSupported()) {
-      setVoiceError('Speech recognition is not supported in this browser. Please type notes or use Chrome/Safari.');
+      setVoiceNotice('Microphone speech recognition is not supported in this browser. Please enter details manually.');
       return;
     }
 
@@ -92,15 +131,21 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
       onResult: (finalText, interim) => {
         const full = (finalText ? finalText + ' ' + interim : interim).trim();
         if (full) {
-          setQuickNote(full);
           const parsed = parseNaturalLanguageText(full);
+          if (parsed.first_name) setFirstName(parsed.first_name);
+          if (parsed.last_name && parsed.last_name !== 'Visitor') setLastName(parsed.last_name);
+          if (parsed.company) setCompany(parsed.company);
+          if (parsed.job_title) setJobTitle(parsed.job_title);
+          if (parsed.email) setEmail(parsed.email);
+          if (parsed.mobile) setMobile(parsed.mobile);
           if (parsed.rating) setRating(parsed.rating);
           if (parsed.product_interest) setProductInterest(parsed.product_interest);
           if (parsed.purchase_timeline) setPurchaseTimeline(parsed.purchase_timeline);
+          setQuickNote(full);
         }
       },
       onError: (friendlyError) => {
-        setVoiceError(friendlyError);
+        setVoiceNotice(friendlyError);
         setIsListeningVoice(false);
       },
       onEnd: () => setIsListeningVoice(false),
@@ -111,20 +156,6 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
       setIsListeningVoice(true);
       recognizer.start();
     }
-  };
-
-  const handleTogglePlayNote = () => {
-    if (isSpeakingNote) {
-      stopSpeaking();
-      setIsSpeakingNote(false);
-      return;
-    }
-    if (!quickNote.trim()) return;
-    setIsSpeakingNote(true);
-    speakText(quickNote.trim(), {
-      onEnd: () => setIsSpeakingNote(false),
-      onError: () => setIsSpeakingNote(false),
-    });
   };
 
   const handleSave = async () => {
@@ -139,14 +170,14 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
         captured_by_name: user?.full_name || 'Tariq Mansoor',
         booth_id: 'b0001111-1111-1111-1111-111111111111',
-        first_name: attendee.first_name,
-        last_name: attendee.last_name,
-        full_name: `${attendee.first_name} ${attendee.last_name}`,
-        company: attendee.company || '',
-        job_title: attendee.job_title || '',
-        email: attendee.email,
-        mobile: attendee.mobile || '',
-        country: attendee.country || '',
+        first_name: firstName.trim() || 'Visitor',
+        last_name: lastName.trim() || '',
+        full_name: `${firstName.trim()} ${lastName.trim()}`.trim() || 'Exhibition Visitor',
+        company: company.trim() || 'Visitor Company',
+        job_title: jobTitle.trim() || 'Representative',
+        email: email.trim(),
+        mobile: mobile.trim(),
+        country: attendee.country || 'United Arab Emirates',
         industry: attendee.industry || '',
         source: 'qr_scan',
         rating,
@@ -157,7 +188,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         purchase_timeline: purchaseTimeline,
         followup_required: isFollowupRequired,
         followup_date: new Date(Date.now() + 86400000 * 3).toISOString().slice(0, 10),
-        capture_method: 'QR',
+        capture_method: attendee.source === 'card_ocr' ? 'business_card' : attendee.source === 'badge_ocr' ? 'badge' : 'QR',
         captured_at: new Date().toISOString(),
         online_offline: isOnline ? 'online' : 'offline',
         collateral_sent: selectedCollateralIds,
@@ -171,12 +202,12 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
       const savedLead = await saveLeadLocally(leadPayload);
 
-      // Trigger instant digital collateral fulfillment if assets selected
-      if (selectedCollateralIds.length > 0) {
+      // Trigger digital collateral dispatch if selected
+      if (selectedCollateralIds.length > 0 && email.trim()) {
         dispatchCollateralToLead({
           leadId: savedLead.id,
-          leadEmail: attendee.email,
-          leadName: `${attendee.first_name} ${attendee.last_name}`,
+          leadEmail: email.trim(),
+          leadName: `${firstName.trim()} ${lastName.trim()}`.trim(),
           assetIds: selectedCollateralIds,
           sentByUserId: user?.id,
           sentByName: user?.full_name,
@@ -186,7 +217,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
       setSaveSuccess(true);
       setTimeout(() => {
         onSuccess(savedLead);
-      }, 1200);
+      }, 1100);
     } catch (err) {
       console.error('Error saving lead:', err);
       setIsSaving(false);
@@ -200,15 +231,15 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-md shadow-emerald-500/20">
           <CheckCircle2 className="w-10 h-10" />
         </div>
-        <h3 className="text-xl font-black text-slate-900">Lead Saved!</h3>
+        <h3 className="text-xl font-black text-slate-900">Visitor Lead Saved!</h3>
         <p className="text-xs text-slate-500 mt-1 max-w-xs font-medium">
-          {attendee.first_name} {attendee.last_name} ({attendee.company})
+          {firstName} {lastName} ({company})
         </p>
 
         {selectedCollateralIds.length > 0 && (
           <div className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
             <Check className="w-3.5 h-3.5 text-teal-600" />
-            <span>Dispatched {selectedCollateralIds.length} collateral doc(s) to visitor</span>
+            <span>Dispatched {selectedCollateralIds.length} collateral doc(s)</span>
           </div>
         )}
 
@@ -221,7 +252,7 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
               <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-              Saved Offline — Will Sync Automatically
+              Saved Offline — Syncs Automatically
             </span>
           )}
         </div>
@@ -231,49 +262,164 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
 
   return (
     <div className="space-y-4 text-left">
-      {/* Attendee Profile Header */}
-      <div className="p-3.5 bg-gradient-to-r from-slate-50 to-teal-50/40 rounded-2xl border border-slate-200 shadow-2xs">
-        <div className="flex items-start justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <h4 className="text-base font-black text-slate-900">
-                {attendee.first_name} {attendee.last_name}
-              </h4>
-              {attendee.visitor_type && (
-                <Badge variant="vip" size="sm">
-                  {attendee.visitor_type}
-                </Badge>
-              )}
-            </div>
-            <p className="text-xs font-bold text-[#00838f] flex items-center gap-1 mt-0.5">
-              <Building2 className="w-3.5 h-3.5" />
-              <span>{attendee.company || 'Enterprise Visitor'}</span>
-            </p>
-            {attendee.job_title && (
-              <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
-                <User className="w-3.5 h-3.5" />
-                <span>{attendee.job_title}</span>
-              </p>
-            )}
+      {/* Top Action Bar: Voice to Fill Form Banner */}
+      <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200/80">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-[#00838f] text-white flex items-center justify-center">
+            <Mic className={`w-3.5 h-3.5 ${isListeningVoice ? 'animate-bounce text-cyan-200' : ''}`} />
           </div>
-          <span className="text-[10px] font-mono font-bold text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200 shadow-2xs">
-            {attendee.badge_id.slice(-5)}
+          <div>
+            <span className="text-[11px] font-black text-slate-900 block leading-tight">
+              Voice-to-Form Dictation
+            </span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              Speak details to auto-populate open fields
+            </span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleToggleVoiceToFillForm}
+          className={`px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs ${
+            isListeningVoice
+              ? 'bg-rose-600 text-white animate-pulse'
+              : 'bg-[#00838f] text-white hover:brightness-105 active:scale-95'
+          }`}
+        >
+          {isListeningVoice ? (
+            <>
+              <MicOff className="w-3.5 h-3.5" />
+              <span>Done Dictating</span>
+            </>
+          ) : (
+            <>
+              <Mic className="w-3.5 h-3.5" />
+              <span>Voice to Fill</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Voice Listening Notice */}
+      {isListeningVoice && (
+        <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 font-medium flex items-center gap-2 animate-in fade-in-50">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+          </span>
+          <span>
+            Listening... Speak e.g. &ldquo;John Doe, Acme Corp, email john@acme.com, mobile 0501234567, hot lead for Enterprise AI&rdquo;
+          </span>
+        </div>
+      )}
+
+      {voiceNotice && (
+        <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-800">
+          {voiceNotice}
+        </div>
+      )}
+
+      {/* Editable Contact Fields (Badge OCR / Scan Result) */}
+      <div className="p-3.5 bg-slate-50/70 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2.5">
+        <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+          <div className="flex items-center gap-1.5">
+            <Edit3 className="w-3.5 h-3.5 text-[#00838f]" />
+            <span className="text-xs font-black uppercase tracking-wider text-slate-800">
+              Visitor Contact Details
+            </span>
+          </div>
+          <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+            Open for Editing
           </span>
         </div>
 
-        <div className="mt-2.5 pt-2 border-t border-slate-200/60 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600">
-          {attendee.email && (
-            <span className="flex items-center gap-1">
-              <Mail className="w-3 h-3 text-slate-400" />
-              <span className="font-mono text-[11px]">{attendee.email}</span>
-            </span>
-          )}
-          {attendee.mobile && (
-            <span className="flex items-center gap-1">
-              <Phone className="w-3 h-3 text-slate-400" />
-              <span>{attendee.mobile}</span>
-            </span>
-          )}
+        {/* Name Fields */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+              First Name *
+            </label>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="e.g. Tariq"
+              className="w-full text-xs font-semibold rounded-lg border border-slate-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+              Last Name
+            </label>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="e.g. Mansoor"
+              className="w-full text-xs font-semibold rounded-lg border border-slate-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+            />
+          </div>
+        </div>
+
+        {/* Company & Job Title */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+              Company / Organization *
+            </label>
+            <input
+              type="text"
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="e.g. ADNOC Distribution"
+              className="w-full text-xs font-semibold rounded-lg border border-slate-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500 mb-0.5">
+              Job Title
+            </label>
+            <input
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              placeholder="e.g. Head of Operations"
+              className="w-full text-xs font-semibold rounded-lg border border-slate-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+            />
+          </div>
+        </div>
+
+        {/* Mobile & Email (Remaining Fields To Fill) */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-teal-800 mb-0.5 flex items-center gap-1">
+              <Phone className="w-3 h-3 text-[#00838f]" />
+              <span>Mobile Number</span>
+            </label>
+            <input
+              type="tel"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value)}
+              placeholder="e.g. +971 50 123 4567"
+              className="w-full text-xs font-mono font-semibold rounded-lg border border-teal-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+            />
+          </div>
+          <div>
+            <label className="block text-[10px] font-black uppercase tracking-wider text-teal-800 mb-0.5 flex items-center gap-1">
+              <Mail className="w-3 h-3 text-[#00838f]" />
+              <span>Email Address</span>
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="visitor@company.com"
+              className="w-full text-xs font-mono font-semibold rounded-lg border border-teal-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-[#00838f]/30"
+            />
+          </div>
         </div>
       </div>
 
@@ -357,115 +503,56 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
         </div>
       </div>
 
-      {/* 4. Quick Note & Voice Note */}
+      {/* 4. Booth Notes */}
       <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
-            <FileText className="w-3.5 h-3.5 text-slate-400" />
-            <span>Quick Note & Voice Note</span>
-          </label>
-          <div className="flex items-center gap-1.5">
-            {isSpeechRecognitionSupported() && (
-              <button
-                type="button"
-                onClick={handleToggleVoiceInput}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition flex items-center gap-1 ${
-                  isListeningVoice
-                    ? 'bg-rose-600 text-white animate-pulse shadow-sm'
-                    : 'bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200/80'
-                }`}
-                title="Speak to dictate note and auto-qualify"
-              >
-                <Mic className={`w-3.5 h-3.5 ${isListeningVoice ? 'animate-bounce' : 'text-brand-600'}`} />
-                <span>{isListeningVoice ? 'Listening...' : 'Speak Note'}</span>
-              </button>
-            )}
-
-            {isSpeechSynthesisSupported() && quickNote.trim() && (
-              <button
-                type="button"
-                onClick={handleTogglePlayNote}
-                className={`p-1 px-2 rounded-lg border text-xs font-bold transition flex items-center gap-1 ${
-                  isSpeakingNote
-                    ? 'bg-amber-500 text-white border-amber-600 animate-pulse'
-                    : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
-                }`}
-                title="Convert note text to Voice Note (TTS)"
-              >
-                <Volume2 className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-[10px]">{isSpeakingNote ? 'Stop' : 'Play Note'}</span>
-              </button>
-            )}
-          </div>
-        </div>
-
+        <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5 flex items-center gap-1">
+          <FileText className="w-3.5 h-3.5 text-slate-400" />
+          <span>Booth Discussion & Requirement Notes</span>
+        </label>
         <textarea
           value={quickNote}
           onChange={(e) => setQuickNote(e.target.value)}
-          placeholder="Speak or type details. Say e.g. 'Very hot lead, wants demo next week for Enterprise AI' to auto-classify..."
+          placeholder="Type or dictate conversation details, specific questions, or follow-up needs..."
           rows={2}
-          className={`w-full text-xs rounded-xl border p-2.5 focus:outline-none focus:ring-2 focus:ring-[#00838f] transition ${
-            isListeningVoice ? 'border-rose-400 ring-2 ring-rose-400/30 bg-rose-50/20' : 'border-slate-300'
-          }`}
+          className="w-full text-xs rounded-xl border border-slate-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-[#00838f] bg-white transition"
         />
-        {isListeningVoice && (
-          <p className="text-[10px] text-rose-600 font-bold mt-1 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping"></span>
-            Listening... Speak in natural language to auto-classify lead temperature and solution.
-          </p>
-        )}
-        {voiceError && (
-          <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[11px] text-amber-900 flex items-center justify-between gap-1.5 mt-1.5">
-            <span>{voiceError}</span>
-            <button
-              type="button"
-              onClick={() => setVoiceError(null)}
-              className="text-amber-700 hover:text-amber-900 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white border border-amber-300 cursor-pointer"
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
       </div>
 
       {/* 5. Instant Digital Collateral Fulfillment */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <label className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1">
-            <PackageCheck className="w-3.5 h-3.5 text-[#00838f]" />
-            <span>Instant Digital Collateral Fulfillment</span>
-          </label>
-          <span className="text-[10px] text-slate-400 font-medium">Auto-emailed to visitor</span>
+      <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-black text-slate-800">
+            <PackageCheck className="w-4 h-4 text-[#00838f]" />
+            <span>Send Digital Collateral</span>
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium">Instant PDF dispatch</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+
+        <div className="space-y-1.5 pt-0.5">
           {DEFAULT_COLLATERAL_ASSETS.map((asset) => {
-            const isSelected = selectedCollateralIds.includes(asset.id);
+            const isChecked = selectedCollateralIds.includes(asset.id);
             return (
-              <button
+              <label
                 key={asset.id}
-                type="button"
                 onClick={() => toggleCollateral(asset.id)}
-                className={`p-2 rounded-xl border text-left transition flex items-center justify-between gap-2 cursor-pointer ${
-                  isSelected
-                    ? 'border-[#00838f] bg-teal-50/80 text-teal-950 font-bold shadow-2xs'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                className={`p-2 rounded-xl border flex items-center justify-between text-xs cursor-pointer transition ${
+                  isChecked
+                    ? 'bg-teal-50/80 border-[#00838f] text-teal-900 font-bold'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100/50'
                 }`}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-base shrink-0">{asset.thumbnail_icon || '📄'}</span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] leading-tight truncate font-bold">{asset.title}</p>
-                    <p className="text-[10px] text-slate-400">{asset.file_size} • PDF</p>
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`w-4 h-4 rounded-md border flex items-center justify-center ${
+                      isChecked ? 'bg-[#00838f] border-[#00838f] text-white' : 'border-slate-300 bg-white'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
+                  <span>{asset.title}</span>
                 </div>
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center shrink-0 border transition ${
-                    isSelected ? 'bg-[#00838f] border-[#00838f] text-white' : 'border-slate-300 bg-white'
-                  }`}
-                >
-                  {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                </div>
-              </button>
+                <span className="text-[10px] text-slate-400 font-mono">{asset.file_size}</span>
+              </label>
             );
           })}
         </div>
@@ -477,20 +564,20 @@ export function QuickQualifyForm({ attendee, onSuccess, onCancel }: QuickQualify
           type="button"
           variant="outline"
           onClick={onCancel}
-          className="flex-1"
+          className="flex-1 font-bold text-xs py-3 border-slate-300 text-slate-700 hover:bg-slate-100"
           disabled={isSaving}
         >
           Cancel
         </Button>
+
         <Button
           type="button"
           variant="primary"
           onClick={handleSave}
           isLoading={isSaving}
-          className="flex-[2] py-3 text-sm font-black shadow-lg shadow-teal-700/30"
+          className="flex-2 font-black text-xs py-3 shadow-md bg-gradient-to-r from-[#006d77] to-[#00838f] text-white hover:brightness-105 active:scale-98"
         >
-          <Sparkles className="w-4 h-4 mr-1 text-cyan-200" />
-          Save Qualified Lead
+          Save &amp; Qualify Visitor
         </Button>
       </div>
     </div>

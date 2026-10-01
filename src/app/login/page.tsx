@@ -63,7 +63,7 @@ function LoginForm() {
       <div className="flex flex-col items-center text-center mb-6">
         <Logo size="lg" />
         <p className="text-xs text-slate-500 mt-2 font-medium">
-          Enterprise Lead Capture & Commercial Sales Platform
+          Enterprise Lead Capture & Sales Platform
         </p>
       </div>
 

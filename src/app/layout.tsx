@@ -4,6 +4,7 @@ import { AuthProvider } from '@/lib/auth/context';
 import { BrandingProvider } from '@/lib/branding/context';
 import { RoleSwitcher } from '@/components/ui/RoleSwitcher';
 import { ServiceWorkerRegister } from '@/components/pwa/ServiceWorkerRegister';
+import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt';
 
 export const metadata: Metadata = {
   title: 'lead2b - Event Lead Capture & Sales Engagement Platform',
@@ -56,6 +57,7 @@ export default function RootLayout({
           <BrandingProvider>
             <RoleSwitcher />
             <ServiceWorkerRegister />
+            <PwaInstallPrompt />
             {children}
           </BrandingProvider>
         </AuthProvider>

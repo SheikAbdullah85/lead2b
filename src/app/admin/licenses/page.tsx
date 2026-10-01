@@ -50,7 +50,7 @@ export default function AdminLicensesPage() {
         <div>
           <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
             <Key className="w-3 h-3 text-brand-600" />
-            SaaS Commercial Provisioning
+            Booth & Quota Provisioning
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">License & Quota Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">

@@ -185,7 +185,7 @@ export default function DemoSandboxPage() {
               </div>
 
               <h2 className="text-xl font-bold text-white mb-1">Exhibitor Admin</h2>
-              <p className="text-xs text-slate-400 mb-4">Commercial Operations & Team Hub</p>
+              <p className="text-xs text-slate-400 mb-4">Exhibitor Operations & Team Hub</p>
 
               <div className="bg-slate-950/60 rounded-2xl p-3.5 border border-slate-800 text-xs mb-5 space-y-1.5">
                 <div className="flex justify-between text-slate-400">

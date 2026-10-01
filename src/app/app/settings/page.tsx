@@ -5,8 +5,8 @@ import { useAuth } from '@/lib/auth/context';
 import { useBranding } from '@/lib/branding/context';
 import { triggerSync } from '@/lib/db/sync-engine';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import { Modal } from '@/components/ui/Modal';
+import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
 import {
   User,
   Building2,
@@ -138,10 +138,41 @@ export default function MobileSettingsPage() {
           variant="outline"
           onClick={handleManualSync}
           isLoading={isSyncing}
-          className="w-full text-xs font-bold gap-2 py-2.5 bg-white border-slate-200 hover:border-brand-300 hover:text-brand-700"
+          className="w-full text-xs font-bold gap-2 py-2.5 bg-white border-slate-200 hover:border-brand-300 hover:text-brand-700 cursor-pointer"
         >
           <RefreshCw className="w-3.5 h-3.5 text-brand-600" />
           <span>Force Cloud Sync Now</span>
+        </Button>
+      </div>
+
+      {/* PWA Mobile App Installation Card */}
+      <div className="p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-[#004d53] text-white rounded-2xl border border-teal-800/50 shadow-md space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-cyan-400 text-slate-950 flex items-center justify-center font-bold">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-white">Mobile App Installation</h3>
+              <p className="text-[10px] text-slate-300">Run lead2b fullscreen with instant offline launch</p>
+            </div>
+          </div>
+          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-400/20 text-cyan-300 border border-cyan-400/30">
+            PWA
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-300 leading-relaxed">
+          Installing lead2b adds a native app icon to your mobile home screen, enabling 0.5s offline boot and camera badge scanning without browser address bars.
+        </p>
+
+        <Button
+          variant="primary"
+          onClick={() => triggerGlobalPwaInstall()}
+          className="w-full text-xs font-black gap-2 py-2.5 bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 hover:brightness-105 active:scale-98 shadow-md cursor-pointer"
+        >
+          <Smartphone className="w-4 h-4" />
+          <span>Install lead2b on this Device</span>
         </Button>
       </div>
 
