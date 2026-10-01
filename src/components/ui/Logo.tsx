@@ -10,14 +10,14 @@ interface LogoProps {
 
 export function Logo({ size = 'md', variant = 'light', className = '', showTagline = false }: LogoProps) {
   const heights = {
-    sm: 24,
-    md: 32,
-    lg: 44,
-    xl: 56,
+    sm: 26,
+    md: 34,
+    lg: 48,
+    xl: 60,
   };
 
   const h = heights[size];
-  const w = Math.round(h * 3.42); // 1024 / 299 aspect ratio
+  const w = Math.round(h * 2.116); // 1206 / 570 aspect ratio of d2b logo
 
   return (
     <div className={`inline-flex flex-col ${className}`}>
