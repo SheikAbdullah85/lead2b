@@ -23,6 +23,7 @@ import {
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
 
@@ -35,14 +36,27 @@ export default function MobileDashboardPage() {
   useEffect(() => {
     const loadLeads = async () => {
       try {
-        const localList = await localDb.leads.toArray();
-        if (localList.length > 0) {
-          const ids = new Set(localList.map((l) => l.id));
-          const merged = [...localList, ...INITIAL_LEADS.filter((l) => !ids.has(l.id))];
-          setLeads(merged);
-        } else {
-          setLeads(INITIAL_LEADS);
+        const localList = await localDb.leads.toArray().catch(() => []);
+        let serverList: Lead[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: dbLeads } = await supabase.from('leads').select('*').limit(100);
+          if (dbLeads) serverList = dbLeads as Lead[];
         }
+        const seenIds = new Set<string>();
+        const merged: Lead[] = [];
+        for (const l of [...localList, ...serverList]) {
+          if (!seenIds.has(l.id)) {
+            seenIds.add(l.id);
+            merged.push(l as Lead);
+          }
+        }
+        const extraInitial = INITIAL_LEADS.filter((l) => !seenIds.has(l.id));
+        const combined = [...merged, ...extraInitial].sort((a, b) => {
+          const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+          const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+          return tB - tA;
+        });
+        setLeads(combined);
       } catch (err) {
         setLeads(INITIAL_LEADS);
       }

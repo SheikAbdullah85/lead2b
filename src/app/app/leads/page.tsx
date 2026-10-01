@@ -22,7 +22,14 @@ export default function MobileLeadsPage() {
     // Instant offline fast-path
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const localList = await localDb.leads.toArray().catch(() => []);
-      setLeads(localList.length > 0 ? (localList as Lead[]) : INITIAL_LEADS);
+      const baselineEmails = new Set(localList.map((m) => m.email));
+      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
+      const combined = [...localList, ...extraInitial].sort((a, b) => {
+        const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+        const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+        return tB - tA;
+      });
+      setLeads(combined as Lead[]);
       setIsRefreshing(false);
       return;
     }
@@ -66,16 +73,24 @@ export default function MobileLeadsPage() {
         }
       }
 
-      if (merged.length === 0) {
-        setLeads(INITIAL_LEADS);
-      } else {
-        const baselineEmails = new Set(merged.map((m) => m.email));
-        const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
-        setLeads([...merged, ...extraInitial]);
-      }
+      const baselineEmails = new Set(merged.map((m) => m.email));
+      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
+      const combined = [...merged, ...extraInitial].sort((a, b) => {
+        const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+        const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+        return tB - tA;
+      });
+      setLeads(combined);
     } catch (e) {
       const localList = await localDb.leads.toArray().catch(() => []);
-      setLeads(localList.length > 0 ? (localList as Lead[]) : INITIAL_LEADS);
+      const baselineEmails = new Set(localList.map((m) => m.email));
+      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
+      const combined = [...localList, ...extraInitial].sort((a, b) => {
+        const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+        const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+        return tB - tA;
+      });
+      setLeads(combined as Lead[]);
     } finally {
       setIsRefreshing(false);
     }

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { Lead, LeadNote, FollowupTask } from '@/lib/types';
 import { INITIAL_LEADS, INITIAL_NOTES, INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
 import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -44,17 +45,51 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     const fetchLeadData = async () => {
-      // Check local Dexie first, then fallback to mock store
-      const local = await localDb.leads.get(params.id);
-      if (local) {
-        setLead(local);
-      } else {
-        const found = INITIAL_LEADS.find((l) => l.id === params.id || l.local_id === params.id);
-        if (found) setLead(found);
+      // 1. Check local Dexie first by local_id or server id
+      let local: any = await localDb.leads.get(params.id);
+      if (!local) {
+        local = await localDb.leads.where('id').equals(params.id).first();
       }
 
-      setNotes(INITIAL_NOTES.filter((n) => n.lead_id === params.id));
-      setFollowups(INITIAL_FOLLOWUPS.filter((f) => f.lead_id === params.id));
+      // 2. Query live Supabase database if not found locally
+      if (!local && (typeof navigator === 'undefined' || navigator.onLine)) {
+        const { data: sbLead } = await supabase.from('leads').select('*').eq('id', params.id).single();
+        if (sbLead) {
+          local = sbLead;
+        }
+      }
+
+      // 3. Fallback to mock store if still not found
+      if (!local) {
+        const found = INITIAL_LEADS.find((l) => l.id === params.id || l.local_id === params.id);
+        if (found) local = found;
+      }
+
+      if (local) {
+        setLead(local);
+
+        // Fetch notes: Dexie localDb + mock store
+        const localNotes = await localDb.leadNotes.where('lead_id').equals(params.id).toArray().catch(() => []);
+        const altNotes = (local.id && local.id !== params.id)
+          ? await localDb.leadNotes.where('lead_id').equals(local.id).toArray().catch(() => [])
+          : [];
+        const mockNotes = INITIAL_NOTES.filter((n) => n.lead_id === params.id || (local.id && n.lead_id === local.id));
+        
+        const allNotes = [...localNotes, ...altNotes];
+        const uniqueNotes = [...allNotes, ...mockNotes.filter(m => !allNotes.some(ln => ln.id === m.id))];
+        setNotes(uniqueNotes);
+
+        // Fetch followups: Dexie localDb + mock store
+        const localFollowups = await localDb.followups.where('lead_id').equals(params.id).toArray().catch(() => []);
+        const altFollowups = (local.id && local.id !== params.id)
+          ? await localDb.followups.where('lead_id').equals(local.id).toArray().catch(() => [])
+          : [];
+        const mockFollowups = INITIAL_FOLLOWUPS.filter((f) => f.lead_id === params.id || (local.id && f.lead_id === local.id));
+
+        const allFollowups = [...localFollowups, ...altFollowups];
+        const uniqueFollowups = [...allFollowups, ...mockFollowups.filter(mf => !allFollowups.some(lf => lf.id === mf.id))];
+        setFollowups(uniqueFollowups);
+      }
     };
 
     fetchLeadData();
@@ -69,9 +104,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
     );
   }
 
-  const handleAddNote = (e: React.FormEvent) => {
+  const handleAddNote = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newNoteText.trim()) return;
+    if (!newNoteText.trim() || !lead) return;
 
     const newNote: LeadNote = {
       id: `note_${Date.now()}`,
@@ -84,14 +119,35 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       sync_status: 'synced',
     };
 
+    // 1. Persist to Dexie localDb
+    await localDb.leadNotes.put(newNote).catch(() => {});
+
+    // 2. Persist to Supabase if valid UUIDs and online
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      const isUuid = (val?: string) =>
+        typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+      if (isUuid(lead.id) && isUuid(lead.tenant_id) && isUuid(lead.captured_by)) {
+        try {
+          await supabase.from('lead_notes').insert([{
+            lead_id: lead.id,
+            tenant_id: lead.tenant_id,
+            user_id: lead.captured_by,
+            note_text: newNote.note_text,
+          }]);
+        } catch (sbErr) {
+          console.warn('Supabase lead note insert error:', sbErr);
+        }
+      }
+    }
+
     setNotes([newNote, ...notes]);
     setNewNoteText('');
     setIsAddingNote(false);
   };
 
-  const handleCreateFollowup = (e: React.FormEvent) => {
+  const handleCreateFollowup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!taskTitle) return;
+    if (!taskTitle || !lead) return;
 
     const newTask: FollowupTask = {
       id: `foll_${Date.now()}`,
@@ -111,6 +167,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       created_at: new Date().toISOString(),
       sync_status: 'synced',
     };
+
+    // 1. Persist to Dexie localDb
+    await localDb.followups.put(newTask).catch(() => {});
 
     setFollowups([newTask, ...followups]);
     setIsFollowupModalOpen(false);

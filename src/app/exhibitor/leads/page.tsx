@@ -72,7 +72,12 @@ export default function ExhibitorLeadsPage() {
         // Also ensure demo baseline leads are present if no server records match them
         const baselineIds = new Set(merged.map((m) => m.email));
         const extraInitial = INITIAL_LEADS.filter((init) => !baselineIds.has(init.email));
-        setLeads([...merged, ...extraInitial]);
+        const combined = [...merged, ...extraInitial].sort((a, b) => {
+          const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+          const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+          return tB - tA;
+        });
+        setLeads(combined);
       }
 
       setLastRefreshedAt(new Date().toLocaleTimeString());
