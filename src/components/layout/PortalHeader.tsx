@@ -87,6 +87,32 @@ export function PortalHeader({ type }: PortalHeaderProps) {
 
           {/* Action Shortcuts & Profile */}
           <div className="flex items-center gap-2">
+            {user?.system_role === 'super_admin' && (
+              <div className="flex items-center gap-1.5">
+                {type === 'exhibitor' ? (
+                  <Link
+                    href="/admin/dashboard"
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-900 border border-indigo-200/80 hover:bg-indigo-100 transition shadow-2xs"
+                    title="Switch to Organizer Admin Portal"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                    <span className="hidden sm:inline">Organizer Admin</span>
+                    <span className="sm:hidden">Organizer</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/exhibitor/dashboard"
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-teal-900 border border-teal-200/80 hover:bg-teal-100 transition shadow-2xs"
+                    title="Switch to Exhibitor Portal"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-teal-600" />
+                    <span className="hidden sm:inline">Exhibitor Portal</span>
+                    <span className="sm:hidden">Exhibitor</span>
+                  </Link>
+                )}
+              </div>
+            )}
+
             <Link
               href="/app/dashboard"
               className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-white hover:bg-slate-800 transition shadow-sm active:scale-95"

@@ -240,29 +240,36 @@ export default function ExhibitorDashboardPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {Object.values(repStats).map((rep, idx) => (
-                <div key={rep.name} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between hover:bg-slate-100/60 transition">
-                  <div className="flex items-center gap-3">
-                    <span className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center shadow-2xs ${
-                      idx === 0
-                        ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-200'
-                        : idx === 1
-                        ? 'bg-slate-200 text-slate-800'
-                        : 'bg-brand-100 text-brand-800'
-                    }`}>
-                      #{idx + 1}
-                    </span>
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{rep.name}</h4>
-                      <p className="text-[10px] text-rose-600 font-bold">🔥 {rep.hot} Hot Leads</p>
+              {Object.values(repStats).length === 0 ? (
+                <div className="p-4 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200">
+                  <p className="text-xs text-slate-500 font-medium">No leads captured yet for this booth.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">Captures from mobile app will appear here instantly</p>
+                </div>
+              ) : (
+                Object.values(repStats).map((rep, idx) => (
+                  <div key={rep.name} className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between hover:bg-slate-100/60 transition">
+                    <div className="flex items-center gap-3">
+                      <span className={`w-7 h-7 rounded-xl font-black text-xs flex items-center justify-center shadow-2xs ${
+                        idx === 0
+                          ? 'bg-amber-400 text-amber-950 ring-2 ring-amber-200'
+                          : idx === 1
+                          ? 'bg-slate-200 text-slate-800'
+                          : 'bg-brand-100 text-brand-800'
+                      }`}>
+                        #{idx + 1}
+                      </span>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900">{rep.name}</h4>
+                        <p className="text-[10px] text-rose-600 font-bold">🔥 {rep.hot} Hot Leads</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-base font-black text-slate-900">{rep.count}</span>
+                      <span className="text-[10px] text-slate-400 block font-medium">leads</span>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <span className="text-base font-black text-slate-900">{rep.count}</span>
-                    <span className="text-[10px] text-slate-400 block font-medium">leads</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>

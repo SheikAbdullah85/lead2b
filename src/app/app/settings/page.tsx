@@ -30,6 +30,8 @@ import {
   Flame,
   Zap,
   Trash2,
+  Shield,
+  ArrowRight,
 } from 'lucide-react';
 
 export default function MobileSettingsPage() {
@@ -208,6 +210,60 @@ export default function MobileSettingsPage() {
           <span>Install lead2b on this Device</span>
         </Button>
       </div>
+
+      {/* Super Administrator Master Web Portals Card */}
+      {user?.system_role === 'super_admin' && (
+        <div className="p-4 bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 text-white rounded-2xl border border-indigo-500/30 shadow-lg space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-4 h-4 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-xs font-black text-white">Super Administrator Portals</h3>
+                <p className="text-[10px] text-slate-300">Unrestricted access to all desktop &amp; web management consoles</p>
+              </div>
+            </div>
+            <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              Master Admin
+            </span>
+          </div>
+
+          <div className="space-y-2 pt-1">
+            <Link
+              href="/exhibitor/dashboard"
+              className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-teal-400 transition flex items-center justify-between group block"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20 flex items-center justify-center">
+                  <Building2 className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-bold text-white block group-hover:text-teal-300">Exhibitor Operations Portal</span>
+                  <span className="text-[10px] text-slate-400">Booth analytics, team leaderboard &amp; Excel export</span>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-300 group-hover:translate-x-0.5 transition" />
+            </Link>
+
+            <Link
+              href="/admin/dashboard"
+              className="p-3 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 hover:border-indigo-400 transition flex items-center justify-between group block"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 flex items-center justify-center">
+                  <Shield className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-left">
+                  <span className="text-xs font-bold text-white block group-hover:text-indigo-300">Organizer Master Admin</span>
+                  <span className="text-[10px] text-slate-400">Events, halls, attendee database &amp; licenses</span>
+                </div>
+              </div>
+              <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-300 group-hover:translate-x-0.5 transition" />
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* User Help & Operations Guide */}
       <div className="p-4 bg-gradient-to-br from-brand-50/70 to-teal-50/50 rounded-2xl border border-brand-200/80 shadow-2xs space-y-2.5">

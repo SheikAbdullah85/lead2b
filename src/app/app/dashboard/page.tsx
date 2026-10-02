@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Award,
   Zap,
+  ShieldCheck,
+  Shield,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -118,6 +120,37 @@ export default function MobileDashboardPage() {
 
   return (
     <div className="space-y-4">
+      {/* Super Administrator Master Portal Access Bar */}
+      {user?.system_role === 'super_admin' && (
+        <div className="p-3 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl border border-indigo-500/40 shadow-sm flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
+            <div>
+              <span className="text-xs font-black text-white block">Master Admin Privileges</span>
+              <span className="text-[10px] text-slate-300">Switch to full web consoles anytime</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link
+              href="/exhibitor/dashboard"
+              className="text-[10px] font-black px-2.5 py-1.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 transition flex items-center gap-1"
+              title="Open Exhibitor Web Portal"
+            >
+              <Building2 className="w-3 h-3 text-teal-400" />
+              <span>Exhibitor</span>
+            </Link>
+            <Link
+              href="/admin/dashboard"
+              className="text-[10px] font-black px-2.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition flex items-center gap-1"
+              title="Open Organizer Admin Portal"
+            >
+              <Shield className="w-3 h-3 text-indigo-400" />
+              <span>Organizer</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Event Header Banner */}
       <div className="relative overflow-hidden p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-[#004d53] text-white shadow-lg border border-teal-900/40">
         {/* Subtle decorative glow */}

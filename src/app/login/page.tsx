@@ -14,6 +14,9 @@ import {
   EyeOff,
   AlertCircle,
   Info,
+  Smartphone,
+  Building2,
+  Shield,
 } from 'lucide-react';
 
 function LoginForm() {
@@ -24,6 +27,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState('sheik85@gmail.com');
   const [password, setPassword] = useState('Craftix@2026');
+  const [targetPortal, setTargetPortal] = useState<string>('/app/dashboard');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -47,8 +51,8 @@ function LoginForm() {
       return;
     }
 
-    // Default to Mobile Lead Capture App
-    router.push('/app/dashboard');
+    // Direct to selected target portal
+    router.push(targetPortal);
   };
 
   return (
@@ -141,6 +145,52 @@ function LoginForm() {
             />
             <span>Remember session on this device</span>
           </label>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+            Initial Workspace
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            <button
+              type="button"
+              onClick={() => setTargetPortal('/app/dashboard')}
+              className={`p-2 rounded-xl text-center border text-[11px] font-bold transition flex flex-col items-center gap-1 cursor-pointer ${
+                targetPortal === '/app/dashboard'
+                  ? 'bg-teal-50 border-teal-500 text-teal-900 shadow-2xs'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Smartphone className={`w-3.5 h-3.5 ${targetPortal === '/app/dashboard' ? 'text-teal-600' : 'text-slate-400'}`} />
+              <span>Mobile App</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTargetPortal('/exhibitor/dashboard')}
+              className={`p-2 rounded-xl text-center border text-[11px] font-bold transition flex flex-col items-center gap-1 cursor-pointer ${
+                targetPortal === '/exhibitor/dashboard'
+                  ? 'bg-teal-50 border-teal-500 text-teal-900 shadow-2xs'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Building2 className={`w-3.5 h-3.5 ${targetPortal === '/exhibitor/dashboard' ? 'text-teal-600' : 'text-slate-400'}`} />
+              <span>Exhibitor</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTargetPortal('/admin/dashboard')}
+              className={`p-2 rounded-xl text-center border text-[11px] font-bold transition flex flex-col items-center gap-1 cursor-pointer ${
+                targetPortal === '/admin/dashboard'
+                  ? 'bg-indigo-50 border-indigo-500 text-indigo-900 shadow-2xs'
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Shield className={`w-3.5 h-3.5 ${targetPortal === '/admin/dashboard' ? 'text-indigo-600' : 'text-slate-400'}`} />
+              <span>Organizer</span>
+            </button>
+          </div>
         </div>
 
         <Button
