@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     const { data: dbLeads, error: dbError } = await dbQuery;
 
-    let results: Lead[] = (dbLeads && dbLeads.length > 0) ? (dbLeads as Lead[]) : [...INITIAL_LEADS];
+    let results: Lead[] = (dbLeads && Array.isArray(dbLeads)) ? (dbLeads as Lead[]) : [];
 
     if (query) {
       results = results.filter((l) =>
@@ -41,10 +41,10 @@ export async function GET(req: NextRequest) {
       total: results.length,
     });
   } catch (err: any) {
-    console.warn('API leads GET fallback to mock:', err);
+    console.warn('API leads GET database exception:', err);
     return NextResponse.json({
-      leads: INITIAL_LEADS,
-      total: INITIAL_LEADS.length,
+      leads: [],
+      total: 0,
     });
   }
 }

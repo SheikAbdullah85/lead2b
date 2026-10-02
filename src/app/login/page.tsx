@@ -22,8 +22,8 @@ function LoginForm() {
   const redirectParam = searchParams.get('redirect');
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('sheik85@gmail.com');
+  const [password, setPassword] = useState('Craftix@2026');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -33,7 +33,7 @@ function LoginForm() {
     setErrorMessage(null);
     setIsLoading(true);
 
-    const result = await login(email, password);
+    const result = await login(email, password, undefined, false);
     setIsLoading(false);
 
     if (!result.success) {
@@ -47,14 +47,8 @@ function LoginForm() {
       return;
     }
 
-    const user = result.user;
-    if (user?.system_role === 'sales_rep') {
-      router.push('/app/dashboard');
-    } else if (user?.system_role === 'exhibitor_admin') {
-      router.push('/exhibitor/dashboard');
-    } else {
-      router.push('/admin/dashboard');
-    }
+    // Default to Mobile Lead Capture App
+    router.push('/app/dashboard');
   };
 
   return (
@@ -62,8 +56,12 @@ function LoginForm() {
       {/* Brand Header */}
       <div className="flex flex-col items-center text-center mb-6">
         <Logo size="lg" />
-        <p className="text-xs text-slate-500 mt-2 font-medium">
-          Enterprise Lead Capture & Sales Platform
+        <span className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-teal-50 text-teal-800 border border-teal-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          Live Production Workspace
+        </span>
+        <p className="text-xs text-slate-500 mt-1 font-medium">
+          Authorized Admin: <strong className="text-slate-800">sheik85@gmail.com</strong>
         </p>
       </div>
 

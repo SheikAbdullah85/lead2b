@@ -12,9 +12,11 @@ import { Search, Download, Filter, ChevronRight, Eye, Phone, Mail, Building2, Us
 import { supabase } from '@/lib/supabase/client';
 import { localDb } from '@/lib/db/dexie';
 import { triggerSync } from '@/lib/db/sync-engine';
+import { useAuth } from '@/lib/auth/context';
 
 export default function ExhibitorLeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const { isDemoMode } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -65,20 +67,18 @@ export default function ExhibitorLeadsPage() {
         }
       }
 
-      // If database is brand new / empty, merge in INITIAL_LEADS as well
-      if (merged.length === 0) {
-        setLeads(INITIAL_LEADS);
-      } else {
-        // Also ensure demo baseline leads are present if no server records match them
-        const baselineIds = new Set(merged.map((m) => m.email));
-        const extraInitial = INITIAL_LEADS.filter((init) => !baselineIds.has(init.email));
-        const combined = [...merged, ...extraInitial].sort((a, b) => {
-          const tA = new Date(a.created_at || a.captured_at || 0).getTime();
-          const tB = new Date(b.created_at || b.captured_at || 0).getTime();
-          return tB - tA;
-        });
-        setLeads(combined);
+      let combined: Lead[] = merged;
+      // In demo mode only, fallback to INITIAL_LEADS if empty
+      if (isDemoMode && combined.length === 0) {
+        combined = [...INITIAL_LEADS];
       }
+
+      combined.sort((a, b) => {
+        const tA = new Date(a.created_at || a.captured_at || 0).getTime();
+        const tB = new Date(b.created_at || b.captured_at || 0).getTime();
+        return tB - tA;
+      });
+      setLeads(combined);
 
       setLastRefreshedAt(new Date().toLocaleTimeString());
     } catch (e) {

@@ -6,7 +6,7 @@ import { QrScannerView } from '@/components/scanner/QrScannerView';
 import { QuickQualifyForm } from '@/components/forms/QuickQualifyForm';
 import { Attendee, Lead, LeadNote, LeadRating, PriorityLevel, PurchaseTimeline } from '@/lib/types';
 import { localDb } from '@/lib/db/dexie';
-import { INITIAL_ATTENDEES, INITIAL_LEADS } from '@/lib/data/mock-store';
+import { INITIAL_ATTENDEES } from '@/lib/data/mock-store';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -322,12 +322,10 @@ export default function ScanPage() {
       lastScanTimeRef.current = { badge: badgeId, time: now };
 
       // Duplicate Detection Check
-      const localExisting = await localDb.leads
+      const existing = await localDb.leads
         .where('attendee_id')
         .equals(matchedAttendee.id)
         .first();
-      const memExisting = INITIAL_LEADS.find((l) => l.attendee_id === matchedAttendee?.id);
-      const existing = localExisting || memExisting;
 
       if (existing) {
         playWarningBeep();
@@ -394,13 +392,10 @@ export default function ScanPage() {
     }
 
     // 3. Standard Mode: Duplicate Check & Open Qualification Form
-    const localExisting = await localDb.leads
+    const existing = await localDb.leads
       .where('attendee_id')
       .equals(matchedAttendee.id)
       .first();
-
-    const memExisting = INITIAL_LEADS.find((l) => l.attendee_id === matchedAttendee?.id);
-    const existing = localExisting || memExisting;
 
     if (existing) {
       playWarningBeep();

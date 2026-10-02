@@ -33,15 +33,22 @@ export default function MobileAppLayout({
 
           <div className="text-right flex items-center gap-2">
             <div className="text-right">
-              <span className="text-[10px] font-bold text-slate-800 leading-tight block truncate max-w-[120px]">
-                {branding.company_name || 'Alpha Technology'}
+              <span className="text-[10px] font-bold text-slate-800 leading-tight block truncate max-w-[130px]">
+                {branding.company_name || (user?.email === 'sheik85@gmail.com' ? 'acSys IT Solutions' : 'Lead Capture')}
               </span>
-              <span className="text-[9px] font-mono font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200/60 inline-block">
-                H3-B24
-              </span>
+              <div className="flex items-center justify-end gap-1 mt-0.5">
+                <span className="text-[9px] font-mono font-semibold text-teal-700 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200/60 inline-block">
+                  H3-B24
+                </span>
+                {user?.system_role === 'super_admin' && (
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-200">
+                    Admin
+                  </span>
+                )}
+              </div>
             </div>
             <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-              {user?.full_name?.slice(0, 2).toUpperCase() || 'TM'}
+              {user?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'SA'}
             </div>
           </div>
         </header>

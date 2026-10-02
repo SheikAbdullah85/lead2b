@@ -8,76 +8,50 @@ export interface CredentialUser extends UserProfile {
   password?: string;
 }
 
+export const LIVE_USER: UserProfile = {
+  id: 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+  email: 'sheik85@gmail.com',
+  full_name: 'Sheik Abdullah',
+  mobile: '+971 50 123 4567',
+  system_role: 'super_admin',
+  tenant_id: '11111111-1111-1111-1111-111111111111',
+  is_active: true,
+  is_demo: false,
+  created_at: '2026-09-01T00:00:00Z',
+};
+
 export const DEMO_USERS: Record<string, UserProfile> = {
-  super_admin: {
-    id: 'd1c88448-0a1a-4b35-8f50-32aea5420067',
-    email: 'sheik85@gmail.com',
-    full_name: 'Sheik Abdullah',
-    mobile: '+971 50 123 4567',
-    system_role: 'super_admin',
-    tenant_id: '11111111-1111-1111-1111-111111111111',
-    is_active: true,
-    created_at: '2026-09-01T00:00:00Z',
-  },
   sales_rep: {
     id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
     email: 'tariq@alphatech.com',
-    full_name: 'Tariq Mansoor',
+    full_name: 'Tariq Mansoor (Demo)',
     mobile: '+971 55 111 2233',
     system_role: 'sales_rep',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     is_active: true,
+    is_demo: true,
     booth_number: 'H3-B24',
-    organization: {
-      id: '11111111-1111-1111-1111-111111111111',
-      company_name: 'Alpha Technology Group',
-      company_code: 'ALPHA-TECH',
-      email: 'admin@alphatech.com',
-      active_status: true,
-      subscription_plan: 'event_pro',
-      license_count: 10,
-      created_at: '2026-09-01T00:00:00Z',
-      updated_at: '2026-09-01T00:00:00Z',
-    },
     created_at: '2026-09-01T00:00:00Z',
   },
   exhibitor_admin: {
     id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
     email: 'exhibitor@alphatech.com',
-    full_name: 'David Miller',
+    full_name: 'David Miller (Demo)',
     mobile: '+971 52 333 4444',
     system_role: 'exhibitor_admin',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     is_active: true,
-    organization: {
-      id: '11111111-1111-1111-1111-111111111111',
-      company_name: 'Alpha Technology Group',
-      company_code: 'ALPHA-TECH',
-      email: 'admin@alphatech.com',
-      active_status: true,
-      subscription_plan: 'event_pro',
-      license_count: 10,
-      created_at: '2026-09-01T00:00:00Z',
-      updated_at: '2026-09-01T00:00:00Z',
-    },
+    is_demo: true,
     created_at: '2026-09-01T00:00:00Z',
   },
   organizer_admin: {
     id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
     email: 'organizer@gitex.com',
-    full_name: 'Rashid Al-Nuaimi',
+    full_name: 'Rashid Al-Nuaimi (Demo)',
     mobile: '+971 50 987 6543',
     system_role: 'organizer_admin',
     is_active: true,
-    created_at: '2026-09-01T00:00:00Z',
-  },
-  lead2b_admin: {
-    id: 'e3c151e6-54a3-428d-a482-85f084ffde2a',
-    email: 'admin@lead2b.com',
-    full_name: 'System Administrator',
-    mobile: '+971 50 123 4567',
-    system_role: 'super_admin',
-    is_active: true,
+    is_demo: true,
     created_at: '2026-09-01T00:00:00Z',
   },
 };
@@ -85,11 +59,9 @@ export const DEMO_USERS: Record<string, UserProfile> = {
 // Standard pre-configured accounts with password credentials
 export const DEFAULT_CREDENTIALS: Record<string, { email: string; password: string; role: SystemRole }> = {
   'sheik85@gmail.com': { email: 'sheik85@gmail.com', password: 'Craftix@2026', role: 'super_admin' },
-  'admin@lead2b.com': { email: 'admin@lead2b.com', password: 'Craftix@2026', role: 'super_admin' },
-  'organizer@gitex.com': { email: 'organizer@gitex.com', password: 'Craftix@2026', role: 'organizer_admin' },
-  'exhibitor@alphatech.com': { email: 'exhibitor@alphatech.com', password: 'Craftix@2026', role: 'exhibitor_admin' },
   'tariq@alphatech.com': { email: 'tariq@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
-  'sarah@alphatech.com': { email: 'sarah@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
+  'exhibitor@alphatech.com': { email: 'exhibitor@alphatech.com', password: 'Craftix@2026', role: 'exhibitor_admin' },
+  'organizer@gitex.com': { email: 'organizer@gitex.com', password: 'Craftix@2026', role: 'organizer_admin' },
 };
 
 interface AuthResult {
@@ -101,7 +73,8 @@ interface AuthResult {
 interface AuthContextType {
   user: UserProfile | null;
   isLoading: boolean;
-  login: (email: string, password?: string, role?: SystemRole) => Promise<AuthResult>;
+  isDemoMode: boolean;
+  login: (email: string, password?: string, role?: SystemRole, isDemoLogin?: boolean) => Promise<AuthResult>;
   logout: () => void;
   switchRole: (role: SystemRole) => void;
   registerUser: (newUser: UserProfile & { password?: string }) => Promise<AuthResult>;
@@ -110,6 +83,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType>({
   user: null,
   isLoading: true,
+  isDemoMode: false,
   login: async () => ({ success: false }),
   logout: () => {},
   switchRole: () => {},
@@ -146,22 +120,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const stored = localStorage.getItem('lead2b_active_user');
         if (stored) {
-          cachedUser = JSON.parse(stored);
-          setUser(cachedUser);
-          setIsLoading(false);
+          const parsed = JSON.parse(stored);
+          // If legacy mock user without is_demo (e.g. tariq from older auto-login), purge it
+          if (parsed && parsed.email !== 'sheik85@gmail.com' && !parsed.is_demo) {
+            localStorage.removeItem('lead2b_active_user');
+          } else if (parsed) {
+            cachedUser = parsed;
+            setUser(cachedUser);
+            setIsLoading(false);
+          }
         }
       } catch (e) {}
 
-      // If offline, do NOT attempt remote Supabase network queries
+      // If offline, preserve cached user if available
       if (!isOnline) {
-        if (!cachedUser) {
-          // Provide default offline booth rep so sales reps are never blocked at the booth
-          const defaultOfflineRep: UserProfile = DEMO_USERS.tariq_mansoor;
-          setUser(defaultOfflineRep);
-          try {
-            localStorage.setItem('lead2b_active_user', JSON.stringify(defaultOfflineRep));
-          } catch (e) {}
-        }
         setIsLoading(false);
         return;
       }
@@ -170,6 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          const isLiveSheik = session.user.email?.toLowerCase() === 'sheik85@gmail.com';
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
@@ -178,33 +151,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           const mappedUser: UserProfile = {
             id: session.user.id,
-            email: session.user.email || profile?.email || 'sales@alphatech.com',
-            full_name: profile?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Sales Rep',
-            mobile: profile?.mobile,
-            system_role: (profile?.system_role as SystemRole) || 'sales_rep',
+            email: session.user.email || profile?.email || 'sheik85@gmail.com',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : 'User'),
+            mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
+            system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
             tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
             is_active: profile?.is_active ?? true,
+            is_demo: !isLiveSheik && !!cachedUser?.is_demo,
             created_at: profile?.created_at || session.user.created_at || new Date().toISOString(),
           };
           setUser(mappedUser);
           localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
-          setIsLoading(false);
-          return;
         } else {
-          // Auto sign-in so real Supabase Auth session is active
-          const targetEmail = cachedUser?.email || 'tariq@alphatech.com';
-          const authRes = await supabase.auth.signInWithPassword({
-            email: targetEmail,
-            password: 'Craftix@2026',
-          });
-          if (authRes.data.user) {
-            const mappedUser: UserProfile = cachedUser || DEMO_USERS.sales_rep;
-            setUser(mappedUser);
-            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
+          // If no active session and no valid cached user, remain unauthenticated
+          if (!cachedUser) {
+            setUser(null);
           }
         }
       } catch (err) {
-        console.warn('Supabase session check error, using cached session:', err);
+        console.warn('Supabase session check error:', err);
       } finally {
         setIsLoading(false);
       }
@@ -216,26 +181,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         try {
+          const isLiveSheik = session.user.email?.toLowerCase() === 'sheik85@gmail.com';
           const { data: profile } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', session.user.id)
             .single();
 
-          if (profile) {
-            const mappedUser: UserProfile = {
-              id: profile.id,
-              email: profile.email,
-              full_name: profile.full_name || profile.email.split('@')[0],
-              mobile: profile.mobile,
-              system_role: profile.system_role as SystemRole,
-              tenant_id: profile.tenant_id,
-              is_active: profile.is_active,
-              created_at: profile.created_at,
-            };
-            setUser(mappedUser);
-            localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
-          }
+          const mappedUser: UserProfile = {
+            id: session.user.id,
+            email: session.user.email || profile?.email || session.user.email || 'sheik85@gmail.com',
+            full_name: profile?.full_name || (isLiveSheik ? 'Sheik Abdullah' : (session.user.email?.split('@')[0] || 'User')),
+            mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
+            system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
+            tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+            is_active: profile?.is_active ?? true,
+            is_demo: !isLiveSheik,
+            created_at: profile?.created_at || new Date().toISOString(),
+          };
+          setUser(mappedUser);
+          localStorage.setItem('lead2b_active_user', JSON.stringify(mappedUser));
         } catch (e) {}
       }
     });
@@ -248,13 +213,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (
     email: string,
     password?: string,
-    role?: SystemRole
+    role?: SystemRole,
+    isDemoLogin?: boolean
   ): Promise<AuthResult> => {
     setIsLoading(true);
     const cleanEmail = email.trim().toLowerCase();
     const inputPassword = password || 'Craftix@2026';
 
-    // 1. Try real Supabase Auth
+    // 1. Separation Enforcement: If NOT a demo login, restrict access EXCLUSIVELY to sheik85@gmail.com
+    if (!isDemoLogin) {
+      if (cleanEmail !== 'sheik85@gmail.com') {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'Access restricted: Live production workspace is authorized for sheik85@gmail.com only. For evaluating or testing other roles, please use the Interactive Demo Sandbox.',
+        };
+      }
+
+      if (inputPassword !== 'Craftix@2026' && inputPassword !== 'Password123!') {
+        setIsLoading(false);
+        return {
+          success: false,
+          error: 'Invalid password. Please check your credentials and try again.',
+        };
+      }
+    }
+
+    // Attempt real Supabase Auth
     try {
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
@@ -262,21 +247,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (!authError && authData.user) {
-        // Fetch user profile from database
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', authData.user.id)
           .single();
 
+        const isLiveSheik = cleanEmail === 'sheik85@gmail.com';
         const authenticatedUser: UserProfile = {
           id: authData.user.id,
           email: authData.user.email || cleanEmail,
-          full_name: profile?.full_name || authData.user.user_metadata?.full_name || cleanEmail.split('@')[0],
-          mobile: profile?.mobile,
-          system_role: (profile?.system_role as SystemRole) || role || 'super_admin',
+          full_name: profile?.full_name || authData.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : cleanEmail.split('@')[0]),
+          mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
+          system_role: (profile?.system_role as SystemRole) || role || (isLiveSheik ? 'super_admin' : 'sales_rep'),
           tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
           is_active: true,
+          is_demo: !!isDemoLogin,
           created_at: profile?.created_at || new Date().toISOString(),
         };
 
@@ -289,49 +275,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.warn('Supabase auth network attempt failed, checking local credentials fallback...', sbErr);
     }
 
-    // 2. Fallback for offline mode or local persona verification
-    let matchedUser = Object.values(DEMO_USERS).find((u) => u.email.toLowerCase() === cleanEmail);
-    let expectedPassword = 'Craftix@2026';
-
-    if (DEFAULT_CREDENTIALS[cleanEmail]) {
-      expectedPassword = DEFAULT_CREDENTIALS[cleanEmail].password;
+    // Local fallback for sheik85@gmail.com
+    if (cleanEmail === 'sheik85@gmail.com') {
+      const liveAdmin: UserProfile = { ...LIVE_USER };
+      setUser(liveAdmin);
+      try {
+        localStorage.setItem('lead2b_active_user', JSON.stringify(liveAdmin));
+      } catch (e) {}
+      setIsLoading(false);
+      return { success: true, user: liveAdmin };
     }
 
-    if (password) {
-      const isValidPassword =
-        password === expectedPassword ||
-        password === 'Craftix@2026' ||
-        password === 'Password123!' ||
-        password === 'lead2b-pass-2026';
-
-      if (!isValidPassword) {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: 'Incorrect password. Use Craftix@2026 or Password123!',
+    // If Demo Login allowed
+    if (isDemoLogin) {
+      let matchedUser = Object.values(DEMO_USERS).find((u) => u.email.toLowerCase() === cleanEmail);
+      if (!matchedUser) {
+        matchedUser = {
+          id: `demo_${Date.now()}`,
+          email: cleanEmail,
+          full_name: cleanEmail.split('@')[0] + ' (Demo)',
+          system_role: role || 'sales_rep',
+          tenant_id: '11111111-1111-1111-1111-111111111111',
+          is_active: true,
+          is_demo: true,
+          created_at: new Date().toISOString(),
         };
       }
+      setUser(matchedUser);
+      try {
+        localStorage.setItem('lead2b_active_user', JSON.stringify(matchedUser));
+      } catch (e) {}
+      setIsLoading(false);
+      return { success: true, user: matchedUser };
     }
-
-    if (!matchedUser) {
-      matchedUser = {
-        id: `usr_${Date.now()}`,
-        email: cleanEmail,
-        full_name: cleanEmail.split('@')[0],
-        system_role: role || 'sales_rep',
-        tenant_id: '11111111-1111-1111-1111-111111111111',
-        is_active: true,
-        created_at: new Date().toISOString(),
-      };
-    }
-
-    setUser(matchedUser);
-    try {
-      localStorage.setItem('lead2b_active_user', JSON.stringify(matchedUser));
-    } catch (e) {}
 
     setIsLoading(false);
-    return { success: true, user: matchedUser };
+    return { success: false, error: 'Unauthorized access.' };
   };
 
   const registerUser = async (
@@ -395,26 +374,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = (newRole: SystemRole) => {
     if (!user) return;
+    // In live mode, super_admin already has all privileges
+    if (!user.is_demo) {
+      return;
+    }
     const persona = Object.values(DEMO_USERS).find((u) => u.system_role === newRole) || { ...user, system_role: newRole };
     setUser(persona);
     try {
       localStorage.setItem('lead2b_active_user', JSON.stringify(persona));
     } catch (e) {}
-
-    // Auto sign in as target persona in Supabase Auth if online
-    if (typeof navigator !== 'undefined' && navigator.onLine && persona.email) {
-      supabase.auth.signInWithPassword({
-        email: persona.email,
-        password: 'Craftix@2026',
-      }).catch(() => {});
-    }
   };
+
+  const isDemoMode = !!(user && user.is_demo);
 
   return (
     <AuthContext.Provider
       value={{
         user,
         isLoading,
+        isDemoMode,
         login,
         logout,
         switchRole,

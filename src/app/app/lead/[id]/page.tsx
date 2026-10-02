@@ -21,8 +21,11 @@ import {
 } from 'lucide-react';
 import { DEFAULT_COLLATERAL_ASSETS } from '@/lib/collateral/collateral-store';
 
+import { useAuth } from '@/lib/auth/context';
+
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const { isDemoMode } = useAuth();
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [followups, setFollowups] = useState<FollowupTask[]>([]);
@@ -51,8 +54,8 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
         }
       }
 
-      // 3. Fallback to mock store if still not found
-      if (!local) {
+      // 3. Fallback to mock store ONLY in demo mode
+      if (!local && isDemoMode) {
         const found = INITIAL_LEADS.find((l) => l.id === params.id || l.local_id === params.id);
         if (found) local = found;
       }
@@ -60,32 +63,42 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       if (local) {
         setLead(local);
 
-        // Fetch notes: Dexie localDb + mock store
+        // Fetch notes: Dexie localDb + Supabase (or demo fallback)
         const localNotes = await localDb.leadNotes.where('lead_id').equals(params.id).toArray().catch(() => []);
         const altNotes = (local.id && local.id !== params.id)
           ? await localDb.leadNotes.where('lead_id').equals(local.id).toArray().catch(() => [])
           : [];
-        const mockNotes = INITIAL_NOTES.filter((n) => n.lead_id === params.id || (local.id && n.lead_id === local.id));
+        let serverNotes: LeadNote[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: sbNotes } = await supabase.from('lead_notes').select('*').eq('lead_id', local.id || params.id);
+          if (sbNotes) serverNotes = sbNotes as LeadNote[];
+        }
+        const mockNotes = isDemoMode ? INITIAL_NOTES.filter((n) => n.lead_id === params.id || (local.id && n.lead_id === local.id)) : [];
         
-        const allNotes = [...localNotes, ...altNotes];
+        const allNotes = [...localNotes, ...altNotes, ...serverNotes];
         const uniqueNotes = [...allNotes, ...mockNotes.filter(m => !allNotes.some(ln => ln.id === m.id))];
         setNotes(uniqueNotes);
 
-        // Fetch followups: Dexie localDb + mock store
+        // Fetch followups: Dexie localDb + Supabase (or demo fallback)
         const localFollowups = await localDb.followups.where('lead_id').equals(params.id).toArray().catch(() => []);
         const altFollowups = (local.id && local.id !== params.id)
           ? await localDb.followups.where('lead_id').equals(local.id).toArray().catch(() => [])
           : [];
-        const mockFollowups = INITIAL_FOLLOWUPS.filter((f) => f.lead_id === params.id || (local.id && f.lead_id === local.id));
+        let serverFollowups: FollowupTask[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: sbFoll } = await supabase.from('followups').select('*').eq('lead_id', local.id || params.id);
+          if (sbFoll) serverFollowups = sbFoll as FollowupTask[];
+        }
+        const mockFollowups = isDemoMode ? INITIAL_FOLLOWUPS.filter((f) => f.lead_id === params.id || (local.id && f.lead_id === local.id)) : [];
 
-        const allFollowups = [...localFollowups, ...altFollowups];
+        const allFollowups = [...localFollowups, ...altFollowups, ...serverFollowups];
         const uniqueFollowups = [...allFollowups, ...mockFollowups.filter(mf => !allFollowups.some(lf => lf.id === mf.id))];
         setFollowups(uniqueFollowups);
       }
     };
 
     fetchLeadData();
-  }, [params.id]);
+  }, [params.id, isDemoMode]);
 
   if (!lead) {
     return (

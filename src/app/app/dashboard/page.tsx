@@ -26,13 +26,15 @@ import { localDb } from '@/lib/db/dexie';
 import { supabase } from '@/lib/supabase/client';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
+import { useAuth } from '@/lib/auth/context';
 import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
 
 export default function MobileDashboardPage() {
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const { user, isDemoMode } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [hotCount, setHotCount] = useState(0);
   const [warmCount, setWarmCount] = useState(0);
-  const [followupCount, setFollowupCount] = useState(2);
+  const [followupCount, setFollowupCount] = useState(0);
 
   useEffect(() => {
     const loadLeads = async () => {
@@ -51,20 +53,26 @@ export default function MobileDashboardPage() {
             merged.push(l as Lead);
           }
         }
-        const extraInitial = INITIAL_LEADS.filter((l) => !seenIds.has(l.id));
-        const combined = [...merged, ...extraInitial].sort((a, b) => {
+
+        // In demo mode only, fallback to INITIAL_LEADS if completely empty
+        let combined = merged;
+        if (isDemoMode && combined.length === 0) {
+          combined = [...INITIAL_LEADS];
+        }
+
+        combined.sort((a, b) => {
           const tA = new Date(a.created_at || a.captured_at || 0).getTime();
           const tB = new Date(b.created_at || b.captured_at || 0).getTime();
           return tB - tA;
         });
         setLeads(combined);
       } catch (err) {
-        setLeads(INITIAL_LEADS);
+        setLeads([]);
       }
     };
 
     loadLeads();
-  }, []);
+  }, [isDemoMode]);
 
   useEffect(() => {
     const hot = leads.filter((l) => l.rating === 'hot').length;
@@ -73,23 +81,23 @@ export default function MobileDashboardPage() {
     setWarmCount(warm);
   }, [leads]);
 
-  // Gamified Booth Staff Leaderboard Aggregation
+  // Gamified Booth Staff Leaderboard Aggregation - Strictly Real Data
   const repLeaderboard = useMemo(() => {
-    const map: Record<string, { name: string; count: number; hot: number }> = {
-      'Tariq Mansoor': { name: 'Tariq Mansoor', count: 0, hot: 0 },
-      'Fatima Al Zaabi': { name: 'Fatima Al Zaabi', count: 14, hot: 6 },
-      'David Miller': { name: 'David Miller', count: 11, hot: 4 },
-      'Marcus Vance': { name: 'Marcus Vance', count: 7, hot: 2 },
-    };
+    const map: Record<string, { name: string; count: number; hot: number }> = {};
 
-    leads.forEach((l) => {
-      const rep = l.captured_by_name || 'Tariq Mansoor';
-      if (!map[rep]) {
-        map[rep] = { name: rep, count: 0, hot: 0 };
-      }
-      map[rep].count += 1;
-      if (l.rating === 'hot') map[rep].hot += 1;
-    });
+    if (leads.length === 0) {
+      const activeName = user?.full_name || 'Sheik Abdullah';
+      map[activeName] = { name: activeName, count: 0, hot: 0 };
+    } else {
+      leads.forEach((l) => {
+        const rep = l.captured_by_name || user?.full_name || 'Sheik Abdullah';
+        if (!map[rep]) {
+          map[rep] = { name: rep, count: 0, hot: 0 };
+        }
+        map[rep].count += 1;
+        if (l.rating === 'hot') map[rep].hot += 1;
+      });
+    }
 
     const medals = ['🥇', '🥈', '🥉', '4th'];
     const badges = ['Top Closer 🔥', 'VIP Hunter 🎯', 'Speed Demon ⚡', 'Active Rep ⭐'];
@@ -100,11 +108,11 @@ export default function MobileDashboardPage() {
         ...r,
         rank: idx + 1,
         medal: medals[idx] || `${idx + 1}th`,
-        badge: badges[idx] || 'Booth Rep',
+        badge: r.count > 0 ? (badges[idx] || 'Booth Rep') : 'Ready to Capture ✨',
       }));
-  }, [leads]);
+  }, [leads, user]);
 
-  const hourlyVelocity = Math.max(16, Math.round(leads.length * 1.8));
+  const hourlyVelocity = leads.length > 0 ? Math.round(leads.length * 1.5) : 0;
   const hourlyTarget = 25;
   const isAheadOfTarget = hourlyVelocity >= hourlyTarget;
 
@@ -370,46 +378,58 @@ export default function MobileDashboardPage() {
         </div>
 
         <div className="space-y-2">
-          {leads.slice(0, 4).map((lead) => (
-            <Link key={lead.id} href={`/app/lead/${lead.id}`} className="block">
-              <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs hover:border-[#00838f] transition flex items-center justify-between">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 text-slate-800 font-black text-xs flex items-center justify-center shrink-0 mt-0.5 border border-slate-300/60 shadow-2xs">
-                    {lead.first_name[0]}{lead.last_name[0]}
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-none">
-                        {lead.first_name} {lead.last_name}
-                      </h4>
-                      <Badge variant={lead.rating as any} size="sm">
-                        {lead.rating.toUpperCase()}
-                      </Badge>
+          {leads.length === 0 ? (
+            <div className="p-6 bg-slate-50/80 rounded-2xl border border-dashed border-slate-300 text-center">
+              <div className="w-10 h-10 rounded-full bg-teal-50 text-[#00838f] flex items-center justify-center mx-auto mb-2 font-bold shadow-2xs">
+                <QrCode className="w-5 h-5 text-[#00838f]" />
+              </div>
+              <h4 className="text-xs font-bold text-slate-800">No leads captured yet</h4>
+              <p className="text-[11px] text-slate-500 mt-1 max-w-xs mx-auto">
+                Live production system is clean and ready. Tap <strong>Scan Badge</strong>, <strong>Business Card</strong>, or <strong>Manual Feed</strong> above to capture your first attendee.
+              </p>
+            </div>
+          ) : (
+            leads.slice(0, 4).map((lead) => (
+              <Link key={lead.id} href={`/app/lead/${lead.id}`} className="block">
+                <div className="p-3.5 bg-white rounded-2xl border border-slate-200 shadow-2xs hover:border-[#00838f] transition flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-slate-100 to-slate-200 text-slate-800 font-black text-xs flex items-center justify-center shrink-0 mt-0.5 border border-slate-300/60 shadow-2xs">
+                      {lead.first_name[0]}{lead.last_name[0]}
                     </div>
 
-                    <p className="text-xs font-semibold text-slate-600 mt-1 flex items-center gap-1">
-                      <Building2 className="w-3 h-3 text-slate-400" />
-                      <span>{lead.company || 'Enterprise'}</span>
-                    </p>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 leading-none">
+                          {lead.first_name} {lead.last_name}
+                        </h4>
+                        <Badge variant={lead.rating as any} size="sm">
+                          {lead.rating.toUpperCase()}
+                        </Badge>
+                      </div>
 
-                    <p className="text-[10px] text-[#00838f] font-semibold mt-0.5">
-                      {lead.product_interest || 'Enterprise Solution'}
-                    </p>
+                      <p className="text-xs font-semibold text-slate-600 mt-1 flex items-center gap-1">
+                        <Building2 className="w-3 h-3 text-slate-400" />
+                        <span>{lead.company || 'Enterprise'}</span>
+                      </p>
+
+                      <p className="text-[10px] text-[#00838f] font-semibold mt-0.5">
+                        {lead.product_interest || 'Enterprise Solution'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
+                    <Badge variant={lead.sync_status === 'synced' ? 'synced' : 'pending'}>
+                      {lead.sync_status === 'synced' ? 'Synced' : 'Offline'}
+                    </Badge>
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      {new Date(lead.created_at || lead.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
                   </div>
                 </div>
-
-                <div className="text-right flex flex-col items-end gap-1.5 shrink-0">
-                  <Badge variant={lead.sync_status === 'synced' ? 'synced' : 'pending'}>
-                    {lead.sync_status === 'synced' ? 'Synced' : 'Offline'}
-                  </Badge>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    {new Date(lead.created_at || lead.captured_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            ))
+          )}
         </div>
       </div>
     </div>

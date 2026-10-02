@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { SyncQueueItem } from '@/lib/types';
-import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { createServerClient } from '@/lib/supabase/server';
 
 export const runtime = 'edge';
@@ -84,8 +83,6 @@ export async function POST(req: NextRequest) {
           updated_at: new Date().toISOString(),
         };
 
-        // Store in mock leads array for demo fallback
-        INITIAL_LEADS.unshift(syncedLead);
         resultPayload = { lead: syncedLead };
         break;
       }

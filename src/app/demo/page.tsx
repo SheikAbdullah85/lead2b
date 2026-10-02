@@ -35,7 +35,7 @@ export default function DemoSandboxPage() {
     const user = DEMO_USERS[demoKey];
     const cred = DEFAULT_CREDENTIALS[user.email] || { password: 'Password123!' };
 
-    const result = await login(user.email, cred.password, user.system_role);
+    const result = await login(user.email, cred.password, user.system_role, true);
     setLoadingRole(null);
 
     if (result.success) {

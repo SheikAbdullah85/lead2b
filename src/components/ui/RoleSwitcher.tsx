@@ -3,15 +3,18 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/auth/context';
 import { SystemRole } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { Shield, UserCheck, Building2, Smartphone, ChevronDown, Check, Sparkles } from 'lucide-react';
 
 export function RoleSwitcher() {
-  const { user, switchRole } = useAuth();
+  const { user, switchRole, isDemoMode } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  if (!user) return null;
+  // ONLY render when explicitly in demo mode or on the /demo route!
+  const isDemo = isDemoMode || (typeof pathname === 'string' && pathname.startsWith('/demo'));
+  if (!user || !isDemo) return null;
 
   const roles: { role: SystemRole; label: string; route: string; icon: any; color: string; badge: string }[] = [
     {

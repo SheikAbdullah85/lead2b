@@ -21,7 +21,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
       if (!user) {
         // Enforce strict login redirect if not authenticated
         router.replace(`/login?redirect=${encodeURIComponent(pathname)}`);
-      } else if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.system_role)) {
+      } else if (user.system_role !== 'super_admin' && allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.system_role)) {
         // Enforce role-based access control (RBAC)
         if (user.system_role === 'sales_rep') {
           router.replace('/app/dashboard');
@@ -48,7 +48,7 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
     return null;
   }
 
-  if (allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.system_role)) {
+  if (user.system_role !== 'super_admin' && allowedRoles && allowedRoles.length > 0 && !allowedRoles.includes(user.system_role)) {
     return null;
   }
 

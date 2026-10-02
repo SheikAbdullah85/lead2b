@@ -11,10 +11,45 @@ import {
   Users, Flame, Sun, CalendarCheck, TrendingUp, Download, Building2,
   Clock, ArrowUpRight, CheckCircle2, ShieldCheck, Tag, Sparkles, Award, QrCode
 } from 'lucide-react';
+import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
+import { Lead } from '@/lib/types';
+import { useEffect } from 'react';
 
 export default function ExhibitorDashboardPage() {
-  const [leads, setLeads] = useState(INITIAL_LEADS);
+  const { user, isDemoMode } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [selectedEvent, setSelectedEvent] = useState('eeee1111-1111-1111-1111-111111111111');
+
+  useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const localList = await localDb.leads.toArray().catch(() => []);
+        let serverList: Lead[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: dbLeads } = await supabase.from('leads').select('*').limit(200);
+          if (dbLeads) serverList = dbLeads as Lead[];
+        }
+        const seenIds = new Set<string>();
+        const merged: Lead[] = [];
+        for (const l of [...serverList, ...localList]) {
+          if (!seenIds.has(l.id)) {
+            seenIds.add(l.id);
+            merged.push(l as Lead);
+          }
+        }
+        if (isDemoMode && merged.length === 0) {
+          setLeads([...INITIAL_LEADS]);
+        } else {
+          setLeads(merged);
+        }
+      } catch (e) {
+        setLeads([]);
+      }
+    };
+    fetchLeads();
+  }, [isDemoMode]);
 
   const hotCount = leads.filter((l) => l.rating === 'hot').length;
   const warmCount = leads.filter((l) => l.rating === 'warm').length;
@@ -23,7 +58,7 @@ export default function ExhibitorDashboardPage() {
   // Rep leaderboard aggregation
   const repStats: Record<string, { name: string; count: number; hot: number }> = {};
   leads.forEach((l) => {
-    const rep = l.captured_by_name || 'Tariq Mansoor';
+    const rep = l.captured_by_name || user?.full_name || 'Sheik Abdullah';
     if (!repStats[rep]) {
       repStats[rep] = { name: rep, count: 0, hot: 0 };
     }

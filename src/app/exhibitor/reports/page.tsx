@@ -1,28 +1,61 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LEADS, INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
 import { exportLeadsToExcel } from '@/lib/utils/export-excel';
+import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
+import { Lead } from '@/lib/types';
 import { FileSpreadsheet, Download, Users, Flame, Tag, CheckCircle2, Clock, Building2, Sparkles, TrendingUp } from 'lucide-react';
 
 export default function ExhibitorReportsPage() {
+  const { user, isDemoMode } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [activeTab, setActiveTab] = useState<'rep' | 'product' | 'rating' | 'followup'>('rep');
+
+  useEffect(() => {
+    const fetchLeads = async () => {
+      try {
+        const localList = await localDb.leads.toArray().catch(() => []);
+        let serverList: Lead[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: dbLeads } = await supabase.from('leads').select('*').limit(200);
+          if (dbLeads) serverList = dbLeads as Lead[];
+        }
+        const seenIds = new Set<string>();
+        const merged: Lead[] = [];
+        for (const l of [...serverList, ...localList]) {
+          if (!seenIds.has(l.id)) {
+            seenIds.add(l.id);
+            merged.push(l as Lead);
+          }
+        }
+        if (isDemoMode && merged.length === 0) {
+          setLeads([...INITIAL_LEADS]);
+        } else {
+          setLeads(merged);
+        }
+      } catch (e) {
+        setLeads([]);
+      }
+    };
+    fetchLeads();
+  }, [isDemoMode]);
 
   // Rep performance stats
   const repStats = [
-    { rep: 'Tariq Mansoor', leads: 28, hot: 12, followups: 8, completed: 5, convRate: '43%' },
-    { rep: 'Sarah Jenkins', leads: 19, hot: 6, followups: 6, completed: 4, convRate: '32%' },
-    { rep: 'David Miller (Admin)', leads: 12, hot: 5, followups: 3, completed: 3, convRate: '41%' },
+    { rep: user?.full_name || 'Sheik Abdullah', leads: leads.length, hot: leads.filter(l => l.rating === 'hot').length, followups: leads.filter(l => l.followup_required).length, completed: 0, convRate: leads.length > 0 ? '100%' : '0%' },
   ];
 
   // Product report stats
   const productStats = [
-    { product: 'Enterprise AI Platform', count: 26, estValue: '$340,000' },
-    { product: 'Cloud Infrastructure & Security', count: 18, estValue: '$210,000' },
-    { product: 'Smart Analytics & CRM Suite', count: 15, estValue: '$125,000' },
+    { product: 'Enterprise AI Platform', count: leads.filter(l => l.product_interest?.includes('AI')).length, estValue: '$120,000' },
+    { product: 'Cloud Infrastructure & Security', count: leads.filter(l => l.product_interest?.includes('Cloud')).length, estValue: '$85,000' },
+    { product: 'Smart Analytics & CRM Suite', count: leads.filter(l => l.product_interest?.includes('Analytics')).length, estValue: '$50,000' },
   ];
 
   return (
@@ -43,7 +76,7 @@ export default function ExhibitorReportsPage() {
         <Button
           variant="primary"
           size="sm"
-          onClick={() => exportLeadsToExcel(INITIAL_LEADS)}
+          onClick={() => exportLeadsToExcel(leads)}
           className="text-xs font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-sm"
         >
           <Download className="w-3.5 h-3.5" />

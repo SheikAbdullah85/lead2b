@@ -44,6 +44,7 @@ export interface UserProfile {
   system_role: SystemRole;
   tenant_id?: string;
   is_active: boolean;
+  is_demo?: boolean;
   created_at: string;
   // joined fields
   organization?: Organization;

@@ -10,9 +10,11 @@ import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
 import { supabase } from '@/lib/supabase/client';
 import { triggerSync } from '@/lib/db/sync-engine';
+import { useAuth } from '@/lib/auth/context';
 
 export default function MobileLeadsPage() {
-  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const { isDemoMode } = useAuth();
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -22,14 +24,16 @@ export default function MobileLeadsPage() {
     // Instant offline fast-path
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const localList = await localDb.leads.toArray().catch(() => []);
-      const baselineEmails = new Set(localList.map((m) => m.email));
-      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
-      const combined = [...localList, ...extraInitial].sort((a, b) => {
+      let combined: Lead[] = localList as Lead[];
+      if (isDemoMode && combined.length === 0) {
+        combined = [...INITIAL_LEADS];
+      }
+      combined.sort((a, b) => {
         const tA = new Date(a.created_at || a.captured_at || 0).getTime();
         const tB = new Date(b.created_at || b.captured_at || 0).getTime();
         return tB - tA;
       });
-      setLeads(combined as Lead[]);
+      setLeads(combined);
       setIsRefreshing(false);
       return;
     }
@@ -73,9 +77,13 @@ export default function MobileLeadsPage() {
         }
       }
 
-      const baselineEmails = new Set(merged.map((m) => m.email));
-      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
-      const combined = [...merged, ...extraInitial].sort((a, b) => {
+      let combined: Lead[] = merged;
+      // In demo mode only, fallback to INITIAL_LEADS if empty
+      if (isDemoMode && combined.length === 0) {
+        combined = [...INITIAL_LEADS];
+      }
+
+      combined.sort((a, b) => {
         const tA = new Date(a.created_at || a.captured_at || 0).getTime();
         const tB = new Date(b.created_at || b.captured_at || 0).getTime();
         return tB - tA;
@@ -83,14 +91,16 @@ export default function MobileLeadsPage() {
       setLeads(combined);
     } catch (e) {
       const localList = await localDb.leads.toArray().catch(() => []);
-      const baselineEmails = new Set(localList.map((m) => m.email));
-      const extraInitial = INITIAL_LEADS.filter((init) => !baselineEmails.has(init.email));
-      const combined = [...localList, ...extraInitial].sort((a, b) => {
+      let combined: Lead[] = localList as Lead[];
+      if (isDemoMode && combined.length === 0) {
+        combined = [...INITIAL_LEADS];
+      }
+      combined.sort((a, b) => {
         const tA = new Date(a.created_at || a.captured_at || 0).getTime();
         const tB = new Date(b.created_at || b.captured_at || 0).getTime();
         return tB - tA;
       });
-      setLeads(combined as Lead[]);
+      setLeads(combined);
     } finally {
       setIsRefreshing(false);
     }

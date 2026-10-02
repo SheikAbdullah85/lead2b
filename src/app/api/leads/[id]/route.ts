@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INITIAL_LEADS, INITIAL_NOTES, INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
+import { createServerClient } from '@/lib/supabase/server';
 
 export const runtime = 'edge';
 
@@ -7,19 +7,29 @@ export async function GET(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const lead = INITIAL_LEADS.find((l) => l.id === params.id || l.local_id === params.id);
-  if (!lead) {
-    return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+  try {
+    const supabase = createServerClient();
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', params.id)
+      .single();
+
+    if (!lead || error) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    const { data: notes } = await supabase.from('lead_notes').select('*').eq('lead_id', params.id);
+    const { data: followups } = await supabase.from('followups').select('*').eq('lead_id', params.id);
+
+    return NextResponse.json({
+      lead,
+      notes: notes || [],
+      followups: followups || [],
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
-
-  const notes = INITIAL_NOTES.filter((n) => n.lead_id === lead.id);
-  const followups = INITIAL_FOLLOWUPS.filter((f) => f.lead_id === lead.id);
-
-  return NextResponse.json({
-    lead,
-    notes,
-    followups,
-  });
 }
 
 export async function PATCH(
@@ -27,21 +37,25 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const leadIndex = INITIAL_LEADS.findIndex((l) => l.id === params.id || l.local_id === params.id);
-    if (leadIndex === -1) {
-      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
-    }
-
     const updates = await req.json();
-    INITIAL_LEADS[leadIndex] = {
-      ...INITIAL_LEADS[leadIndex],
-      ...updates,
-      updated_at: new Date().toISOString(),
-    };
+    const supabase = createServerClient();
+    const { data, error } = await supabase
+      .from('leads')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     return NextResponse.json({
       success: true,
-      lead: INITIAL_LEADS[leadIndex],
+      lead: data,
     });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

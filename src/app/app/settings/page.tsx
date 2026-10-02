@@ -1,12 +1,15 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/lib/auth/context';
 import { useBranding } from '@/lib/branding/context';
 import { triggerSync } from '@/lib/db/sync-engine';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
+import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
 import {
   User,
   Building2,
@@ -26,6 +29,7 @@ import {
   Printer,
   Flame,
   Zap,
+  Trash2,
 } from 'lucide-react';
 
 export default function MobileSettingsPage() {
@@ -34,6 +38,8 @@ export default function MobileSettingsPage() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const [isPurging, setIsPurging] = useState(false);
+  const [purgeSuccess, setPurgeSuccess] = useState(false);
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -48,7 +54,34 @@ export default function MobileSettingsPage() {
     }
   };
 
-  const initials = user?.full_name?.slice(0, 2).toUpperCase() || 'TM';
+  const handlePurgeAllData = async () => {
+    if (!window.confirm('WARNING: Are you sure you want to delete all leads, notes, and tasks from this device and the live database? This will give you a 100% clean production environment for GITEX 2026.')) {
+      return;
+    }
+    setIsPurging(true);
+    try {
+      await localDb.leads.clear();
+      await localDb.leadNotes.clear();
+      await localDb.followups.clear();
+      await localDb.syncQueue.clear();
+
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        await supabase.from('lead_notes').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('followups').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        await supabase.from('leads').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      }
+      setPurgeSuccess(true);
+      setTimeout(() => {
+        window.location.href = '/app/dashboard';
+      }, 1500);
+    } catch (e: any) {
+      alert(`Purge failed: ${e.message}`);
+    } finally {
+      setIsPurging(false);
+    }
+  };
+
+  const initials = user?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || 'SA';
 
   return (
     <div className="space-y-4 pb-12">
@@ -71,7 +104,7 @@ export default function MobileSettingsPage() {
             <p className="text-xs text-slate-500 truncate">{user?.email}</p>
             <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-brand-50 text-brand-800 border border-brand-200/60">
-                Sales Representative
+                {user?.system_role === 'super_admin' ? 'Super Administrator' : user?.system_role === 'exhibitor_admin' ? 'Exhibitor Admin' : 'Sales Representative'}
               </span>
               <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-semibold">
                 Booth H3-B24
@@ -188,14 +221,25 @@ export default function MobileSettingsPage() {
               <p className="text-[11px] text-slate-500">Badge scanning, business card OCR & batch printing</p>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsHelpOpen(true)}
-            className="text-xs font-bold bg-white border-brand-300 text-brand-800 hover:bg-brand-50 shrink-0"
-          >
-            <span>Open Guide</span>
-          </Button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link href="/app/help">
+              <Button
+                size="sm"
+                variant="primary"
+                className="text-xs font-black gap-1 bg-[#00838f] text-white shadow-xs"
+              >
+                <span>Full Guide &amp; Screens</span>
+              </Button>
+            </Link>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setIsHelpOpen(true)}
+              className="text-xs font-bold bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
+            >
+              <span>Quick Modal</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -265,12 +309,51 @@ export default function MobileSettingsPage() {
         </Modal>
       )}
 
+      {/* Purge & Delete All Data Section (Single Live Admin Control) */}
+      <div className="p-4 bg-rose-50/70 rounded-2xl border border-rose-200/80 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold">
+              <Trash2 className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-rose-950">Purge Live System Data</h3>
+              <p className="text-[10px] text-rose-700 font-medium">Wipe test leads from device &amp; cloud database</p>
+            </div>
+          </div>
+          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-rose-200/60 text-rose-800 border border-rose-300">
+            Admin Only
+          </span>
+        </div>
+
+        <p className="text-xs text-rose-800/80 leading-relaxed font-medium">
+          Permanently wipes all captured leads, notes, and tasks from your device memory and the live database. Use this anytime to reset to a completely clean slate.
+        </p>
+
+        {purgeSuccess && (
+          <div className="p-3 bg-emerald-100 border border-emerald-300 rounded-xl text-emerald-900 text-xs font-bold flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span>All live system data wiped successfully. Redirecting to clean dashboard...</span>
+          </div>
+        )}
+
+        <Button
+          variant="danger"
+          onClick={handlePurgeAllData}
+          isLoading={isPurging}
+          className="w-full text-xs font-black gap-2 py-2.5 bg-rose-600 hover:bg-rose-700 text-white shadow-xs cursor-pointer"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>Purge All Live Data (Reset to Zero)</span>
+        </Button>
+      </div>
+
       {/* Sign Out Button */}
       <div className="pt-2">
         <Button
-          variant="danger"
+          variant="outline"
           onClick={logout}
-          className="w-full text-xs font-black gap-2 py-3 shadow-xs"
+          className="w-full text-xs font-black gap-2 py-3 shadow-xs bg-white border-slate-300 text-slate-700 hover:bg-slate-100"
         >
           <LogOut className="w-4 h-4" />
           <span>Sign Out of Sales Terminal</span>
