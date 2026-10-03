@@ -174,10 +174,17 @@ export default function AdminEventsPage() {
   const [endDate, setEndDate] = useState('');
   const [organizerName, setOrganizerName] = useState('');
   const [description, setDescription] = useState('');
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDateError(null);
     if (!eventName || !eventCode) return;
+
+    if (startDate && endDate && startDate > endDate) {
+      setDateError('Invalid date range: Event start date cannot be later than end date.');
+      return;
+    }
 
     setIsSaving(true);
     const generatedId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `eeee${Date.now()}-0000-0000-0000-000000000001`;
@@ -496,21 +503,35 @@ export default function AdminEventsPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <Input
-              label="Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-            <Input
-              label="End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              required
-            />
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-2.5">
+              <Input
+                label="Start Date"
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setDateError(null);
+                }}
+                required
+              />
+              <Input
+                label="End Date"
+                type="date"
+                value={endDate}
+                min={startDate || undefined}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setDateError(null);
+                }}
+                required
+              />
+            </div>
+            {dateError && (
+              <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg animate-in fade-in">
+                {dateError}
+              </p>
+            )}
           </div>
 
           <Input

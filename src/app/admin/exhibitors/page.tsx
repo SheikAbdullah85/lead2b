@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Organization, Event, License } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_EXHIBITORS } from '@/lib/data/mock-store';
 import { useAuth } from '@/lib/auth/context';
-import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw, Key, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { getActiveEvent } from '@/lib/events/active-event';
 
@@ -33,6 +33,8 @@ export default function AdminExhibitorsPage() {
   const [licenses, setLicenses] = useState(5);
   const [selectedEventId, setSelectedEventId] = useState('');
   const [assignedStand, setAssignedStand] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const loadExhibitors = async () => {
     setIsLoading(true);
@@ -242,6 +244,23 @@ export default function AdminExhibitorsPage() {
         }
         const updatedLics = [newLicense, ...currentLics.filter((l) => l.tenant_id !== newExhibitor.id)];
         localStorage.setItem('lead2b_admin_licenses', JSON.stringify(updatedLics));
+
+        // Provision Exhibitor Portal Login Credentials with assigned password
+        const cleanAdminEmail = newExhibitor.email.toLowerCase();
+        const customStored = localStorage.getItem('lead2b_registered_users');
+        const registered = customStored ? JSON.parse(customStored) : {};
+        registered[cleanAdminEmail] = {
+          id: `u_${Date.now()}`,
+          email: cleanAdminEmail,
+          full_name: newExhibitor.primary_contact_name || newExhibitor.company_name,
+          system_role: 'exhibitor_admin',
+          tenant_id: newExhibitor.id,
+          booth_number: newExhibitor.assigned_stand?.replace('Stand ', ''),
+          is_active: true,
+          created_at: new Date().toISOString(),
+          password: portalPassword.trim() || 'Password123!',
+        };
+        localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
       } catch (err) {}
     }
 
@@ -302,6 +321,7 @@ export default function AdminExhibitorsPage() {
     setWebsite('');
     setCountry('');
     setAssignedStand('');
+    setPortalPassword('');
   };
 
   const toggleStatus = async (id: string) => {
@@ -636,6 +656,40 @@ export default function AdminExhibitorsPage() {
               min={1}
               max={100}
             />
+          </div>
+
+          {/* Exhibitor Portal Credentials */}
+          <div className="p-3 bg-teal-50/60 border border-teal-200/80 rounded-2xl space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+              <Key className="w-3.5 h-3.5 text-teal-700" />
+              <span>Exhibitor Portal Login Credentials</span>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Portal Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={portalPassword}
+                  onChange={(e) => setPortalPassword(e.target.value)}
+                  placeholder="Set initial password (e.g. Exhibitor@2026)"
+                  required
+                  className="w-full h-11 text-xs rounded-xl border border-slate-300 pl-9 pr-10 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                The exhibitor admin will use their <strong>work email</strong> and this password to sign into the Exhibitor Portal.
+              </p>
+            </div>
           </div>
 
           <div className="pt-2 flex items-center gap-2">

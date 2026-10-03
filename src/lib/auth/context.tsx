@@ -292,22 +292,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const cleanEmail = email.trim().toLowerCase();
     const inputPassword = password || 'Craftix@2026';
 
-    // 1. Separation Enforcement: If NOT a demo login, restrict access EXCLUSIVELY to sheik85@gmail.com
+    // 1. Separation Enforcement: Check custom registered users / exhibitors first
+    const customUsersRaw = typeof window !== 'undefined' ? localStorage.getItem('lead2b_registered_users') : null;
+    let customUsers: Record<string, any> = {};
+    if (customUsersRaw) {
+      try {
+        customUsers = JSON.parse(customUsersRaw);
+      } catch (e) {}
+    }
+    const customAccount = customUsers[cleanEmail];
+
     if (!isDemoLogin) {
-      if (cleanEmail !== 'sheik85@gmail.com') {
+      const isSheik = cleanEmail === 'sheik85@gmail.com';
+      const hasCustom = !!customAccount;
+
+      if (!isSheik && !hasCustom) {
         setIsLoading(false);
         return {
           success: false,
-          error: 'Access restricted: Live production workspace is authorized for sheik85@gmail.com only. For evaluating or testing other roles, please use the Interactive Demo Sandbox.',
+          error: 'Access restricted: Account not found in this workspace. Please check your email or contact the organizer.',
         };
       }
 
-      if (inputPassword !== 'Craftix@2026' && inputPassword !== 'Password123!') {
-        setIsLoading(false);
-        return {
-          success: false,
-          error: 'Invalid password. Please check your credentials and try again.',
-        };
+      if (isSheik) {
+        if (inputPassword !== 'Craftix@2026' && inputPassword !== 'Password123!') {
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'Invalid password. Please check your credentials and try again.',
+          };
+        }
+      } else if (hasCustom) {
+        const expectedPwd = customAccount.password || 'Password123!';
+        if (inputPassword !== expectedPwd) {
+          setIsLoading(false);
+          return {
+            success: false,
+            error: 'Invalid password for exhibitor portal account.',
+          };
+        }
       }
     }
 
@@ -360,6 +383,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (sbErr) {
       console.warn('Supabase auth network attempt failed, checking local credentials fallback...', sbErr);
+    }
+
+    // Local fallback for registered custom exhibitor account
+    if (customAccount) {
+      const exhibitorUser: UserProfile = {
+        id: customAccount.id || `u_${Date.now()}`,
+        email: cleanEmail,
+        full_name: customAccount.full_name || customAccount.name || cleanEmail.split('@')[0],
+        system_role: customAccount.system_role || 'exhibitor_admin',
+        tenant_id: customAccount.tenant_id,
+        booth_number: customAccount.booth_number,
+        is_active: true,
+        is_demo: false,
+        created_at: new Date().toISOString(),
+      };
+      setUser(exhibitorUser);
+      try {
+        localStorage.setItem('lead2b_active_user', JSON.stringify(exhibitorUser));
+      } catch (e) {}
+      setIsLoading(false);
+      return { success: true, user: exhibitorUser };
     }
 
     // Local fallback for sheik85@gmail.com

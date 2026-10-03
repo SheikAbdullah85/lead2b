@@ -28,6 +28,7 @@ export default function AdminLicensesPage() {
   const [leadLimit, setLeadLimit] = useState(5000);
   const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [expiryDate, setExpiryDate] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]);
+  const [dateError, setDateError] = useState<string | null>(null);
 
   const loadLicenses = async () => {
     setIsLoading(true);
@@ -178,7 +179,13 @@ export default function AdminLicensesPage() {
 
   const handleAddLicense = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDateError(null);
     if (!tenantName.trim()) return;
+
+    if (startDate && expiryDate && startDate > expiryDate) {
+      setDateError('Invalid date range: License start date cannot be later than expiry date.');
+      return;
+    }
 
     setIsSaving(true);
     const newId =
@@ -468,21 +475,35 @@ export default function AdminLicensesPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-2.5">
-            <Input
-              label="Valid From"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              required
-            />
-            <Input
-              label="Expires On"
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              required
-            />
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-2.5">
+              <Input
+                label="Valid From"
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setDateError(null);
+                }}
+                required
+              />
+              <Input
+                label="Expires On"
+                type="date"
+                value={expiryDate}
+                min={startDate || undefined}
+                onChange={(e) => {
+                  setExpiryDate(e.target.value);
+                  setDateError(null);
+                }}
+                required
+              />
+            </div>
+            {dateError && (
+              <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg animate-in fade-in">
+                {dateError}
+              </p>
+            )}
           </div>
 
           <div className="pt-2 flex items-center gap-2">
