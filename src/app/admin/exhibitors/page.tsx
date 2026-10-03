@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { Organization } from '@/lib/types';
+import { Organization, Event, License } from '@/lib/types';
+import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -23,6 +24,8 @@ const INITIAL_EXHIBITORS: Organization[] = [
     active_status: true,
     subscription_plan: 'event_pro',
     license_count: 10,
+    assigned_event_name: 'GITEX Global 2026',
+    assigned_stand: 'Stand H3-B24',
     created_at: '2026-09-01T00:00:00Z',
     updated_at: '2026-09-01T00:00:00Z',
   },
@@ -38,6 +41,8 @@ const INITIAL_EXHIBITORS: Organization[] = [
     active_status: true,
     subscription_plan: 'event_standard',
     license_count: 5,
+    assigned_event_name: 'GITEX Global 2026',
+    assigned_stand: 'Stand H6-A12',
     created_at: '2026-09-01T00:00:00Z',
     updated_at: '2026-09-01T00:00:00Z',
   },
@@ -45,6 +50,7 @@ const INITIAL_EXHIBITORS: Organization[] = [
 
 export default function AdminExhibitorsPage() {
   const [exhibitors, setExhibitors] = useState<Organization[]>([]);
+  const [eventsList, setEventsList] = useState<Event[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,11 +65,51 @@ export default function AdminExhibitorsPage() {
   const [website, setWebsite] = useState('');
   const [plan, setPlan] = useState('event_standard');
   const [licenses, setLicenses] = useState(5);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [assignedStand, setAssignedStand] = useState('Stand H3-B24');
 
   const loadExhibitors = async () => {
     setIsLoading(true);
     try {
-      // 1. Load from localStorage
+      // 1. Load Events from Supabase & localStorage
+      let localEvents: Event[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_events');
+        if (stored) {
+          try {
+            localEvents = JSON.parse(stored);
+          } catch (e) {}
+        }
+      }
+
+      let serverEvents: Event[] = [];
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        try {
+          const { data: dbEvts } = await supabase
+            .from('events')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (dbEvts && dbEvts.length > 0) {
+            serverEvents = dbEvts as Event[];
+          }
+        } catch (e) {}
+      }
+
+      const seenEvtIds = new Set<string>();
+      const mergedEvents: Event[] = [];
+      for (const ev of [...serverEvents, ...localEvents, ...INITIAL_EVENTS]) {
+        if (!seenEvtIds.has(ev.id)) {
+          seenEvtIds.add(ev.id);
+          mergedEvents.push(ev);
+        }
+      }
+      setEventsList(mergedEvents);
+
+      if (mergedEvents.length > 0 && !selectedEventId) {
+        setSelectedEventId(mergedEvents[0].id);
+      }
+
+      // 2. Load Exhibitors from localStorage
       let localList: Organization[] = [];
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('lead2b_exhibitors');
@@ -74,7 +120,7 @@ export default function AdminExhibitorsPage() {
         }
       }
 
-      // 2. Load from Supabase PostgreSQL if online
+      // 3. Load from Supabase PostgreSQL if online
       let serverList: Organization[] = [];
       if (typeof navigator === 'undefined' || navigator.onLine) {
         const { data: dbOrgs } = await supabase
@@ -87,7 +133,7 @@ export default function AdminExhibitorsPage() {
         }
       }
 
-      // 3. Deduplicate by ID and Company Code
+      // 4. Deduplicate by ID and Company Code
       const seenIds = new Set<string>();
       const seenCodes = new Set<string>();
       const merged: Organization[] = [];
@@ -97,7 +143,22 @@ export default function AdminExhibitorsPage() {
         if (!seenIds.has(org.id) && (!codeKey || !seenCodes.has(codeKey))) {
           seenIds.add(org.id);
           if (codeKey) seenCodes.add(codeKey);
-          merged.push(org);
+
+          // If assigned_event_name is missing, try to resolve from assigned_event_id or fallback
+          let resolvedEventName = org.assigned_event_name;
+          if (!resolvedEventName && org.assigned_event_id) {
+            const evMatch = mergedEvents.find((e) => e.id === org.assigned_event_id);
+            if (evMatch) resolvedEventName = evMatch.event_name;
+          }
+          if (!resolvedEventName) {
+            resolvedEventName = mergedEvents[0]?.event_name || 'GITEX Global 2026';
+          }
+
+          merged.push({
+            ...org,
+            assigned_event_name: resolvedEventName,
+            assigned_stand: org.assigned_stand || 'Stand H3-B24',
+          });
         }
       }
 
@@ -115,6 +176,17 @@ export default function AdminExhibitorsPage() {
 
   useEffect(() => {
     loadExhibitors();
+
+    const handleEventChange = () => {
+      loadExhibitors();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+      return () => {
+        window.removeEventListener('lead2b_event_changed', handleEventChange);
+      };
+    }
   }, []);
 
   const handleAddExhibitor = async (e: React.FormEvent) => {
@@ -125,7 +197,12 @@ export default function AdminExhibitorsPage() {
     const newId =
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
-        : `org-${Date.now()}-0000-0000-000000000001`;
+        : '33333333-3333-3333-3333-333333333333';
+
+    const selectedEv = eventsList.find((ev) => ev.id === selectedEventId) || eventsList[0];
+    const eventId = selectedEv?.id || 'eeee1111-1111-1111-1111-111111111111';
+    const eventNameStr = selectedEv?.event_name || 'GITEX Global 2026';
+    const standStr = assignedStand.trim() || 'Stand H3-B24';
 
     const newExhibitor: Organization = {
       id: newId,
@@ -139,8 +216,31 @@ export default function AdminExhibitorsPage() {
       active_status: true,
       subscription_plan: plan,
       license_count: Number(licenses) || 5,
+      assigned_event_id: eventId,
+      assigned_event_name: eventNameStr,
+      assigned_stand: standStr,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
+    };
+
+    // Auto-provision a license package for this new exhibitor tenant
+    const newLicId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : '44444444-4444-4444-4444-444444444444';
+
+    const newLicense: License = {
+      id: newLicId,
+      tenant_id: newExhibitor.id,
+      tenant_name: newExhibitor.company_name,
+      plan: newExhibitor.subscription_plan,
+      allowed_events: 1,
+      allowed_users: newExhibitor.license_count,
+      lead_limit: 5000,
+      start_date: new Date().toISOString().split('T')[0],
+      expiry_date: new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0],
+      is_active: true,
+      created_at: new Date().toISOString(),
     };
 
     // 1. Optimistic UI & Local Storage
@@ -149,13 +249,24 @@ export default function AdminExhibitorsPage() {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('lead2b_exhibitors', JSON.stringify(updated));
+
+        // Save license to localStorage as well
+        let currentLics: License[] = [];
+        const storedLics = localStorage.getItem('lead2b_admin_licenses');
+        if (storedLics) {
+          try {
+            currentLics = JSON.parse(storedLics);
+          } catch (e) {}
+        }
+        const updatedLics = [newLicense, ...currentLics.filter((l) => l.tenant_id !== newExhibitor.id)];
+        localStorage.setItem('lead2b_admin_licenses', JSON.stringify(updatedLics));
       } catch (err) {}
     }
 
     // 2. Persist to Supabase PostgreSQL
     if (typeof navigator === 'undefined' || navigator.onLine) {
       try {
-        const { error } = await supabase.from('organizations').insert([
+        const { error: orgErr } = await supabase.from('organizations').insert([
           {
             id: newExhibitor.id,
             company_name: newExhibitor.company_name,
@@ -168,10 +279,31 @@ export default function AdminExhibitorsPage() {
             active_status: true,
             subscription_plan: newExhibitor.subscription_plan,
             license_count: newExhibitor.license_count,
+            assigned_event_id: newExhibitor.assigned_event_id,
+            assigned_event_name: newExhibitor.assigned_event_name,
+            assigned_stand: newExhibitor.assigned_stand,
           },
         ]);
-        if (error) {
-          console.warn('Supabase organization insert notice:', error.message);
+        if (orgErr) {
+          console.warn('Supabase organization insert notice:', orgErr.message);
+        }
+
+        // Insert license in Supabase
+        const { error: licErr } = await supabase.from('licenses').insert([
+          {
+            id: newLicense.id,
+            tenant_id: newLicense.tenant_id,
+            plan: newLicense.plan,
+            allowed_events: newLicense.allowed_events,
+            allowed_users: newLicense.allowed_users,
+            lead_limit: newLicense.lead_limit,
+            start_date: newLicense.start_date,
+            expiry_date: newLicense.expiry_date,
+            is_active: true,
+          },
+        ]);
+        if (licErr) {
+          console.warn('Supabase license insert notice:', licErr.message);
         }
       } catch (sbErr) {
         console.warn('Supabase insert network error:', sbErr);
@@ -211,8 +343,8 @@ export default function AdminExhibitorsPage() {
     }
   };
 
-  const handleDeleteExhibitor = async (id: string, name: string) => {
-    if (!confirm(`Are you sure you want to delete exhibitor "${name}"? This will remove all associated tenant settings.`)) {
+  const handleDeleteExhibitor = async (id: string, exName: string) => {
+    if (!confirm(`Are you sure you want to delete exhibitor "${exName}"? This will remove all associated tenant settings.`)) {
       return;
     }
 
@@ -306,8 +438,8 @@ export default function AdminExhibitorsPage() {
                     <div className="text-[11px] text-slate-400">{ex.email}</div>
                   </td>
                   <td className="p-3.5">
-                    <span className="font-semibold text-slate-800">GITEX Global 2026</span>
-                    <div className="text-[11px] font-mono text-brand-700 font-bold">Stand H3-B24</div>
+                    <span className="font-semibold text-slate-800">{ex.assigned_event_name || 'Active Event'}</span>
+                    <div className="text-[11px] font-mono text-brand-700 font-bold">{ex.assigned_stand || 'Stand Unassigned'}</div>
                   </td>
                   <td className="p-3.5">
                     <span className="font-black text-brand-700">{ex.license_count || 5} User Licenses</span>
@@ -359,7 +491,7 @@ export default function AdminExhibitorsPage() {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         title="Onboard New Exhibitor Tenant"
-        description="Creates tenant partition, branding container, and root admin access"
+        description="Creates tenant partition, stand assignment, branding container, and root admin license"
       >
         <form onSubmit={handleAddExhibitor} className="space-y-3.5">
           <Input
@@ -377,6 +509,35 @@ export default function AdminExhibitorsPage() {
             placeholder="e.g. SIEMENS-01"
             required
           />
+
+          {/* Event and Stand Allocation */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Participating Event
+              </label>
+              <select
+                value={selectedEventId}
+                onChange={(e) => setSelectedEventId(e.target.value)}
+                className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                required
+              >
+                {eventsList.map((evt) => (
+                  <option key={evt.id} value={evt.id}>
+                    {evt.event_name} ({evt.event_code})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Input
+              label="Assigned Stand / Booth"
+              value={assignedStand}
+              onChange={(e) => setAssignedStand(e.target.value)}
+              placeholder="e.g. Stand H3-B24 or Stand TK-01"
+              required
+            />
+          </div>
 
           <div className="grid grid-cols-2 gap-2.5">
             <Input

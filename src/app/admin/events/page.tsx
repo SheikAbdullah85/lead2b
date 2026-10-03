@@ -158,6 +158,8 @@ export default function AdminEventsPage() {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('lead2b_events', JSON.stringify(updated));
+        localStorage.setItem('lead2b_active_event_id', newEvent.id);
+        window.dispatchEvent(new CustomEvent('lead2b_event_changed', { detail: newEvent }));
       } catch (err) {}
     }
 
@@ -198,6 +200,10 @@ export default function AdminEventsPage() {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('lead2b_events', JSON.stringify(remaining));
+        if (remaining.length > 0) {
+          localStorage.setItem('lead2b_active_event_id', remaining[0].id);
+          window.dispatchEvent(new CustomEvent('lead2b_event_changed', { detail: remaining[0] }));
+        }
       } catch (err) {}
     }
 

@@ -20,6 +20,9 @@ export interface Organization {
   active_status: boolean;
   subscription_plan: string;
   license_count: number;
+  assigned_event_id?: string;
+  assigned_event_name?: string;
+  assigned_stand?: string;
   created_at: string;
   updated_at: string;
 }

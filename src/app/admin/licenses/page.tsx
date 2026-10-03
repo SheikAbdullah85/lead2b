@@ -7,20 +7,22 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LICENSES } from '@/lib/data/mock-store';
-import { License } from '@/lib/types';
-import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw } from 'lucide-react';
+import { License, Organization } from '@/lib/types';
+import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw, Building2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function AdminLicensesPage() {
-  const [licenses, setLicenses] = useState<License[]>(INITIAL_LICENSES);
+  const [licenses, setLicenses] = useState<License[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // New License State
-  const [tenantName, setTenantName] = useState('Alpha Technology Group');
-  const [plan, setPlan] = useState('event_pro');
-  const [allowedUsers, setAllowedUsers] = useState(10);
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
+  const [tenantName, setTenantName] = useState('Craftix Technologies');
+  const [plan, setPlan] = useState('event_standard');
+  const [allowedUsers, setAllowedUsers] = useState(5);
   const [leadLimit, setLeadLimit] = useState(5000);
   const [startDate, setStartDate] = useState('2026-10-01');
   const [expiryDate, setExpiryDate] = useState('2026-11-01');
@@ -28,7 +30,38 @@ export default function AdminLicensesPage() {
   const loadLicenses = async () => {
     setIsLoading(true);
     try {
-      // 1. Read from localStorage
+      // 1. Fetch Organizations to link tenant details
+      let orgs: Organization[] = [];
+      let localOrgs: Organization[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_exhibitors');
+        if (stored) {
+          try { localOrgs = JSON.parse(stored); } catch (e) {}
+        }
+      }
+
+      let serverOrgs: Organization[] = [];
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        try {
+          const { data: dbOrgs } = await supabase.from('organizations').select('*');
+          if (dbOrgs && dbOrgs.length > 0) serverOrgs = dbOrgs as Organization[];
+        } catch (e) {}
+      }
+
+      const seenOrgIds = new Set<string>();
+      for (const org of [...serverOrgs, ...localOrgs]) {
+        if (!seenOrgIds.has(org.id)) {
+          seenOrgIds.add(org.id);
+          orgs.push(org);
+        }
+      }
+      setOrganizations(orgs);
+      if (orgs.length > 0 && !selectedTenantId) {
+        setSelectedTenantId(orgs[0].id);
+        setTenantName(orgs[0].company_name);
+      }
+
+      // 2. Read licenses from localStorage
       let localList: License[] = [];
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('lead2b_admin_licenses');
@@ -39,30 +72,63 @@ export default function AdminLicensesPage() {
         }
       }
 
-      // 2. Read from Supabase if online
+      // 3. Read licenses from Supabase
       let serverList: License[] = [];
       if (typeof navigator === 'undefined' || navigator.onLine) {
-        const { data: dbLicenses } = await supabase
-          .from('licenses')
-          .select('*')
-          .order('created_at', { ascending: false });
+        try {
+          const { data: dbLicenses } = await supabase
+            .from('licenses')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (dbLicenses && dbLicenses.length > 0) {
-          // Map tenant_name if joined or stored
-          serverList = dbLicenses.map((lic: any) => ({
+          if (dbLicenses && dbLicenses.length > 0) {
+            serverList = dbLicenses as License[];
+          }
+        } catch (e) {}
+      }
+
+      // 4. Merge licenses and map company names
+      const allFound = [...serverList, ...localList, ...INITIAL_LICENSES];
+      const seenTenantIds = new Set<string>();
+      const seenLicIds = new Set<string>();
+      const merged: License[] = [];
+
+      // Process direct licenses
+      for (const lic of allFound) {
+        const matchedOrg = orgs.find((o) => o.id === lic.tenant_id);
+        const resolvedName = lic.tenant_name || matchedOrg?.company_name || 'Exhibitor Stand';
+        const normKey = `${lic.tenant_id}_${resolvedName.trim().toLowerCase()}`;
+
+        if (!seenLicIds.has(lic.id) && !seenTenantIds.has(normKey)) {
+          seenLicIds.add(lic.id);
+          seenTenantIds.add(normKey);
+          merged.push({
             ...lic,
-            tenant_name: lic.tenant_name || (lic.tenant_id === '11111111-1111-1111-1111-111111111111' ? 'Alpha Technology Group' : 'Exhibitor Tenant'),
-          }));
+            tenant_name: resolvedName,
+          });
         }
       }
 
-      // 3. Deduplicate
-      const seen = new Set<string>();
-      const merged: License[] = [];
-      for (const lic of [...serverList, ...localList, ...INITIAL_LICENSES]) {
-        if (!seen.has(lic.id)) {
-          seen.add(lic.id);
-          merged.push(lic);
+      // 5. Ensure EVERY registered organization (like Craftix Technologies) has a visible license card
+      for (const org of orgs) {
+        const hasLicense = merged.some(
+          (m) => m.tenant_id === org.id || m.tenant_name?.toLowerCase() === org.company_name.toLowerCase()
+        );
+        if (!hasLicense) {
+          const defaultLic: License = {
+            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : org.id,
+            tenant_id: org.id,
+            tenant_name: org.company_name,
+            plan: org.subscription_plan || 'event_standard',
+            allowed_events: 1,
+            allowed_users: org.license_count || 5,
+            lead_limit: 5000,
+            start_date: '2026-10-01',
+            expiry_date: '2026-11-01',
+            is_active: org.active_status !== false,
+            created_at: org.created_at || new Date().toISOString(),
+          };
+          merged.push(defaultLic);
         }
       }
 
@@ -82,6 +148,16 @@ export default function AdminLicensesPage() {
     loadLicenses();
   }, []);
 
+  const handleSelectOrgChange = (orgId: string) => {
+    setSelectedTenantId(orgId);
+    const org = organizations.find((o) => o.id === orgId);
+    if (org) {
+      setTenantName(org.company_name);
+      setPlan(org.subscription_plan || 'event_standard');
+      setAllowedUsers(org.license_count || 5);
+    }
+  };
+
   const handleAddLicense = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!tenantName.trim()) return;
@@ -90,24 +166,29 @@ export default function AdminLicensesPage() {
     const newId =
       typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
-        : `lic-${Date.now()}-0000-0000-000000000001`;
+        : '55555555-5555-5555-5555-555555555555';
+
+    const tenantIdToUse =
+      selectedTenantId ||
+      organizations.find((o) => o.company_name.toLowerCase() === tenantName.toLowerCase())?.id ||
+      (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : '66666666-6666-6666-6666-666666666666');
 
     const newLic: License = {
       id: newId,
-      tenant_id: '11111111-1111-1111-1111-111111111111',
+      tenant_id: tenantIdToUse,
       tenant_name: tenantName.trim(),
       plan,
       allowed_events: 1,
       allowed_users: Number(allowedUsers) || 5,
-      lead_limit: Number(leadLimit) || 2500,
+      lead_limit: Number(leadLimit) || 5000,
       start_date: startDate,
       expiry_date: expiryDate,
       is_active: true,
       created_at: new Date().toISOString(),
     };
 
-    // 1. Optimistic UI & Local Storage
-    const updated = [newLic, ...licenses];
+    // 1. Optimistic UI & Local Storage (replace any existing license for this tenant)
+    const updated = [newLic, ...licenses.filter((l) => l.tenant_id !== tenantIdToUse)];
     setLicenses(updated);
     if (typeof window !== 'undefined') {
       try {
@@ -118,7 +199,7 @@ export default function AdminLicensesPage() {
     // 2. Persist to Supabase PostgreSQL
     if (typeof navigator === 'undefined' || navigator.onLine) {
       try {
-        await supabase.from('licenses').insert([
+        const { error } = await supabase.from('licenses').upsert([
           {
             id: newLic.id,
             tenant_id: newLic.tenant_id,
@@ -131,6 +212,9 @@ export default function AdminLicensesPage() {
             is_active: true,
           },
         ]);
+        if (error) {
+          console.warn('Supabase license upsert notice:', error.message);
+        }
       } catch (err) {
         console.warn('Failed to insert license into Supabase:', err);
       }
@@ -182,6 +266,7 @@ export default function AdminLicensesPage() {
             size="sm"
             onClick={loadLicenses}
             className="text-xs font-bold gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            title="Refresh licenses from server"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand-600' : ''}`} />
             <span>Refresh</span>
@@ -209,7 +294,10 @@ export default function AdminLicensesPage() {
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-800 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-md">
                     {lic.plan}
                   </span>
-                  <CardTitle className="text-lg font-black mt-2">{lic.tenant_name || 'Exhibitor Stand'}</CardTitle>
+                  <CardTitle className="text-lg font-black mt-2 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-brand-600 shrink-0" />
+                    <span>{lic.tenant_name || 'Exhibitor Stand'}</span>
+                  </CardTitle>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={lic.is_active ? 'synced' : 'default'}>
@@ -230,7 +318,7 @@ export default function AdminLicensesPage() {
               <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-2xl border border-slate-100 text-center">
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">User Seats</span>
-                  <span className="text-base font-black text-slate-900">{lic.allowed_users}</span>
+                  <span className="text-base font-black text-slate-900">{lic.allowed_users} Reps</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Lead Limit</span>
@@ -238,7 +326,7 @@ export default function AdminLicensesPage() {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Events</span>
-                  <span className="text-base font-black text-slate-900">{lic.allowed_events || 1}</span>
+                  <span className="text-base font-black text-slate-900">{lic.allowed_events || 1} Event</span>
                 </div>
               </div>
 
@@ -265,12 +353,32 @@ export default function AdminLicensesPage() {
         description="Allocate booth seats and lead thresholds for an exhibitor"
       >
         <form onSubmit={handleAddLicense} className="space-y-3.5">
-          <Input
-            label="Exhibitor Organization"
-            value={tenantName}
-            onChange={(e) => setTenantName(e.target.value)}
-            required
-          />
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Select Exhibitor Organization
+            </label>
+            {organizations.length > 0 ? (
+              <select
+                value={selectedTenantId}
+                onChange={(e) => handleSelectOrgChange(e.target.value)}
+                className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                required
+              >
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.company_name} ({org.company_code})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <Input
+                label="Exhibitor Organization Name"
+                value={tenantName}
+                onChange={(e) => setTenantName(e.target.value)}
+                required
+              />
+            )}
+          </div>
 
           <div>
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
@@ -281,8 +389,8 @@ export default function AdminLicensesPage() {
               onChange={(e) => setPlan(e.target.value)}
               className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
             >
-              <option value="event_standard">Event Standard (5 Users / 2,000 Leads)</option>
-              <option value="event_pro">Event Pro (10 Users / 5,000 Leads)</option>
+              <option value="event_standard">Event Standard (5 Users / 5,000 Leads)</option>
+              <option value="event_pro">Event Pro (10 Users / 10,000 Leads)</option>
               <option value="annual_enterprise">Annual Enterprise (Unlimited Leads)</option>
             </select>
           </div>

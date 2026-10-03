@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { useBranding } from '@/lib/branding/context';
 import { Logo } from '@/components/ui/Logo';
-import { Building2, Calendar, QrCode, LogOut, LayoutDashboard, Users, FileSpreadsheet, Sliders, ShieldCheck, ExternalLink, Menu, X } from 'lucide-react';
+import { Building2, Calendar, QrCode, LogOut, LayoutDashboard, Users, FileSpreadsheet, Sliders, ShieldCheck, ExternalLink, Menu, X, ChevronDown } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
+import { Event } from '@/lib/types';
+import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 
 interface PortalHeaderProps {
   type: 'admin' | 'exhibitor';
@@ -17,6 +20,65 @@ export function PortalHeader({ type }: PortalHeaderProps) {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [activeEvent, setActiveEvent] = useState<Event | null>(null);
+
+  useEffect(() => {
+    const loadEvents = async () => {
+      try {
+        let storedList: Event[] = [];
+        if (typeof window !== 'undefined') {
+          const stored = localStorage.getItem('lead2b_events');
+          if (stored) {
+            try {
+              storedList = JSON.parse(stored);
+            } catch (e) {}
+          }
+        }
+
+        let serverList: Event[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: dbEvents } = await supabase
+            .from('events')
+            .select('*')
+            .order('created_at', { ascending: false });
+          if (dbEvents && dbEvents.length > 0) {
+            serverList = dbEvents as Event[];
+          }
+        }
+
+        const seen = new Set<string>();
+        const merged: Event[] = [];
+        for (const e of [...serverList, ...storedList, ...INITIAL_EVENTS]) {
+          if (!seen.has(e.id)) {
+            seen.add(e.id);
+            merged.push(e);
+          }
+        }
+        setEvents(merged);
+
+        // Check if an active event was selected
+        const savedEventId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+        const matched = merged.find((e) => e.id === savedEventId) || merged[0];
+        setActiveEvent(matched || null);
+      } catch (err) {
+        console.warn('Error loading header events:', err);
+      }
+    };
+
+    loadEvents();
+  }, []);
+
+  const handleSelectEvent = (eventId: string) => {
+    const found = events.find((e) => e.id === eventId);
+    if (found) {
+      setActiveEvent(found);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lead2b_active_event_id', found.id);
+        window.dispatchEvent(new CustomEvent('lead2b_event_changed', { detail: found }));
+      }
+    }
+  };
 
   const exhibitorLinks = [
     { label: 'Overview', href: '/exhibitor/dashboard', icon: LayoutDashboard },
@@ -52,15 +114,48 @@ export function PortalHeader({ type }: PortalHeaderProps) {
               </span>
             </Link>
 
-            {/* Active Exhibition Badge (visible on desktop) */}
-            <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-200">
-              <span className="text-xs font-bold text-slate-700">
-                {type === 'exhibitor' ? branding.company_name : 'GITEX Global 2026'}
-              </span>
-              <span className="text-[10px] bg-slate-100 text-slate-500 font-mono font-semibold px-2 py-0.5 rounded border border-slate-200">
-                Stand H3-B24
-              </span>
-            </div>
+            {/* Dynamic Event or Exhibitor Identity Badge */}
+            {type === 'admin' ? (
+              <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-200">
+                {events.length > 1 ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Event:</span>
+                    <select
+                      value={activeEvent?.id || ''}
+                      onChange={(e) => handleSelectEvent(e.target.value)}
+                      className="text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 cursor-pointer focus:ring-1 focus:ring-brand-500"
+                    >
+                      {events.map((evt) => (
+                        <option key={evt.id} value={evt.id}>
+                          {evt.event_name} ({evt.event_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800">
+                      {activeEvent?.event_name || 'Active Event'}
+                    </span>
+                    <span className="text-[10px] bg-brand-50 text-brand-700 font-mono font-semibold px-2 py-0.5 rounded border border-brand-200/80">
+                      {activeEvent?.event_code || 'EVENT'}
+                    </span>
+                  </div>
+                )}
+                <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded border border-slate-200">
+                  Organizer Admin
+                </span>
+              </div>
+            ) : (
+              <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-200">
+                <span className="text-xs font-bold text-slate-700">
+                  {branding.company_name || user?.organization?.company_name || 'Alpha Technology Group'}
+                </span>
+                <span className="text-[10px] bg-slate-100 text-slate-500 font-mono font-semibold px-2 py-0.5 rounded border border-slate-200">
+                  {user?.booth_number ? `Stand ${user.booth_number}` : 'Stand Allocated'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Desktop Navigation Links (>=1024px) */}
@@ -103,7 +198,7 @@ export function PortalHeader({ type }: PortalHeaderProps) {
                   <Link
                     href="/exhibitor/dashboard"
                     className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-teal-50 text-teal-900 border border-teal-200/80 hover:bg-teal-100 transition shadow-2xs"
-                    title="Switch to Exhibitor Portal"
+                    title="Switch to Exhibitor Operations Portal"
                   >
                     <Building2 className="w-3.5 h-3.5 text-teal-600" />
                     <span className="hidden sm:inline">Exhibitor Portal</span>
@@ -113,46 +208,68 @@ export function PortalHeader({ type }: PortalHeaderProps) {
               </div>
             )}
 
+            {/* Direct Switch to Mobile Sales App */}
             <Link
               href="/app/dashboard"
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-950 text-white hover:bg-slate-800 transition shadow-sm active:scale-95"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 transition shadow-xs"
+              title="Launch Mobile Lead Capture Interface"
             >
-              <QrCode className="w-3.5 h-3.5 text-cyan-300" />
-              <span className="hidden sm:inline">Launch App</span>
+              <QrCode className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="hidden sm:inline">Sales Terminal</span>
               <span className="sm:hidden">App</span>
             </Link>
 
+            {/* User Profile Initial & Sign Out */}
+            <div className="flex items-center gap-1 pl-2 border-l border-slate-200">
+              <div
+                className="w-8 h-8 rounded-xl bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700"
+                title={user?.email}
+              >
+                {user?.full_name ? user.full_name[0].toUpperCase() : 'U'}
+              </div>
+              <button
+                onClick={logout}
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                title="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Mobile Hamburger Button (<1024px) */}
             <button
-              onClick={logout}
-              title="Sign Out"
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-100 rounded-xl transition"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl lg:hidden"
             >
-              <LogOut className="w-4 h-4" />
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Responsive Horizontal Navigation Strip for Tablet & Mobile (under 1024px) */}
-      <div className="lg:hidden border-t border-slate-100 bg-slate-50/80 px-4 py-2 overflow-x-auto no-scrollbar flex items-center gap-1.5">
-        {links.map((link) => {
-          const Icon = link.icon;
-          const isActive = pathname === link.href;
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={`flex items-center gap-1 px-3 py-1 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 transition ${
-                isActive
-                  ? 'bg-white text-brand-800 shadow-2xs border border-brand-200/60 font-black'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Icon className={`w-3 h-3 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
-              <span>{link.label}</span>
-            </Link>
-          );
-        })}
+        {/* Mobile Dropdown Navigation Menu */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden py-3 border-t border-slate-100 space-y-1 animate-in fade-in duration-150">
+            {links.map((link) => {
+              const Icon = link.icon;
+              const isActive = pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold ${
+                    isActive
+                      ? 'bg-brand-50 text-brand-900 border border-brand-200'
+                      : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </header>
   );
