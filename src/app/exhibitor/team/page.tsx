@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2, Trash2, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/lib/auth/context';
 import { supabase } from '@/lib/supabase/client';
 import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
@@ -42,9 +43,10 @@ const DEFAULT_MEMBERS: TeamMember[] = [
 ];
 
 export default function ExhibitorTeamPage() {
+  const { isDemoMode } = useAuth();
   const [activeEvent, setActiveEvent] = useState(getActiveEvent());
   const [activeTenant, setActiveTenant] = useState(getActiveTenant());
-  const [members, setMembers] = useState<TeamMember[]>(DEFAULT_MEMBERS);
+  const [members, setMembers] = useState<TeamMember[]>([]);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -55,13 +57,41 @@ export default function ExhibitorTeamPage() {
 
   const inviteLink = `https://www.dxb.llc/invite/JOIN-${activeTenant.code}-${activeEvent.code}`;
 
+  const getDeletedMemberKeys = (): Set<string> => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem('lead2b_deleted_team_member_ids');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (e) {
+      return new Set();
+    }
+  };
+
+  const markMemberDeleted = (idOrEmail: string) => {
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('lead2b_deleted_team_member_ids');
+        const list: string[] = raw ? JSON.parse(raw) : [];
+        const clean = idOrEmail.toLowerCase();
+        if (!list.includes(clean)) {
+          list.push(clean);
+          localStorage.setItem('lead2b_deleted_team_member_ids', JSON.stringify(list));
+        }
+      } catch (e) {}
+    }
+  };
+
   const loadTeamMembers = async () => {
     setIsLoading(true);
+    const deletedKeys = getDeletedMemberKeys();
+
     try {
       let storedList: TeamMember[] = [];
+      let hasStored = false;
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('lead2b_exhibitor_team');
         if (stored) {
+          hasStored = true;
           try {
             storedList = JSON.parse(stored);
           } catch (e) {}
@@ -90,9 +120,16 @@ export default function ExhibitorTeamPage() {
 
       const seen = new Set<string>();
       const merged: TeamMember[] = [];
-      for (const m of [...serverList, ...storedList, ...DEFAULT_MEMBERS]) {
+
+      // Only seed DEFAULT_MEMBERS in demo mode or if no local store exists
+      const fallbackDefaults = isDemoMode
+        ? (hasStored || serverList.length > 0 ? [] : DEFAULT_MEMBERS)
+        : [];
+
+      for (const m of [...serverList, ...storedList, ...fallbackDefaults]) {
         const key = m.email.toLowerCase();
-        if (!seen.has(key)) {
+        const idKey = m.id.toLowerCase();
+        if (!seen.has(key) && !deletedKeys.has(key) && !deletedKeys.has(idKey)) {
           seen.add(key);
           merged.push(m);
         }
@@ -111,7 +148,7 @@ export default function ExhibitorTeamPage() {
 
   useEffect(() => {
     loadTeamMembers();
-  }, []);
+  }, [isDemoMode]);
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -186,6 +223,14 @@ export default function ExhibitorTeamPage() {
   const handleRemoveMember = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to remove ${name} from this booth?`)) return;
 
+    const target = members.find((m) => m.id === id);
+    if (target) {
+      markMemberDeleted(target.id);
+      markMemberDeleted(target.email);
+    } else {
+      markMemberDeleted(id);
+    }
+
     const remaining = members.filter((m) => m.id !== id);
     setMembers(remaining);
 
@@ -198,6 +243,9 @@ export default function ExhibitorTeamPage() {
     if (typeof navigator === 'undefined' || navigator.onLine) {
       try {
         await supabase.from('profiles').delete().eq('id', id);
+        if (target?.email) {
+          await supabase.from('profiles').delete().eq('email', target.email);
+        }
       } catch (e) {}
     }
   };
