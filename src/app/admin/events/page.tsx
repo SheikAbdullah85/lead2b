@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Event } from '@/lib/types';
+import { useAuth } from '@/lib/auth/context';
 import { Calendar, MapPin, Plus, Building2, Clock, Globe, Sparkles, Layers, Trash2, LayoutGrid, CheckCircle2, RefreshCw, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
@@ -28,6 +29,7 @@ interface StandItem {
 }
 
 export default function AdminEventsPage() {
+  const { user, isDemoMode } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -117,10 +119,11 @@ export default function AdminEventsPage() {
       const seen = new Set<string>();
       const merged: Event[] = [];
       
-      // If user has local storage, use server + stored (fallback to INITIAL_EVENTS only if empty)
-      const baseList = hasStored 
-        ? [...serverList, ...storedList] 
-        : [...serverList, ...storedList, ...INITIAL_EVENTS];
+      // In DEMO mode, load INITIAL_EVENTS if local/server is empty
+      // In LIVE mode, NEVER load INITIAL_EVENTS. Show real database/local events only.
+      const baseList = isDemoMode
+        ? (hasStored || serverList.length > 0 ? [...serverList, ...storedList] : [...serverList, ...storedList, ...INITIAL_EVENTS])
+        : [...serverList, ...storedList];
 
       for (const e of baseList) {
         if (!seen.has(e.id) && !deletedIds.has(e.id)) {
@@ -136,13 +139,13 @@ export default function AdminEventsPage() {
     } catch (err) {
       console.warn('Error loading events:', err);
       const deletedIds = getDeletedEventIds();
-      setEvents(INITIAL_EVENTS.filter(e => !deletedIds.has(e.id)));
+      setEvents(isDemoMode ? INITIAL_EVENTS.filter(e => !deletedIds.has(e.id)) : []);
     }
   };
 
   useEffect(() => {
     loadEvents();
-  }, []);
+  }, [isDemoMode]);
 
   // Hydrate floorplan data when event is selected
   useEffect(() => {
@@ -347,8 +350,28 @@ export default function AdminEventsPage() {
       </div>
 
       {/* Events List */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {events.map((evt) => (
+      {events.length === 0 ? (
+        <Card className="border-dashed border-2 border-slate-200 p-12 text-center bg-slate-50/50">
+          <div className="w-16 h-16 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center text-brand-700 mx-auto mb-4">
+            <Calendar className="w-8 h-8" />
+          </div>
+          <h3 className="text-lg font-black text-slate-900">No Events Registered</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto mt-1 mb-6">
+            There are currently no active exhibitions or conferences registered in your live workspace. Click below to launch your first event.
+          </p>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="font-black px-6"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            <span>Create First Event</span>
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {events.map((evt) => (
           <Card key={evt.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition relative group">
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
@@ -420,7 +443,8 @@ export default function AdminEventsPage() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Create Event Modal */}
       <Modal

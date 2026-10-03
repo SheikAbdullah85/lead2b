@@ -8,10 +8,12 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LICENSES } from '@/lib/data/mock-store';
 import { License, Organization } from '@/lib/types';
+import { useAuth } from '@/lib/auth/context';
 import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw, Building2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function AdminLicensesPage() {
+  const { user, isDemoMode } = useAuth();
   const [licenses, setLicenses] = useState<License[]>([]);
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -88,7 +90,9 @@ export default function AdminLicensesPage() {
       }
 
       // 4. Merge licenses and map company names
-      const allFound = [...serverList, ...localList, ...INITIAL_LICENSES];
+      const allFound = isDemoMode
+        ? [...serverList, ...localList, ...INITIAL_LICENSES]
+        : [...serverList, ...localList];
       const seenTenantIds = new Set<string>();
       const seenLicIds = new Set<string>();
       const merged: License[] = [];
@@ -138,7 +142,7 @@ export default function AdminLicensesPage() {
       }
     } catch (err) {
       console.warn('Error hydrating licenses:', err);
-      setLicenses(INITIAL_LICENSES);
+      setLicenses(isDemoMode ? INITIAL_LICENSES : []);
     } finally {
       setIsLoading(false);
     }
@@ -146,7 +150,7 @@ export default function AdminLicensesPage() {
 
   useEffect(() => {
     loadLicenses();
-  }, []);
+  }, [isDemoMode]);
 
   const handleSelectOrgChange = (orgId: string) => {
     setSelectedTenantId(orgId);

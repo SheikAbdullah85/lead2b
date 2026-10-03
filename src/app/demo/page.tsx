@@ -298,6 +298,63 @@ export default function DemoSandboxPage() {
             </Button>
           </div>
         </div>
+
+        {/* Multi-Sector Persona Quick Bar */}
+        <div className="mt-8 bg-slate-900/40 rounded-3xl border border-slate-800/80 p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <span>Explore Specific Industry Trade Shows</span>
+                <span className="text-[10px] font-bold text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
+                  Pre-configured Datasets
+                </span>
+              </h3>
+              <p className="text-xs text-slate-400">Launch directly into different industry sectors with assigned events and booths.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <button
+              type="button"
+              onClick={() => handleLaunchPersona('healthcare_rep', '/app/dashboard')}
+              className="text-left p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-teal-500/40 hover:bg-slate-900/60 transition group cursor-pointer"
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wider text-teal-400">Arab Health 2026</div>
+              <div className="text-xs font-bold text-white group-hover:text-teal-300 mt-0.5">BioHealth Dynamics</div>
+              <div className="text-[11px] text-slate-400 mt-1">Dr. Layla Al-Hashimi • Stand Hall 4-C12</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleLaunchPersona('mobility_manager', '/exhibitor/dashboard')}
+              className="text-left p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-sky-500/40 hover:bg-slate-900/60 transition group cursor-pointer"
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wider text-sky-400">Future Mobility 2026</div>
+              <div className="text-xs font-bold text-white group-hover:text-sky-300 mt-0.5">VoltMobility Systems</div>
+              <div className="text-[11px] text-slate-400 mt-1">Marcus Vance • Stand Hall 1-A05</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleLaunchPersona('booth_staff', '/app/dashboard')}
+              className="text-left p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-purple-500/40 hover:bg-slate-900/60 transition group cursor-pointer"
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wider text-purple-400">GITEX Global 2026</div>
+              <div className="text-xs font-bold text-white group-hover:text-purple-300 mt-0.5">AlphaTech Engineering</div>
+              <div className="text-[11px] text-slate-400 mt-1">Sarah Jenkins • Stand H3-B24</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleLaunchPersona('organizer_admin', '/admin/dashboard')}
+              className="text-left p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 hover:border-amber-500/40 hover:bg-slate-900/60 transition group cursor-pointer"
+            >
+              <div className="text-[10px] font-bold uppercase tracking-wider text-amber-400">DWTC Event Organizer</div>
+              <div className="text-xs font-bold text-white group-hover:text-amber-300 mt-0.5">GITEX Authority</div>
+              <div className="text-[11px] text-slate-400 mt-1">Rashid Al-Nuaimi • Organizer Admin</div>
+            </button>
+          </div>
+        </div>
       </section>
 
       {/* Guided Walkthrough Scenarios */}

@@ -29,7 +29,8 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { Event, Organization } from '@/lib/types';
-import { INITIAL_EVENTS } from '@/lib/data/mock-store';
+import { INITIAL_EVENTS, INITIAL_EXHIBITORS } from '@/lib/data/mock-store';
+import { useAuth } from '@/lib/auth/context';
 import { getActiveEvent } from '@/lib/events/active-event';
 
 interface ExhibitorItem {
@@ -42,55 +43,8 @@ interface ExhibitorItem {
   status: string;
 }
 
-const INITIAL_EXHIBITORS: Organization[] = [
-  {
-    id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
-    company_name: 'Craftix Technologies',
-    company_code: 'CRT2324',
-    primary_contact_name: 'Sheik Abdullah',
-    email: 'sheik85@gmail.com',
-    country: 'United Arab Emirates',
-    active_status: true,
-    subscription_plan: 'event_pro',
-    license_count: 5,
-    assigned_event_name: 'Tent Kotta',
-    assigned_stand: 'Stand TK-01',
-    created_at: '2026-10-01T00:00:00Z',
-    updated_at: '2026-10-01T00:00:00Z',
-  },
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    company_name: 'Alpha Technology Group',
-    company_code: 'ALPHA-TECH',
-    primary_contact_name: 'David Miller',
-    email: 'admin@alphatech.com',
-    country: 'United Arab Emirates',
-    active_status: true,
-    subscription_plan: 'event_pro',
-    license_count: 10,
-    assigned_event_name: 'GITEX Global 2026',
-    assigned_stand: 'Stand H3-B24',
-    created_at: '2026-09-01T00:00:00Z',
-    updated_at: '2026-09-01T00:00:00Z',
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    company_name: 'Beta Solutions Corp',
-    company_code: 'BETA-SOL',
-    primary_contact_name: 'Elena Rostova',
-    email: 'contact@betasolutions.example.com',
-    country: 'United Kingdom',
-    active_status: true,
-    subscription_plan: 'event_standard',
-    license_count: 5,
-    assigned_event_name: 'GITEX Global 2026',
-    assigned_stand: 'Stand H6-A12',
-    created_at: '2026-09-01T00:00:00Z',
-    updated_at: '2026-09-01T00:00:00Z',
-  },
-];
-
 export default function AdminDashboardPage() {
+  const { user, isDemoMode } = useAuth();
   const [selectedBooth, setSelectedBooth] = useState<ExhibitorItem | null>(null);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
@@ -98,12 +52,12 @@ export default function AdminDashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   const [stats, setStats] = useState({
-    eventsCount: 1,
-    totalExhibitors: 3,
-    activeExhibitors: 3,
-    activeUsers: 20,
-    totalLeadsCaptured: 1012,
-    leadsToday: 284,
+    eventsCount: 0,
+    totalExhibitors: 0,
+    activeExhibitors: 0,
+    activeUsers: 1,
+    totalLeadsCaptured: 0,
+    leadsToday: 0,
     adoptionRate: '100%',
   });
 
@@ -140,9 +94,9 @@ export default function AdminDashboardPage() {
 
       const seenEvtIds = new Set<string>();
       const mergedEvents: Event[] = [];
-      const baseEvents = localEvents.length > 0 || serverEvents.length > 0
-        ? [...serverEvents, ...localEvents]
-        : [...serverEvents, ...localEvents, ...INITIAL_EVENTS];
+      const baseEvents = isDemoMode
+        ? (localEvents.length > 0 || serverEvents.length > 0 ? [...serverEvents, ...localEvents] : [...serverEvents, ...localEvents, ...INITIAL_EVENTS])
+        : [...serverEvents, ...localEvents];
 
       for (const ev of baseEvents) {
         if (!seenEvtIds.has(ev.id) && !deletedEvtIds.has(ev.id)) {
@@ -183,9 +137,9 @@ export default function AdminDashboardPage() {
       const seenOrgIds = new Set<string>();
       const seenOrgCodes = new Set<string>();
       const mergedOrgs: Organization[] = [];
-      const baseOrgs = localOrgs.length > 0 || serverOrgs.length > 0
-        ? [...serverOrgs, ...localOrgs]
-        : [...serverOrgs, ...localOrgs, ...INITIAL_EXHIBITORS];
+      const baseOrgs = isDemoMode
+        ? (localOrgs.length > 0 || serverOrgs.length > 0 ? [...serverOrgs, ...localOrgs] : [...serverOrgs, ...localOrgs, ...INITIAL_EXHIBITORS])
+        : [...serverOrgs, ...localOrgs];
 
       for (const org of baseOrgs) {
         const codeKey = org.company_code?.trim().toUpperCase();
@@ -196,52 +150,94 @@ export default function AdminDashboardPage() {
         }
       }
 
-      // 3. Build Exhibitor Rankings
-      const rankings: ExhibitorItem[] = mergedOrgs.map((org, index) => {
-        let leads = 150 + (index * 75);
-        if (org.company_name.toLowerCase().includes('craftix')) leads = 245;
-        if (org.company_name.toLowerCase().includes('alpha')) leads = 480;
-        if (org.company_name.toLowerCase().includes('beta')) leads = 390;
+      // 3. Build Exhibitor Rankings & Stats
+      if (!isDemoMode) {
+        // LIVE PRODUCTION MODE: Ground stats strictly in real Supabase database
+        let liveLeadsCount = 0;
+        try {
+          const { count } = await supabase.from('leads').select('*', { count: 'exact', head: true });
+          if (typeof count === 'number') liveLeadsCount = count;
+        } catch (e) {}
 
-        let resolvedEventName = org.assigned_event_name;
-        if (!resolvedEventName && org.assigned_event_id) {
-          const evMatch = mergedEvents.find((e) => e.id === org.assigned_event_id);
-          if (evMatch) resolvedEventName = evMatch.event_name;
-        }
-        if (!resolvedEventName) {
-          resolvedEventName = currentActive?.event_name || 'Active Event';
-        }
+        const totalExhibitors = mergedOrgs.length;
+        const activeExhibitors = mergedOrgs.filter((o) => o.active_status !== false).length;
+        const totalReps = mergedOrgs.reduce((acc, curr) => acc + (curr.license_count || 1), 0);
 
-        return {
-          id: org.id,
-          name: org.company_name,
-          booth: org.assigned_stand || `Stand H${index + 1}-B${index + 10}`,
-          event: resolvedEventName,
-          leads,
-          reps: org.license_count || 5,
-          status: org.active_status !== false ? 'Active' : 'Suspended',
-        };
-      });
+        const rankings: ExhibitorItem[] = mergedOrgs.map((org, index) => {
+          let resolvedEventName = org.assigned_event_name;
+          if (!resolvedEventName && org.assigned_event_id) {
+            const evMatch = mergedEvents.find((e) => e.id === org.assigned_event_id);
+            if (evMatch) resolvedEventName = evMatch.event_name;
+          }
+          return {
+            id: org.id,
+            name: org.company_name,
+            booth: org.assigned_stand || `Stand TK-${index + 1}`,
+            event: resolvedEventName || 'Active Event',
+            leads: liveLeadsCount,
+            reps: org.license_count || 5,
+            status: org.active_status !== false ? 'Active' : 'Suspended',
+          };
+        });
 
-      // Sort by leads descending
-      rankings.sort((a, b) => b.leads - a.leads);
-      setExhibitorRankings(rankings);
+        setExhibitorRankings(rankings);
+        setStats({
+          eventsCount: mergedEvents.length,
+          totalExhibitors,
+          activeExhibitors,
+          activeUsers: Math.max(totalReps, 1),
+          totalLeadsCaptured: liveLeadsCount,
+          leadsToday: liveLeadsCount,
+          adoptionRate: totalExhibitors > 0 ? `${Math.round((activeExhibitors / totalExhibitors) * 100)}%` : '0%',
+        });
+      } else {
+        // DEMO SANDBOX MODE: Populate rich multi-tenant simulation
+        const rankings: ExhibitorItem[] = mergedOrgs.map((org, index) => {
+          let leads = 220 + (index * 65);
+          if (org.company_name.toLowerCase().includes('alpha')) leads = 680;
+          if (org.company_name.toLowerCase().includes('apex')) leads = 540;
+          if (org.company_name.toLowerCase().includes('biohealth')) leads = 415;
+          if (org.company_name.toLowerCase().includes('volt')) leads = 370;
 
-      // 4. Calculate Aggregate Stats
-      const totalExhibitors = mergedOrgs.length;
-      const activeExhibitors = mergedOrgs.filter((o) => o.active_status !== false).length;
-      const totalReps = rankings.reduce((acc, curr) => acc + curr.reps, 0);
-      const totalLeads = rankings.reduce((acc, curr) => acc + curr.leads, 0);
+          let resolvedEventName = org.assigned_event_name;
+          if (!resolvedEventName && org.assigned_event_id) {
+            const evMatch = mergedEvents.find((e) => e.id === org.assigned_event_id);
+            if (evMatch) resolvedEventName = evMatch.event_name;
+          }
+          if (!resolvedEventName) {
+            resolvedEventName = currentActive?.event_name || 'Active Event';
+          }
 
-      setStats({
-        eventsCount: Math.max(mergedEvents.length, 1),
-        totalExhibitors,
-        activeExhibitors,
-        activeUsers: totalReps,
-        totalLeadsCaptured: totalLeads,
-        leadsToday: Math.round(totalLeads * 0.28),
-        adoptionRate: `${Math.round((activeExhibitors / Math.max(totalExhibitors, 1)) * 100)}%`,
-      });
+          return {
+            id: org.id,
+            name: org.company_name,
+            booth: org.assigned_stand || `Stand H${index + 1}-B${index + 10}`,
+            event: resolvedEventName,
+            leads,
+            reps: org.license_count || 8,
+            status: org.active_status !== false ? 'Active' : 'Suspended',
+          };
+        });
+
+        // Sort by leads descending
+        rankings.sort((a, b) => b.leads - a.leads);
+        setExhibitorRankings(rankings);
+
+        const totalExhibitors = mergedOrgs.length;
+        const activeExhibitors = mergedOrgs.filter((o) => o.active_status !== false).length;
+        const totalReps = rankings.reduce((acc, curr) => acc + curr.reps, 0);
+        const totalLeads = rankings.reduce((acc, curr) => acc + curr.leads, 0);
+
+        setStats({
+          eventsCount: Math.max(mergedEvents.length, 6),
+          totalExhibitors,
+          activeExhibitors,
+          activeUsers: totalReps,
+          totalLeadsCaptured: totalLeads,
+          leadsToday: Math.round(totalLeads * 0.28),
+          adoptionRate: `${Math.round((activeExhibitors / Math.max(totalExhibitors, 1)) * 100)}%`,
+        });
+      }
     } catch (err) {
       console.warn('Error loading admin dashboard metrics:', err);
     } finally {
@@ -262,7 +258,7 @@ export default function AdminDashboardPage() {
         window.removeEventListener('lead2b_event_changed', handleEventChange);
       };
     }
-  }, []);
+  }, [isDemoMode]);
 
   return (
     <div className="space-y-6">

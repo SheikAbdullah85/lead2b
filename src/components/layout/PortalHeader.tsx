@@ -17,7 +17,7 @@ interface PortalHeaderProps {
 
 export function PortalHeader({ type }: PortalHeaderProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user, logout, isDemoMode } = useAuth();
   const { branding } = useBranding();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
@@ -81,9 +81,9 @@ export function PortalHeader({ type }: PortalHeaderProps) {
 
         const seen = new Set<string>();
         const merged: Event[] = [];
-        const baseList = hasStored
-          ? [...serverList, ...storedList]
-          : [...serverList, ...storedList, ...INITIAL_EVENTS];
+        const baseList = isDemoMode
+          ? (hasStored || serverList.length > 0 ? [...serverList, ...storedList] : [...serverList, ...storedList, ...INITIAL_EVENTS])
+          : [...serverList, ...storedList];
 
         for (const e of baseList) {
           if (!seen.has(e.id) && !deletedIds.has(e.id)) {
@@ -115,7 +115,7 @@ export function PortalHeader({ type }: PortalHeaderProps) {
         window.removeEventListener('lead2b_event_changed', handleEventChange);
       };
     }
-  }, []);
+  }, [isDemoMode]);
 
   const handleSelectEvent = (eventId: string) => {
     const found = events.find((e) => e.id === eventId);

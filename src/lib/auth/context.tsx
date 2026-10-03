@@ -14,11 +14,9 @@ export const LIVE_USER: UserProfile = {
   full_name: 'Sheik Abdullah',
   mobile: '+971 50 123 4567',
   system_role: 'super_admin',
-  tenant_id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd', // Craftix Technologies
-  booth_number: 'TK-01',
   is_active: true,
   is_demo: false,
-  created_at: '2026-09-01T00:00:00Z',
+  created_at: '2026-09-29T11:43:38.168858+00:00',
 };
 
 export const DEMO_USERS: Record<string, UserProfile> = {
@@ -27,6 +25,18 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     email: 'tariq@alphatech.com',
     full_name: 'Tariq Mansoor (Demo)',
     mobile: '+971 55 111 2233',
+    system_role: 'sales_rep',
+    tenant_id: '11111111-1111-1111-1111-111111111111',
+    is_active: true,
+    is_demo: true,
+    booth_number: 'H3-B24',
+    created_at: '2026-09-01T00:00:00Z',
+  },
+  booth_staff: {
+    id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+    email: 'sarah@alphatech.com',
+    full_name: 'Sarah Jenkins (Demo)',
+    mobile: '+971 55 444 5566',
     system_role: 'sales_rep',
     tenant_id: '11111111-1111-1111-1111-111111111111',
     is_active: true,
@@ -43,6 +53,31 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     tenant_id: '11111111-1111-1111-1111-111111111111',
     is_active: true,
     is_demo: true,
+    booth_number: 'H3-B24',
+    created_at: '2026-09-01T00:00:00Z',
+  },
+  healthcare_rep: {
+    id: '33333333-aaaa-bbbb-cccc-333333333333',
+    email: 'layla@biohealth.com',
+    full_name: 'Dr. Layla Al-Hashimi (Demo)',
+    mobile: '+971 50 611 8800',
+    system_role: 'sales_rep',
+    tenant_id: '33333333-3333-3333-3333-333333333333',
+    is_active: true,
+    is_demo: true,
+    booth_number: 'Hall 4-C12',
+    created_at: '2026-09-01T00:00:00Z',
+  },
+  mobility_manager: {
+    id: '44444444-aaaa-bbbb-cccc-444444444444',
+    email: 'marcus@voltmobility.com',
+    full_name: 'Marcus Vance (Demo)',
+    mobile: '+1 415 555 0192',
+    system_role: 'exhibitor_admin',
+    tenant_id: '44444444-4444-4444-4444-444444444444',
+    is_active: true,
+    is_demo: true,
+    booth_number: 'Hall 1-A05',
     created_at: '2026-09-01T00:00:00Z',
   },
   organizer_admin: {
@@ -55,14 +90,28 @@ export const DEMO_USERS: Record<string, UserProfile> = {
     is_demo: true,
     created_at: '2026-09-01T00:00:00Z',
   },
+  super_admin: {
+    id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    email: 'admin@demo-lead2b.com',
+    full_name: 'Demo Platform Super Admin',
+    mobile: '+971 50 123 4567',
+    system_role: 'super_admin',
+    is_active: true,
+    is_demo: true,
+    created_at: '2026-09-01T00:00:00Z',
+  },
 };
 
 // Standard pre-configured accounts with password credentials
 export const DEFAULT_CREDENTIALS: Record<string, { email: string; password: string; role: SystemRole }> = {
   'sheik85@gmail.com': { email: 'sheik85@gmail.com', password: 'Craftix@2026', role: 'super_admin' },
   'tariq@alphatech.com': { email: 'tariq@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
+  'sarah@alphatech.com': { email: 'sarah@alphatech.com', password: 'Craftix@2026', role: 'sales_rep' },
   'exhibitor@alphatech.com': { email: 'exhibitor@alphatech.com', password: 'Craftix@2026', role: 'exhibitor_admin' },
+  'layla@biohealth.com': { email: 'layla@biohealth.com', password: 'Craftix@2026', role: 'sales_rep' },
+  'marcus@voltmobility.com': { email: 'marcus@voltmobility.com', password: 'Craftix@2026', role: 'exhibitor_admin' },
   'organizer@gitex.com': { email: 'organizer@gitex.com', password: 'Craftix@2026', role: 'organizer_admin' },
+  'admin@demo-lead2b.com': { email: 'admin@demo-lead2b.com', password: 'Craftix@2026', role: 'super_admin' },
 };
 
 interface AuthResult {

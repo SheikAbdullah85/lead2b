@@ -7,66 +7,14 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Organization, Event, License } from '@/lib/types';
-import { INITIAL_EVENTS } from '@/lib/data/mock-store';
+import { INITIAL_EVENTS, INITIAL_EXHIBITORS } from '@/lib/data/mock-store';
+import { useAuth } from '@/lib/auth/context';
 import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { getActiveEvent } from '@/lib/events/active-event';
 
-const INITIAL_EXHIBITORS: Organization[] = [
-  {
-    id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
-    company_name: 'Craftix Technologies',
-    company_code: 'CRT2324',
-    primary_contact_name: 'Sheik Abdullah',
-    email: 'sheik85@gmail.com',
-    phone: '+971 50 123 4567',
-    country: 'United Arab Emirates',
-    website: 'https://craftix.ae',
-    active_status: true,
-    subscription_plan: 'event_pro',
-    license_count: 5,
-    assigned_event_name: 'Tent Kotta',
-    assigned_stand: 'Stand TK-01',
-    created_at: '2026-10-01T00:00:00Z',
-    updated_at: '2026-10-01T00:00:00Z',
-  },
-  {
-    id: '11111111-1111-1111-1111-111111111111',
-    company_name: 'Alpha Technology Group',
-    company_code: 'ALPHA-TECH',
-    primary_contact_name: 'David Miller',
-    email: 'admin@alphatech.com',
-    phone: '+971 4 399 1000',
-    country: 'United Arab Emirates',
-    website: 'https://alphatech.example.com',
-    active_status: true,
-    subscription_plan: 'event_pro',
-    license_count: 10,
-    assigned_event_name: 'GITEX Global 2026',
-    assigned_stand: 'Stand H3-B24',
-    created_at: '2026-09-01T00:00:00Z',
-    updated_at: '2026-09-01T00:00:00Z',
-  },
-  {
-    id: '22222222-2222-2222-2222-222222222222',
-    company_name: 'Beta Solutions Corp',
-    company_code: 'BETA-SOL',
-    primary_contact_name: 'Elena Rostova',
-    email: 'contact@betasolutions.example.com',
-    phone: '+44 20 7946 0991',
-    country: 'United Kingdom',
-    website: 'https://betasolutions.example.com',
-    active_status: true,
-    subscription_plan: 'event_standard',
-    license_count: 5,
-    assigned_event_name: 'GITEX Global 2026',
-    assigned_stand: 'Stand H6-A12',
-    created_at: '2026-09-01T00:00:00Z',
-    updated_at: '2026-09-01T00:00:00Z',
-  },
-];
-
 export default function AdminExhibitorsPage() {
+  const { user, isDemoMode } = useAuth();
   const [exhibitors, setExhibitors] = useState<Organization[]>([]);
   const [eventsList, setEventsList] = useState<Event[]>([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -126,9 +74,9 @@ export default function AdminExhibitorsPage() {
 
       const seenEvtIds = new Set<string>();
       const mergedEvents: Event[] = [];
-      const baseEvents = localEvents.length > 0 || serverEvents.length > 0
-        ? [...serverEvents, ...localEvents]
-        : [...serverEvents, ...localEvents, ...INITIAL_EVENTS];
+      const baseEvents = isDemoMode
+        ? (localEvents.length > 0 || serverEvents.length > 0 ? [...serverEvents, ...localEvents] : [...serverEvents, ...localEvents, ...INITIAL_EVENTS])
+        : [...serverEvents, ...localEvents];
 
       for (const ev of baseEvents) {
         if (!seenEvtIds.has(ev.id) && !deletedEvtIds.has(ev.id)) {
@@ -170,9 +118,9 @@ export default function AdminExhibitorsPage() {
       const seenIds = new Set<string>();
       const seenCodes = new Set<string>();
       const merged: Organization[] = [];
-      const baseOrgs = localList.length > 0 || serverList.length > 0
-        ? [...serverList, ...localList]
-        : [...serverList, ...localList, ...INITIAL_EXHIBITORS];
+      const baseOrgs = isDemoMode
+        ? (localList.length > 0 || serverList.length > 0 ? [...serverList, ...localList] : [...serverList, ...localList, ...INITIAL_EXHIBITORS])
+        : [...serverList, ...localList];
 
       for (const org of baseOrgs) {
         const codeKey = org.company_code?.trim().toUpperCase();
@@ -187,13 +135,13 @@ export default function AdminExhibitorsPage() {
             if (evMatch) resolvedEventName = evMatch.event_name;
           }
           if (!resolvedEventName) {
-            resolvedEventName = mergedEvents[0]?.event_name || getActiveEvent().name;
+            resolvedEventName = mergedEvents[0]?.event_name || (isDemoMode ? getActiveEvent().name : 'No Event Assigned');
           }
 
           merged.push({
             ...org,
             assigned_event_name: resolvedEventName,
-            assigned_stand: org.assigned_stand || 'Stand TK-01',
+            assigned_stand: org.assigned_stand || 'Stand Unassigned',
           });
         }
       }
@@ -204,7 +152,7 @@ export default function AdminExhibitorsPage() {
       }
     } catch (err) {
       console.warn('Error hydrating exhibitors:', err);
-      setExhibitors(INITIAL_EXHIBITORS);
+      setExhibitors(isDemoMode ? INITIAL_EXHIBITORS : []);
     } finally {
       setIsLoading(false);
     }
@@ -216,14 +164,11 @@ export default function AdminExhibitorsPage() {
     const handleEventChange = () => {
       loadExhibitors();
     };
-
     if (typeof window !== 'undefined') {
       window.addEventListener('lead2b_event_changed', handleEventChange);
-      return () => {
-        window.removeEventListener('lead2b_event_changed', handleEventChange);
-      };
+      return () => window.removeEventListener('lead2b_event_changed', handleEventChange);
     }
-  }, []);
+  }, [isDemoMode]);
 
   const handleAddExhibitor = async (e: React.FormEvent) => {
     e.preventDefault();
