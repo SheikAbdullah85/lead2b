@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,15 +8,85 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_FORM } from '@/lib/data/mock-store';
 import { FormQuestion } from '@/lib/types';
-import { Sliders, Plus, Trash2, Edit2, GitBranch, Eye, CheckCircle, Sparkles, Smartphone } from 'lucide-react';
+import { Sliders, Plus, Trash2, Edit2, GitBranch, Eye, CheckCircle, Sparkles, Smartphone, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function ExhibitorFormsPage() {
   const [form, setForm] = useState(INITIAL_FORM);
   const [questions, setQuestions] = useState<FormQuestion[]>(INITIAL_FORM.questions || []);
   const [isAddQuestionModalOpen, setIsAddQuestionModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedBanner, setSavedBanner] = useState(false);
   const [previewAnswers, setPreviewAnswers] = useState<Record<string, any>>({
     'qqqq0003-0000-0000-0000-000000000003': 'Yes',
   });
+
+  // Load custom questions on mount from localStorage & Supabase
+  const loadQuestions = async () => {
+    try {
+      let storedList: FormQuestion[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_custom_questions');
+        if (stored) {
+          try {
+            storedList = JSON.parse(stored);
+          } catch (e) {}
+        }
+      }
+
+      if (storedList.length > 0) {
+        setQuestions(storedList);
+        return;
+      }
+
+      // Check Supabase if online
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        const { data: dbQuestions } = await supabase
+          .from('form_questions')
+          .select('*, form_options(*)')
+          .order('display_order', { ascending: true });
+
+        if (dbQuestions && dbQuestions.length > 0) {
+          const mapped: FormQuestion[] = dbQuestions.map((q: any) => ({
+            id: q.id,
+            form_id: q.form_id || form.id,
+            question_text: q.question_text,
+            question_type: q.question_type,
+            is_required: q.is_required,
+            display_order: q.display_order,
+            conditional_parent_id: q.conditional_parent_id,
+            conditional_operator: q.conditional_operator,
+            conditional_value: q.conditional_value,
+            options: q.form_options?.map((opt: any) => ({
+              id: opt.id,
+              question_id: opt.question_id,
+              option_label: opt.option_label,
+              option_value: opt.option_value,
+              display_order: opt.display_order,
+            })),
+          }));
+          setQuestions(mapped);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('lead2b_custom_questions', JSON.stringify(mapped));
+          }
+          return;
+        }
+      }
+
+      // Fallback to default mock form questions
+      const initial = INITIAL_FORM.questions || [];
+      setQuestions(initial);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lead2b_custom_questions', JSON.stringify(initial));
+      }
+    } catch (err) {
+      console.warn('Error hydrating questions:', err);
+    }
+  };
+
+  useEffect(() => {
+    loadQuestions();
+  }, []);
 
   // New question form state
   const [questionText, setQuestionText] = useState('');
@@ -27,40 +97,105 @@ export default function ExhibitorFormsPage() {
   const [conditionalValue, setConditionalValue] = useState('Yes');
   const [optionsText, setOptionsText] = useState('Option 1, Option 2, Option 3');
 
-  const handleAddQuestion = (e: React.FormEvent) => {
+  const handleAddQuestion = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!questionText) return;
+    if (!questionText.trim()) return;
 
-    const newQId = `q_${Date.now()}`;
+    setIsSaving(true);
+    const newQId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `q-${Date.now()}-0000-0000-000000000001`;
+
+    const generatedOptions = ['dropdown', 'radio', 'checkbox', 'multi_select'].includes(questionType)
+      ? optionsText.split(',').map((opt, i) => ({
+          id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `opt-${Date.now()}-${i}`,
+          question_id: newQId,
+          option_label: opt.trim(),
+          option_value: opt.trim(),
+          display_order: i + 1,
+        }))
+      : undefined;
+
     const newQuestion: FormQuestion = {
       id: newQId,
       form_id: form.id,
-      question_text: questionText,
+      question_text: questionText.trim(),
       question_type: questionType,
       is_required: isRequired,
       display_order: questions.length + 1,
       conditional_parent_id: hasCondition && conditionalParentId ? conditionalParentId : undefined,
       conditional_operator: hasCondition ? 'equals' : undefined,
-      conditional_value: hasCondition ? conditionalValue : undefined,
-      options: ['dropdown', 'radio', 'checkbox', 'multi_select'].includes(questionType)
-        ? optionsText.split(',').map((opt, i) => ({
-            id: `opt_${Date.now()}_${i}`,
-            question_id: newQId,
-            option_label: opt.trim(),
-            option_value: opt.trim(),
-            display_order: i + 1,
-          }))
-        : undefined,
+      conditional_value: hasCondition ? conditionalValue.trim() : undefined,
+      options: generatedOptions,
     };
 
-    setQuestions([...questions, newQuestion]);
+    const updated = [...questions, newQuestion];
+    setQuestions(updated);
+
+    // Save to localStorage immediately
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_custom_questions', JSON.stringify(updated));
+      } catch (err) {}
+    }
+
+    // Save to Supabase if online
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('form_questions').insert([
+          {
+            id: newQuestion.id,
+            form_id: form.id,
+            question_text: newQuestion.question_text,
+            question_type: newQuestion.question_type,
+            is_required: newQuestion.is_required,
+            display_order: newQuestion.display_order,
+            conditional_parent_id: newQuestion.conditional_parent_id,
+            conditional_operator: newQuestion.conditional_operator,
+            conditional_value: newQuestion.conditional_value,
+          },
+        ]);
+
+        if (generatedOptions && generatedOptions.length > 0) {
+          await supabase.from('form_options').insert(
+            generatedOptions.map((opt) => ({
+              id: opt.id,
+              question_id: newQId,
+              option_label: opt.option_label,
+              option_value: opt.option_value,
+              display_order: opt.display_order,
+            }))
+          );
+        }
+      } catch (sbErr) {
+        console.warn('Supabase form question insert notice:', sbErr);
+      }
+    }
+
+    setIsSaving(false);
     setIsAddQuestionModalOpen(false);
     setQuestionText('');
     setHasCondition(false);
+    setSavedBanner(true);
+    setTimeout(() => setSavedBanner(false), 3000);
   };
 
-  const handleDeleteQuestion = (id: string) => {
-    setQuestions(questions.filter((q) => q.id !== id));
+  const handleDeleteQuestion = async (id: string) => {
+    const updated = questions.filter((q) => q.id !== id);
+    setQuestions(updated);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_custom_questions', JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('form_questions').delete().eq('id', id);
+      } catch (e) {}
+    }
   };
 
   // Evaluate conditional logic for preview
@@ -85,15 +220,35 @@ export default function ExhibitorFormsPage() {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsAddQuestionModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add Custom Question</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          {savedBanner && (
+            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full flex items-center gap-1 animate-in fade-in duration-200">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              Saved Persistently
+            </span>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadQuestions}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            title="Reload questions"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+            <span>Reload</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsAddQuestionModalOpen(true)}
+            className="text-xs font-bold gap-1.5 shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Custom Question</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -108,7 +263,7 @@ export default function ExhibitorFormsPage() {
                 </div>
                 <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-2.5 py-1 rounded-full flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  Active Default Form
+                  Active Default Form ({questions.length} Questions)
                 </span>
               </div>
             </CardHeader>
@@ -341,8 +496,8 @@ export default function ExhibitorFormsPage() {
             <Button type="button" variant="outline" onClick={() => setIsAddQuestionModalOpen(false)} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" variant="primary" className="flex-1 font-bold">
-              Save Question
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Question'}
             </Button>
           </div>
         </form>

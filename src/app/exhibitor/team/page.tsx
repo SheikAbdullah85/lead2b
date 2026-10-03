@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2 } from 'lucide-react';
+import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2, Trash2, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 interface TeamMember {
   id: string;
@@ -18,74 +19,144 @@ interface TeamMember {
   lastActive: string;
 }
 
-export default function ExhibitorTeamPage() {
-  const [members, setMembers] = useState<TeamMember[]>([
-    {
-      id: 'm1',
-      name: 'David Miller',
-      email: 'exhibitor@alphatech.com',
-      role: 'exhibitor_admin',
-      leadsCount: 12,
-      status: 'active',
-      lastActive: '5 mins ago',
-    },
-    {
-      id: 'm2',
-      name: 'Tariq Mansoor',
-      email: 'tariq@alphatech.com',
-      role: 'sales_rep',
-      leadsCount: 28,
-      status: 'active',
-      lastActive: 'Just now',
-    },
-    {
-      id: 'm3',
-      name: 'Sarah Jenkins',
-      email: 'sarah@alphatech.com',
-      role: 'sales_rep',
-      leadsCount: 19,
-      status: 'active',
-      lastActive: '12 mins ago',
-    },
-  ]);
+const DEFAULT_MEMBERS: TeamMember[] = [
+  {
+    id: 'm1',
+    name: 'David Miller',
+    email: 'exhibitor@alphatech.com',
+    role: 'exhibitor_admin',
+    leadsCount: 12,
+    status: 'active',
+    lastActive: '5 mins ago',
+  },
+  {
+    id: 'm2',
+    name: 'Tariq Mansoor',
+    email: 'tariq@alphatech.com',
+    role: 'sales_rep',
+    leadsCount: 28,
+    status: 'active',
+    lastActive: 'Just now',
+  },
+  {
+    id: 'm3',
+    name: 'Sarah Jenkins',
+    email: 'sarah@alphatech.com',
+    role: 'sales_rep',
+    leadsCount: 19,
+    status: 'active',
+    lastActive: '12 mins ago',
+  },
+];
 
+export default function ExhibitorTeamPage() {
+  const [members, setMembers] = useState<TeamMember[]>(DEFAULT_MEMBERS);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState<'sales_rep' | 'exhibitor_admin'>('sales_rep');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const inviteLink = 'https://app.lead2b.com/invite/JOIN-ALPHA-GITEX26';
 
-  const handleSendInvite = (e: React.FormEvent) => {
+  const loadTeamMembers = async () => {
+    setIsLoading(true);
+    try {
+      let storedList: TeamMember[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_exhibitor_team');
+        if (stored) {
+          try {
+            storedList = JSON.parse(stored);
+          } catch (e) {}
+        }
+      }
+
+      let serverList: TeamMember[] = [];
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        const { data: dbProfiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('tenant_id', '11111111-1111-1111-1111-111111111111');
+
+        if (dbProfiles && dbProfiles.length > 0) {
+          serverList = dbProfiles.map((p: any) => ({
+            id: p.id,
+            name: p.full_name || p.email.split('@')[0],
+            email: p.email,
+            role: (p.system_role as any) || 'sales_rep',
+            leadsCount: 0,
+            status: p.is_active ? 'active' : 'pending',
+            lastActive: 'Active today',
+          }));
+        }
+      }
+
+      const seen = new Set<string>();
+      const merged: TeamMember[] = [];
+      for (const m of [...serverList, ...storedList, ...DEFAULT_MEMBERS]) {
+        const key = m.email.toLowerCase();
+        if (!seen.has(key)) {
+          seen.add(key);
+          merged.push(m);
+        }
+      }
+
+      setMembers(merged);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lead2b_exhibitor_team', JSON.stringify(merged));
+      }
+    } catch (err) {
+      console.warn('Error loading team members:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTeamMembers();
+  }, []);
+
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail) return;
+    if (!inviteEmail.trim()) return;
 
-    const newMemberId = `m_${Date.now()}`;
     const cleanEmail = inviteEmail.trim().toLowerCase();
+    const newMemberId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `m-${Date.now()}-0000-0000-000000000001`;
 
-    setMembers([
-      ...members,
-      {
-        id: newMemberId,
-        name: inviteName || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        role: inviteRole,
-        leadsCount: 0,
-        status: 'pending',
-        lastActive: 'Invite Sent',
-      },
-    ]);
+    const newMember: TeamMember = {
+      id: newMemberId,
+      name: inviteName.trim() || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      role: inviteRole,
+      leadsCount: 0,
+      status: 'pending',
+      lastActive: 'Invite Sent',
+    };
 
-    // Store credential for instant login with Password123!
+    const updated = [newMember, ...members];
+    setMembers(updated);
+
+    // 1. Store locally in exhibitor team
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_exhibitor_team', JSON.stringify(updated));
+      } catch (err) {}
+    }
+
+    // 2. Store credential for instant login with Password123!
     try {
       const customStored = localStorage.getItem('lead2b_registered_users');
       const registered = customStored ? JSON.parse(customStored) : {};
       registered[cleanEmail] = {
-        id: `usr_${Date.now()}`,
+        id: newMemberId,
         email: cleanEmail,
-        full_name: inviteName || cleanEmail.split('@')[0],
+        full_name: newMember.name,
         system_role: inviteRole,
         tenant_id: '11111111-1111-1111-1111-111111111111',
         is_active: true,
@@ -95,9 +166,46 @@ export default function ExhibitorTeamPage() {
       localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
     } catch (err) {}
 
+    // 3. Persist to Supabase profiles
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('profiles').upsert([
+          {
+            id: newMemberId,
+            email: cleanEmail,
+            full_name: newMember.name,
+            system_role: inviteRole,
+            tenant_id: '11111111-1111-1111-1111-111111111111',
+            is_active: true,
+          },
+        ]);
+      } catch (err) {
+        console.warn('Failed to upsert profile in Supabase:', err);
+      }
+    }
+
     setIsInviteModalOpen(false);
     setInviteEmail('');
     setInviteName('');
+  };
+
+  const handleRemoveMember = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to remove ${name} from this booth?`)) return;
+
+    const remaining = members.filter((m) => m.id !== id);
+    setMembers(remaining);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_exhibitor_team', JSON.stringify(remaining));
+      } catch (e) {}
+    }
+
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('profiles').delete().eq('id', id);
+      } catch (e) {}
+    }
   };
 
   const copyToClipboard = () => {
@@ -122,6 +230,16 @@ export default function ExhibitorTeamPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadTeamMembers}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand-600' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+
           <Button
             variant="outline"
             size="sm"
@@ -153,12 +271,12 @@ export default function ExhibitorTeamPage() {
               {members.length} of 10 Representative Licenses Active
             </h3>
             <p className="text-xs text-slate-600">
-              Plan: <strong className="text-brand-900 font-bold">Event Pro (GITEX 2026)</strong> • 7 licenses available
+              Plan: <strong className="text-brand-900 font-bold">Event Pro (GITEX 2026)</strong> • {Math.max(0, 10 - members.length)} licenses available
             </p>
             <div className="w-64 sm:w-80 bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
               <div
                 className="bg-gradient-to-r from-brand-600 to-brand-400 h-full rounded-full transition-all"
-                style={{ width: `${(members.length / 10) * 100}%` }}
+                style={{ width: `${Math.min(100, (members.length / 10) * 100)}%` }}
               />
             </div>
           </div>
@@ -222,8 +340,12 @@ export default function ExhibitorTeamPage() {
                   </td>
                   <td className="p-3.5 text-slate-500 font-mono">{m.lastActive}</td>
                   <td className="p-3.5 text-right">
-                    <button className="text-xs text-brand-700 hover:text-brand-900 font-bold px-2 py-1 rounded hover:bg-brand-50 transition">
-                      Edit Role
+                    <button
+                      onClick={() => handleRemoveMember(m.id, m.name)}
+                      className="p-1 rounded text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                      title="Remove Member"
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </button>
                   </td>
                 </tr>

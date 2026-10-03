@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -8,11 +8,14 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LICENSES } from '@/lib/data/mock-store';
 import { License } from '@/lib/types';
-import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key } from 'lucide-react';
+import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw } from 'lucide-react';
+import { supabase } from '@/lib/supabase/client';
 
 export default function AdminLicensesPage() {
   const [licenses, setLicenses] = useState<License[]>(INITIAL_LICENSES);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // New License State
   const [tenantName, setTenantName] = useState('Alpha Technology Group');
@@ -22,25 +25,140 @@ export default function AdminLicensesPage() {
   const [startDate, setStartDate] = useState('2026-10-01');
   const [expiryDate, setExpiryDate] = useState('2026-11-01');
 
-  const handleAddLicense = (e: React.FormEvent) => {
+  const loadLicenses = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Read from localStorage
+      let localList: License[] = [];
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_admin_licenses');
+        if (stored) {
+          try {
+            localList = JSON.parse(stored);
+          } catch (e) {}
+        }
+      }
+
+      // 2. Read from Supabase if online
+      let serverList: License[] = [];
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        const { data: dbLicenses } = await supabase
+          .from('licenses')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (dbLicenses && dbLicenses.length > 0) {
+          // Map tenant_name if joined or stored
+          serverList = dbLicenses.map((lic: any) => ({
+            ...lic,
+            tenant_name: lic.tenant_name || (lic.tenant_id === '11111111-1111-1111-1111-111111111111' ? 'Alpha Technology Group' : 'Exhibitor Tenant'),
+          }));
+        }
+      }
+
+      // 3. Deduplicate
+      const seen = new Set<string>();
+      const merged: License[] = [];
+      for (const lic of [...serverList, ...localList, ...INITIAL_LICENSES]) {
+        if (!seen.has(lic.id)) {
+          seen.add(lic.id);
+          merged.push(lic);
+        }
+      }
+
+      setLicenses(merged);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lead2b_admin_licenses', JSON.stringify(merged));
+      }
+    } catch (err) {
+      console.warn('Error hydrating licenses:', err);
+      setLicenses(INITIAL_LICENSES);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLicenses();
+  }, []);
+
+  const handleAddLicense = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!tenantName.trim()) return;
+
+    setIsSaving(true);
+    const newId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `lic-${Date.now()}-0000-0000-000000000001`;
 
     const newLic: License = {
-      id: `lic_${Date.now()}`,
+      id: newId,
       tenant_id: '11111111-1111-1111-1111-111111111111',
-      tenant_name: tenantName,
+      tenant_name: tenantName.trim(),
       plan,
       allowed_events: 1,
-      allowed_users: Number(allowedUsers),
-      lead_limit: Number(leadLimit),
+      allowed_users: Number(allowedUsers) || 5,
+      lead_limit: Number(leadLimit) || 2500,
       start_date: startDate,
       expiry_date: expiryDate,
       is_active: true,
       created_at: new Date().toISOString(),
     };
 
-    setLicenses([newLic, ...licenses]);
+    // 1. Optimistic UI & Local Storage
+    const updated = [newLic, ...licenses];
+    setLicenses(updated);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_admin_licenses', JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    // 2. Persist to Supabase PostgreSQL
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('licenses').insert([
+          {
+            id: newLic.id,
+            tenant_id: newLic.tenant_id,
+            plan: newLic.plan,
+            allowed_events: newLic.allowed_events,
+            allowed_users: newLic.allowed_users,
+            lead_limit: newLic.lead_limit,
+            start_date: newLic.start_date,
+            expiry_date: newLic.expiry_date,
+            is_active: true,
+          },
+        ]);
+      } catch (err) {
+        console.warn('Failed to insert license into Supabase:', err);
+      }
+    }
+
+    setIsSaving(false);
     setIsAddModalOpen(false);
+  };
+
+  const handleDeleteLicense = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to revoke license package for "${name}"?`)) return;
+
+    const remaining = licenses.filter((lic) => lic.id !== id);
+    setLicenses(remaining);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_admin_licenses', JSON.stringify(remaining));
+      } catch (e) {}
+    }
+
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('licenses').delete().eq('id', id);
+      } catch (err) {
+        console.warn('Failed to delete license from Supabase:', err);
+      }
+    }
   };
 
   return (
@@ -58,32 +176,53 @@ export default function AdminLicensesPage() {
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsAddModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Issue License Package</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadLicenses}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand-600' : ''}`} />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsAddModalOpen(true)}
+            className="text-xs font-bold gap-1.5 shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Issue License Package</span>
+          </Button>
+        </div>
       </div>
 
       {/* Licenses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {licenses.map((lic) => (
-          <Card key={lic.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition">
+          <Card key={lic.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition relative group">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-800 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-md">
                     {lic.plan}
                   </span>
-                  <CardTitle className="text-lg font-black mt-2">{lic.tenant_name}</CardTitle>
+                  <CardTitle className="text-lg font-black mt-2">{lic.tenant_name || 'Exhibitor Stand'}</CardTitle>
                 </div>
-                <Badge variant={lic.is_active ? 'synced' : 'default'}>
-                  {lic.is_active ? 'ACTIVE' : 'EXPIRED'}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant={lic.is_active ? 'synced' : 'default'}>
+                    {lic.is_active ? 'ACTIVE' : 'EXPIRED'}
+                  </Badge>
+                  <button
+                    onClick={() => handleDeleteLicense(lic.id, lic.tenant_name || 'this stand')}
+                    className="p-1 rounded text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                    title="Revoke / Delete License"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </CardHeader>
 
@@ -95,11 +234,11 @@ export default function AdminLicensesPage() {
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Lead Limit</span>
-                  <span className="text-base font-black text-brand-700">{lic.lead_limit.toLocaleString()}</span>
+                  <span className="text-base font-black text-brand-700">{lic.lead_limit?.toLocaleString() || 'Unlimited'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] text-slate-400 uppercase font-bold block">Events</span>
-                  <span className="text-base font-black text-slate-900">{lic.allowed_events}</span>
+                  <span className="text-base font-black text-slate-900">{lic.allowed_events || 1}</span>
                 </div>
               </div>
 
@@ -110,6 +249,12 @@ export default function AdminLicensesPage() {
             </CardContent>
           </Card>
         ))}
+
+        {licenses.length === 0 && !isLoading && (
+          <div className="col-span-2 text-center py-12 text-slate-400">
+            No active licenses found. Click &quot;Issue License Package&quot; to allocate seats.
+          </div>
+        )}
       </div>
 
       {/* Issue License Modal */}
@@ -180,8 +325,8 @@ export default function AdminLicensesPage() {
             <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" variant="primary" className="flex-1 font-bold">
-              Issue License
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isSaving}>
+              {isSaving ? 'Issuing...' : 'Issue License'}
             </Button>
           </div>
         </form>
