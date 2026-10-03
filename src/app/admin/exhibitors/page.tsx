@@ -10,8 +10,26 @@ import { Organization, Event, License } from '@/lib/types';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { getActiveEvent } from '@/lib/events/active-event';
 
 const INITIAL_EXHIBITORS: Organization[] = [
+  {
+    id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
+    company_name: 'Craftix Technologies',
+    company_code: 'CRT2324',
+    primary_contact_name: 'Sheik Abdullah',
+    email: 'sheik85@gmail.com',
+    phone: '+971 50 123 4567',
+    country: 'United Arab Emirates',
+    website: 'https://craftix.ae',
+    active_status: true,
+    subscription_plan: 'event_pro',
+    license_count: 5,
+    assigned_event_name: 'Tent Kotta',
+    assigned_stand: 'Stand TK-01',
+    created_at: '2026-10-01T00:00:00Z',
+    updated_at: '2026-10-01T00:00:00Z',
+  },
   {
     id: '11111111-1111-1111-1111-111111111111',
     company_name: 'Alpha Technology Group',
@@ -151,13 +169,13 @@ export default function AdminExhibitorsPage() {
             if (evMatch) resolvedEventName = evMatch.event_name;
           }
           if (!resolvedEventName) {
-            resolvedEventName = mergedEvents[0]?.event_name || 'GITEX Global 2026';
+            resolvedEventName = mergedEvents[0]?.event_name || getActiveEvent().name;
           }
 
           merged.push({
             ...org,
             assigned_event_name: resolvedEventName,
-            assigned_stand: org.assigned_stand || 'Stand H3-B24',
+            assigned_stand: org.assigned_stand || 'Stand TK-01',
           });
         }
       }
@@ -199,10 +217,11 @@ export default function AdminExhibitorsPage() {
         ? crypto.randomUUID()
         : '33333333-3333-3333-3333-333333333333';
 
+    const activeEv = getActiveEvent();
     const selectedEv = eventsList.find((ev) => ev.id === selectedEventId) || eventsList[0];
-    const eventId = selectedEv?.id || 'eeee1111-1111-1111-1111-111111111111';
-    const eventNameStr = selectedEv?.event_name || 'GITEX Global 2026';
-    const standStr = assignedStand.trim() || 'Stand H3-B24';
+    const eventId = selectedEv?.id || activeEv.id;
+    const eventNameStr = selectedEv?.event_name || activeEv.name;
+    const standStr = assignedStand.trim() || 'Stand TK-01';
 
     const newExhibitor: Organization = {
       id: newId,

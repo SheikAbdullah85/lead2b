@@ -39,18 +39,20 @@ export default function AdminEventsPage() {
 
   // Halls & Stands state
   const [halls, setHalls] = useState<HallItem[]>([
+    { id: 'h0', name: 'Main Pavilion', code: 'MP', standsCount: 6 },
     { id: 'h1', name: 'Hall 1 - Main Concourse', code: 'H1', standsCount: 8 },
     { id: 'h2', name: 'Hall 2 - Enterprise AI & Cloud', code: 'H2', standsCount: 12 },
     { id: 'h3', name: 'Hall 3 - Cyber Valley', code: 'H3', standsCount: 10 },
   ]);
 
   const [stands, setStands] = useState<StandItem[]>([
+    { id: 's0', standNumber: 'TK-01', hallName: 'Main Pavilion', exhibitorName: 'Craftix Technologies', status: 'allocated', sizeSqm: 40 },
     { id: 's1', standNumber: 'H3-B24', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Alpha Technology Group', status: 'allocated', sizeSqm: 36 },
     { id: 's2', standNumber: 'H2-A10', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Beta Solutions Corp', status: 'allocated', sizeSqm: 24 },
     { id: 's3', standNumber: 'H1-C05', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Siemens Global', status: 'allocated', sizeSqm: 48 },
-    { id: 's4', standNumber: 'H3-B25', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 18 },
-    { id: 's5', standNumber: 'H2-B12', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
-    { id: 's6', standNumber: 'H1-A01', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Reserved for Sponsor', status: 'reserved', sizeSqm: 54 },
+    { id: 's4', standNumber: 'TK-02', hallName: 'Main Pavilion', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
+    { id: 's5', standNumber: 'H3-B25', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 18 },
+    { id: 's6', standNumber: 'H2-B12', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
   ]);
 
   // Form states for adding Hall / Stand
@@ -360,9 +362,14 @@ export default function AdminEventsPage() {
                 </div>
 
                 <Button
+                  type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => handleOpenFloorplan(evt)}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleOpenFloorplan(evt);
+                  }}
                   className="text-xs h-7 font-bold hover:border-brand-300 hover:text-brand-700 gap-1.5"
                 >
                   <LayoutGrid className="w-3 h-3 text-brand-600" />

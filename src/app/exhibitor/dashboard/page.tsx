@@ -14,13 +14,18 @@ import {
 import { localDb } from '@/lib/db/dexie';
 import { supabase } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
+import { useBranding } from '@/lib/branding/context';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 import { Lead } from '@/lib/types';
 import { useEffect } from 'react';
 
 export default function ExhibitorDashboardPage() {
   const { user, isDemoMode } = useAuth();
+  const { branding } = useBranding();
+  const [activeEvent, setActiveEvent] = useState(getActiveEvent());
+  const [activeTenant, setActiveTenant] = useState(getActiveTenant());
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [selectedEvent, setSelectedEvent] = useState('eeee1111-1111-1111-1111-111111111111');
+  const [selectedEvent, setSelectedEvent] = useState(activeEvent.id);
 
   useEffect(() => {
     const fetchLeads = async () => {
@@ -94,12 +99,12 @@ export default function ExhibitorDashboardPage() {
             Exhibitor Analytics Portal
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            GITEX Global 2026 — Alpha Technology Group
+            {activeEvent.name} — {branding.company_name || activeTenant.name}
           </h1>
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
-            <span className="font-semibold text-slate-700">Hall 3, Stand H3-B24</span>
+            <span className="font-semibold text-slate-700">{user?.booth_number ? `Stand ${user.booth_number}` : activeTenant.stand}</span>
             <span>•</span>
-            <span className="text-brand-700 font-bold">Dubai World Trade Centre</span>
+            <span className="text-brand-700 font-bold">{activeEvent.venue}</span>
             <span>•</span>
             <span className="flex items-center gap-1 text-emerald-600 font-medium">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -203,7 +208,7 @@ export default function ExhibitorDashboardPage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
                 <CardTitle className="text-base font-black">Booth Lead Velocity by Hour</CardTitle>
-                <p className="text-xs text-slate-400 mt-0.5">Captures per hour at GITEX Hall 3</p>
+                <p className="text-xs text-slate-400 mt-0.5">Captures per hour at {activeTenant.stand || 'Stand TK-01'}</p>
               </div>
               <span className="text-xs font-black text-brand-800 bg-brand-50 border border-brand-200/60 px-3 py-1 rounded-full">
                 Peak: 3 PM (44 leads/hr)

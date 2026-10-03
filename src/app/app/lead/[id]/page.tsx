@@ -22,10 +22,12 @@ import {
 import { DEFAULT_COLLATERAL_ASSETS } from '@/lib/collateral/collateral-store';
 
 import { useAuth } from '@/lib/auth/context';
+import { getActiveEvent } from '@/lib/events/active-event';
 
 export default function LeadDetailPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { isDemoMode } = useAuth();
+  const { user, isDemoMode } = useAuth();
+  const activeEvent = getActiveEvent();
   const [lead, setLead] = useState<Lead | null>(null);
   const [notes, setNotes] = useState<LeadNote[]>([]);
   const [followups, setFollowups] = useState<FollowupTask[]>([]);
@@ -118,7 +120,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       lead_id: lead.id,
       tenant_id: lead.tenant_id,
       user_id: lead.captured_by,
-      user_name: lead.captured_by_name || 'Tariq Mansoor',
+      user_name: lead.captured_by_name || user?.full_name || 'Sheik Abdullah',
       note_text: newNoteText.trim(),
       created_at: new Date().toISOString(),
       sync_status: 'synced',
@@ -186,9 +188,9 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
       id: 'tl_1',
       type: 'capture',
       title: `Lead captured via ${lead.capture_method || 'QR Badge'}`,
-      description: `Visitor scanned at GITEX Booth H3-B24 with priority ${lead.rating.toUpperCase()}`,
+      description: `Visitor recorded at exhibition stand with priority ${lead.rating.toUpperCase()}`,
       timestamp: lead.captured_at || lead.created_at,
-      author: lead.captured_by_name || 'Tariq Mansoor',
+      author: lead.captured_by_name || user?.full_name || 'Sheik Abdullah',
     },
     ...notes.map((n) => ({
       id: n.id,
@@ -266,7 +268,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
           </a>
 
           <a
-            href={lead.email ? `mailto:${lead.email}?subject=GITEX 2026 Follow-up` : '#'}
+            href={lead.email ? `mailto:${lead.email}?subject=${encodeURIComponent(activeEvent.name + ' Follow-up')}` : '#'}
             className={`py-2.5 px-1 rounded-xl text-center flex flex-col items-center justify-center gap-1 border transition ${
               lead.email
                 ? 'bg-slate-50 text-slate-800 border-slate-200 hover:bg-slate-100 active:scale-95'
@@ -282,7 +284,7 @@ export default function LeadDetailPage({ params }: { params: { id: string } }) {
               lead.mobile
                 ? `https://wa.me/${lead.mobile.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(
                     lead.first_name
-                  )},%20pleasure%20meeting%20you%20at%20GITEX!`
+                  )},%20pleasure%20meeting%20you%20at%20${encodeURIComponent(activeEvent.name)}!`
                 : '#'
             }
             target="_blank"

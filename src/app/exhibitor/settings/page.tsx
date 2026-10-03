@@ -5,16 +5,19 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useBranding } from '@/lib/branding/context';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 import { Palette, CheckCircle2, Sparkles, Building2, Sliders, Eye } from 'lucide-react';
 
 export default function ExhibitorSettingsPage() {
   const { branding, updateBranding } = useBranding();
+  const activeEvent = getActiveEvent();
+  const activeTenant = getActiveTenant();
 
-  const [companyName, setCompanyName] = useState(branding.company_name || 'Alpha Technology Group');
+  const [companyName, setCompanyName] = useState(branding.company_name || activeTenant.name);
   const [primaryColor, setPrimaryColor] = useState(branding.primary_color || '#00838f');
   const [secondaryColor, setSecondaryColor] = useState(branding.secondary_color || '#1e293b');
   const [welcomeMessage, setWelcomeMessage] = useState(
-    branding.welcome_message || 'Welcome to Alpha Technology GITEX 2026 Stand'
+    branding.welcome_message || `Welcome to ${activeTenant.name} at ${activeEvent.name}`
   );
   const [savedSuccess, setSavedSuccess] = useState(false);
 

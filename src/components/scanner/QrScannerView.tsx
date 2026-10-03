@@ -20,6 +20,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { playSuccessBeep, playWarningBeep } from '@/lib/utils/sound';
+import { getActiveEvent } from '@/lib/events/active-event';
 
 interface QrScannerViewProps {
   onScanSuccess: (decodedText: string) => void;
@@ -249,12 +250,14 @@ export function QrScannerView({ onScanSuccess, isScanningActive }: QrScannerView
     };
   }, [isScanningActive, startCamera, stopCamera]);
 
-  // Demo badges for instant 1-tap evaluation
+  const activeEvent = getActiveEvent();
+
+  // Instant evaluation badges
   const demoBadges = [
-    { label: 'Omar Khashoggi', company: 'Emirates NBD', role: 'VP Tech', tag: 'VIP', code: 'GITEX2026-ATT-00101' },
-    { label: 'Jessica Taylor', company: 'Accenture ME', role: 'Director AI', tag: 'VIP', code: 'GITEX2026-ATT-00102' },
-    { label: 'Ahmed Mansoor', company: 'Etisalat e&', role: 'Head of Cloud', tag: 'Trade', code: 'GITEX2026-ATT-00103' },
-    { label: 'Fatima Al-Zahra', company: 'Dubai Municipality', role: 'Director Smart Cities', tag: 'VIP', code: 'GITEX2026-ATT-00105' },
+    { label: 'Omar Khashoggi', company: 'Emirates NBD', role: 'VP Tech', tag: 'VIP', code: `${activeEvent.code}-ATT-00101` },
+    { label: 'Jessica Taylor', company: 'Accenture ME', role: 'Director AI', tag: 'VIP', code: `${activeEvent.code}-ATT-00102` },
+    { label: 'Ahmed Mansoor', company: 'Etisalat e&', role: 'Head of Cloud', tag: 'Trade', code: `${activeEvent.code}-ATT-00103` },
+    { label: 'Fatima Al-Zahra', company: 'Smart City Initiative', role: 'Director', tag: 'VIP', code: `${activeEvent.code}-ATT-00105` },
   ];
 
   return (
@@ -435,14 +438,14 @@ export function QrScannerView({ onScanSuccess, isScanningActive }: QrScannerView
         Works with all visitor badges, vCards, conference passes, and QR codes
       </p>
 
-      {/* 1-Tap Realistic GITEX Simulation Badges */}
+      {/* 1-Tap Realistic Simulation Badges */}
       <div className="w-full max-w-sm mt-4 pt-3 border-t border-slate-200">
         <div className="flex items-center justify-between text-xs font-black text-slate-700 uppercase tracking-wider mb-2">
           <span className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#00838f]" />
             <span>Demo Badge Scanner (1-Tap):</span>
           </span>
-          <span className="text-[10px] text-teal-700 font-mono">GITEX 2026</span>
+          <span className="text-[10px] text-teal-700 font-mono">{activeEvent.code}</span>
         </div>
 
         <div className="grid grid-cols-1 gap-1.5">

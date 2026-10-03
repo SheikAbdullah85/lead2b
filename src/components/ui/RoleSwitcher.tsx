@@ -49,7 +49,7 @@ export function RoleSwitcher() {
       route: '/admin/dashboard',
       icon: UserCheck,
       color: 'text-amber-700 bg-amber-50 border-amber-200/80',
-      badge: 'GITEX Organizer',
+      badge: 'Event Organizer',
     },
     {
       role: 'super_admin',

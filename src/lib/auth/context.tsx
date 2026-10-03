@@ -14,7 +14,8 @@ export const LIVE_USER: UserProfile = {
   full_name: 'Sheik Abdullah',
   mobile: '+971 50 123 4567',
   system_role: 'super_admin',
-  tenant_id: '11111111-1111-1111-1111-111111111111',
+  tenant_id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd', // Craftix Technologies
+  booth_number: 'TK-01',
   is_active: true,
   is_demo: false,
   created_at: '2026-09-01T00:00:00Z',
@@ -155,7 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: profile?.full_name || session.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : 'User'),
             mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
             system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-            tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+            tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
+            booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
             is_active: profile?.is_active ?? true,
             is_demo: !isLiveSheik && !!cachedUser?.is_demo,
             created_at: profile?.created_at || session.user.created_at || new Date().toISOString(),
@@ -194,7 +196,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: profile?.full_name || (isLiveSheik ? 'Sheik Abdullah' : (session.user.email?.split('@')[0] || 'User')),
             mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
             system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-            tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+            tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
+            booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
             is_active: profile?.is_active ?? true,
             is_demo: !isLiveSheik,
             created_at: profile?.created_at || new Date().toISOString(),
@@ -260,7 +263,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: profile?.full_name || authData.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : cleanEmail.split('@')[0]),
           mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
           system_role: (profile?.system_role as SystemRole) || role || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-          tenant_id: profile?.tenant_id || '11111111-1111-1111-1111-111111111111',
+          tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
+          booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
           is_active: true,
           is_demo: !!isDemoLogin,
           created_at: profile?.created_at || new Date().toISOString(),
@@ -374,15 +378,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const switchRole = (newRole: SystemRole) => {
     if (!user) return;
-    // In live mode, super_admin already has all privileges
-    if (!user.is_demo) {
-      return;
+    if (user.is_demo) {
+      const persona = Object.values(DEMO_USERS).find((u) => u.system_role === newRole) || { ...user, system_role: newRole };
+      setUser(persona);
+      try {
+        localStorage.setItem('lead2b_active_user', JSON.stringify(persona));
+      } catch (e) {}
+    } else {
+      // In live mode, super_admin can switch preview between rep, exhibitor admin, organizer admin
+      const updatedUser = { ...user, system_role: newRole };
+      setUser(updatedUser);
+      try {
+        localStorage.setItem('lead2b_active_user', JSON.stringify(updatedUser));
+      } catch (e) {}
     }
-    const persona = Object.values(DEMO_USERS).find((u) => u.system_role === newRole) || { ...user, system_role: newRole };
-    setUser(persona);
-    try {
-      localStorage.setItem('lead2b_active_user', JSON.stringify(persona));
-    } catch (e) {}
   };
 
   const isDemoMode = !!(user && user.is_demo);

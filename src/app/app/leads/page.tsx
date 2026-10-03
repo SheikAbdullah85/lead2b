@@ -11,9 +11,11 @@ import { Lead } from '@/lib/types';
 import { supabase } from '@/lib/supabase/client';
 import { triggerSync } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
+import { getActiveEvent } from '@/lib/events/active-event';
 
 export default function MobileLeadsPage() {
   const { isDemoMode } = useAuth();
+  const [activeEvent, setActiveEvent] = useState(getActiveEvent());
   const [leads, setLeads] = useState<Lead[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [ratingFilter, setRatingFilter] = useState<'all' | 'hot' | 'warm' | 'cold'>('all');
@@ -139,7 +141,7 @@ export default function MobileLeadsPage() {
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-brand-600 flex items-center gap-1">
             <Sparkles className="w-3 h-3 text-brand-500" />
-            GITEX Live Feed
+            {activeEvent.name} Live Feed
           </span>
           <h2 className="text-xl font-black text-slate-900 tracking-tight leading-tight">Captured Leads</h2>
         </div>
@@ -348,7 +350,7 @@ export default function MobileLeadsPage() {
                         <a
                           href={`https://wa.me/${lead.mobile.replace(/[^0-9]/g, '')}?text=Hi%20${encodeURIComponent(
                             lead.first_name
-                          )},%20pleasure%20meeting%20you%20at%20GITEX!`}
+                          )},%20pleasure%20meeting%20you%20at%20${encodeURIComponent(activeEvent.name)}!`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-bold bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 active:scale-95 transition"

@@ -8,11 +8,14 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Logo } from '@/components/ui/Logo';
 import { useAuth } from '@/lib/auth/context';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 import { Building2, Sparkles, CheckCircle2, QrCode, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export default function InviteJoinPage({ params }: { params: { code: string } }) {
   const router = useRouter();
   const { registerUser } = useAuth();
+  const activeEvent = getActiveEvent();
+  const activeTenant = getActiveTenant();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -32,7 +35,7 @@ export default function InviteJoinPage({ params }: { params: { code: string } })
       full_name: fullName,
       mobile,
       system_role: 'sales_rep',
-      tenant_id: '11111111-1111-1111-1111-111111111111',
+      tenant_id: activeTenant.id,
       is_active: true,
       created_at: new Date().toISOString(),
       password,
@@ -56,10 +59,10 @@ export default function InviteJoinPage({ params }: { params: { code: string } })
           <span className="text-[10px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-1 rounded-full">
             Booth Team Onboarding
           </span>
-          <h2 className="text-xl font-black text-slate-900 mt-2">Join Alpha Technology Group</h2>
+          <h2 className="text-xl font-black text-slate-900 mt-2">Join {activeTenant.name}</h2>
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1.5 font-medium">
             <Building2 className="w-3.5 h-3.5 text-brand-600" />
-            GITEX Global 2026 • Stand H3-B24
+            {activeEvent.name} • {activeTenant.stand || 'Stand TK-01'}
           </p>
         </div>
 

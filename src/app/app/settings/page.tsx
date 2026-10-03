@@ -10,6 +10,7 @@ import { Modal } from '@/components/ui/Modal';
 import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
 import { localDb } from '@/lib/db/dexie';
 import { supabase } from '@/lib/supabase/client';
+import { getActiveEvent } from '@/lib/events/active-event';
 import {
   User,
   Building2,
@@ -37,6 +38,7 @@ import {
 export default function MobileSettingsPage() {
   const { user, logout } = useAuth();
   const { branding } = useBranding();
+  const [activeEvent, setActiveEvent] = useState(getActiveEvent());
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -109,7 +111,7 @@ export default function MobileSettingsPage() {
                 {user?.system_role === 'super_admin' ? 'Super Administrator' : user?.system_role === 'exhibitor_admin' ? 'Exhibitor Admin' : 'Sales Representative'}
               </span>
               <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-semibold">
-                Booth H3-B24
+                {user?.booth_number ? `Stand ${user.booth_number}` : 'Stand TK-01'}
               </span>
             </div>
           </div>
@@ -118,9 +120,9 @@ export default function MobileSettingsPage() {
         <div className="pt-2.5 border-t border-slate-100 text-xs text-slate-600 flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-medium truncate">
             <Building2 className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-            <span className="truncate">{branding.company_name}</span>
+            <span className="truncate">{branding.company_name || 'Craftix Technologies'}</span>
           </span>
-          <span className="font-bold text-slate-800 shrink-0">GITEX Global 2026</span>
+          <span className="font-bold text-slate-800 shrink-0">{activeEvent.name}</span>
         </div>
       </div>
 

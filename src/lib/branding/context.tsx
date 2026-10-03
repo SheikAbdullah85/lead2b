@@ -2,14 +2,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { BrandingSettings } from '../types';
+import { DEFAULT_LIVE_TENANT } from '../events/active-event';
 
 const DEFAULT_BRANDING: BrandingSettings = {
-  id: 'brand_alpha',
-  tenant_id: '11111111-1111-1111-1111-111111111111',
-  company_name: 'Alpha Technology Group',
-  primary_color: '#2563eb',
-  secondary_color: '#1e293b',
-  welcome_message: 'Welcome to Alpha Technology GITEX 2026 Stand',
+  id: 'brand_craftix',
+  tenant_id: DEFAULT_LIVE_TENANT.id,
+  company_name: DEFAULT_LIVE_TENANT.name,
+  primary_color: '#00838f',
+  secondary_color: '#0f172a',
+  welcome_message: `Welcome to ${DEFAULT_LIVE_TENANT.name} Exhibition Stand`,
 };
 
 interface BrandingContextType {
@@ -26,11 +27,29 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
   const [branding, setBranding] = useState<BrandingSettings>(DEFAULT_BRANDING);
 
   useEffect(() => {
-    // Load persisted custom branding from local storage if edited in Exhibitor Settings
+    // 1. Check custom saved branding
     try {
       const stored = localStorage.getItem('lead2b_tenant_branding');
       if (stored) {
         setBranding(JSON.parse(stored));
+        return;
+      }
+
+      // 2. Check registered exhibitors in localStorage
+      const storedEx = localStorage.getItem('lead2b_exhibitors');
+      if (storedEx) {
+        const orgs = JSON.parse(storedEx);
+        const match = orgs.find((o: any) => o.company_name?.toLowerCase().includes('craftix')) || orgs[0];
+        if (match) {
+          setBranding({
+            id: `brand_${match.id}`,
+            tenant_id: match.id,
+            company_name: match.company_name,
+            primary_color: '#00838f',
+            secondary_color: '#0f172a',
+            welcome_message: `Welcome to ${match.company_name} Stand`,
+          });
+        }
       }
     } catch (e) {}
   }, []);

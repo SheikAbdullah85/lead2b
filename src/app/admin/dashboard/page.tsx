@@ -30,6 +30,7 @@ import {
 import { supabase } from '@/lib/supabase/client';
 import { Event, Organization } from '@/lib/types';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
+import { getActiveEvent } from '@/lib/events/active-event';
 
 interface ExhibitorItem {
   id?: string;
@@ -42,6 +43,21 @@ interface ExhibitorItem {
 }
 
 const INITIAL_EXHIBITORS: Organization[] = [
+  {
+    id: '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
+    company_name: 'Craftix Technologies',
+    company_code: 'CRT2324',
+    primary_contact_name: 'Sheik Abdullah',
+    email: 'sheik85@gmail.com',
+    country: 'United Arab Emirates',
+    active_status: true,
+    subscription_plan: 'event_pro',
+    license_count: 5,
+    assigned_event_name: 'Tent Kotta',
+    assigned_stand: 'Stand TK-01',
+    created_at: '2026-10-01T00:00:00Z',
+    updated_at: '2026-10-01T00:00:00Z',
+  },
   {
     id: '11111111-1111-1111-1111-111111111111',
     company_name: 'Alpha Technology Group',
@@ -281,7 +297,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="text-3xl font-black text-slate-900">{stats.eventsCount}</div>
             <p className="text-xs text-brand-700 mt-1 font-bold truncate">
-              {activeEvent ? `${activeEvent.event_name} (${activeEvent.event_code})` : 'GITEX Global 2026 active'}
+              {activeEvent ? `${activeEvent.event_name} (${activeEvent.event_code})` : `${getActiveEvent().name} (${getActiveEvent().code}) active`}
             </p>
           </CardContent>
         </Card>

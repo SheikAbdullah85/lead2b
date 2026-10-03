@@ -10,6 +10,7 @@ import { Lead, LeadRating, PriorityLevel, PurchaseTimeline } from '@/lib/types';
 import { ArrowLeft, UserPlus, Flame, Sparkles, Building2, CheckCircle2, WifiOff, ListFilter, Mic } from 'lucide-react';
 import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoiceInput';
 import { ParsedNaturalLanguageLead } from '@/lib/utils/speech';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
 export default function ManualLeadPage() {
   const router = useRouter();
@@ -54,12 +55,14 @@ export default function ManualLeadPage() {
     setIsSaving(true);
     try {
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+      const activeEvt = getActiveEvent();
+      const activeTnt = getActiveTenant();
 
       const leadPayload: Omit<Lead, 'id' | 'local_id' | 'sync_status'> = {
-        tenant_id: user?.tenant_id || '11111111-1111-1111-1111-111111111111',
-        event_id: 'eeee1111-1111-1111-1111-111111111111',
-        captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-        captured_by_name: user?.full_name || 'Tariq Mansoor',
+        tenant_id: user?.tenant_id || activeTnt.id,
+        event_id: activeEvt.id,
+        captured_by: user?.id || 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+        captured_by_name: user?.full_name || 'Sheik Abdullah',
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         full_name: `${firstName.trim()} ${lastName.trim()}`,
@@ -321,7 +324,7 @@ export default function ManualLeadPage() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={3}
-                placeholder="Met at GITEX stand, requested quotation for 50 licenses..."
+                placeholder="Met at booth stand, requested quotation for 50 licenses..."
                 className="w-full text-xs rounded-xl border border-slate-300 p-3 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 text-slate-800"
               />
             </div>

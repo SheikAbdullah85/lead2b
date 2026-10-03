@@ -23,8 +23,12 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
 export default function AppHelpPage() {
+  const activeEvent = getActiveEvent();
+  const activeTenant = getActiveTenant();
+
   return (
     <div className="space-y-6 pb-16">
       {/* Top Header */}
@@ -45,9 +49,9 @@ export default function AppHelpPage() {
       <div className="p-4 bg-gradient-to-br from-teal-950 via-slate-900 to-[#004d53] text-white rounded-2xl border border-teal-800/40 shadow-md">
         <div className="flex items-center gap-2 mb-1.5">
           <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-[#22d3ee]/20 text-[#22d3ee] border border-[#22d3ee]/30">
-            GITEX Global 2026
+            {activeEvent.name}
           </span>
-          <span className="text-xs font-bold text-slate-300">Stand H3-B24</span>
+          <span className="text-xs font-bold text-slate-300">{activeTenant.stand || 'Stand TK-01'}</span>
         </div>
         <h2 className="text-base font-black text-white leading-snug">
           How to Capture &amp; Qualify Every Visitor in Under 10 Seconds

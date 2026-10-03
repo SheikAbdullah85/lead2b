@@ -55,11 +55,11 @@ export async function POST(req: NextRequest) {
 
     const insertPayload = {
       id: generatedId,
-      tenant_id: isUuid(body.tenant_id) ? body.tenant_id : '11111111-1111-1111-1111-111111111111',
-      event_id: isUuid(body.event_id) ? body.event_id : 'eeee1111-1111-1111-1111-111111111111',
+      tenant_id: isUuid(body.tenant_id) ? body.tenant_id : '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
+      event_id: isUuid(body.event_id) ? body.event_id : '0d8c44ff-3163-4265-9e6b-a1b7a5880fc4',
       lead_id: body.lead_id,
-      assigned_to: isUuid(body.assigned_to) ? body.assigned_to : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-      created_by: isUuid(body.created_by) ? body.created_by : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      assigned_to: isUuid(body.assigned_to) ? body.assigned_to : 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+      created_by: isUuid(body.created_by) ? body.created_by : 'd1c88448-0a1a-4b35-8f50-32aea5420067',
       task_title: body.task_title,
       task_type: body.task_type || 'call',
       description: body.description || '',

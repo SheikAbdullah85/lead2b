@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2, Trash2, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
 interface TeamMember {
   id: string;
@@ -22,34 +23,27 @@ interface TeamMember {
 const DEFAULT_MEMBERS: TeamMember[] = [
   {
     id: 'm1',
-    name: 'David Miller',
-    email: 'exhibitor@alphatech.com',
+    name: 'Asma',
+    email: 'asma89@gmail.com',
     role: 'exhibitor_admin',
-    leadsCount: 12,
-    status: 'active',
-    lastActive: '5 mins ago',
-  },
-  {
-    id: 'm2',
-    name: 'Tariq Mansoor',
-    email: 'tariq@alphatech.com',
-    role: 'sales_rep',
-    leadsCount: 28,
+    leadsCount: 14,
     status: 'active',
     lastActive: 'Just now',
   },
   {
-    id: 'm3',
-    name: 'Sarah Jenkins',
-    email: 'sarah@alphatech.com',
-    role: 'sales_rep',
-    leadsCount: 19,
+    id: 'm2',
+    name: 'Sheik Abdullah',
+    email: 'sheik85@gmail.com',
+    role: 'exhibitor_admin',
+    leadsCount: 38,
     status: 'active',
-    lastActive: '12 mins ago',
+    lastActive: 'Active today',
   },
 ];
 
 export default function ExhibitorTeamPage() {
+  const [activeEvent, setActiveEvent] = useState(getActiveEvent());
+  const [activeTenant, setActiveTenant] = useState(getActiveTenant());
   const [members, setMembers] = useState<TeamMember[]>(DEFAULT_MEMBERS);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
@@ -59,7 +53,7 @@ export default function ExhibitorTeamPage() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const inviteLink = 'https://app.lead2b.com/invite/JOIN-ALPHA-GITEX26';
+  const inviteLink = `https://www.dxb.llc/invite/JOIN-${activeTenant.code}-${activeEvent.code}`;
 
   const loadTeamMembers = async () => {
     setIsLoading(true);
@@ -79,7 +73,7 @@ export default function ExhibitorTeamPage() {
         const { data: dbProfiles } = await supabase
           .from('profiles')
           .select('*')
-          .eq('tenant_id', '11111111-1111-1111-1111-111111111111');
+          .eq('tenant_id', activeTenant.id);
 
         if (dbProfiles && dbProfiles.length > 0) {
           serverList = dbProfiles.map((p: any) => ({
@@ -225,7 +219,7 @@ export default function ExhibitorTeamPage() {
           </span>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Booth Sales Team</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage representatives, allocate licenses, and monitor lead capture activity at GITEX Stand H3-B24.
+            Manage representatives, allocate licenses, and monitor lead capture activity at {activeEvent.name} {activeTenant.stand}.
           </p>
         </div>
 
@@ -271,7 +265,7 @@ export default function ExhibitorTeamPage() {
               {members.length} of 10 Representative Licenses Active
             </h3>
             <p className="text-xs text-slate-600">
-              Plan: <strong className="text-brand-900 font-bold">Event Pro (GITEX 2026)</strong> • {Math.max(0, 10 - members.length)} licenses available
+              Plan: <strong className="text-brand-900 font-bold">Event Pro ({activeEvent.name})</strong> • {Math.max(0, 10 - members.length)} licenses available
             </p>
             <div className="w-64 sm:w-80 bg-slate-200 h-2 rounded-full overflow-hidden mt-2">
               <div
@@ -442,7 +436,7 @@ export default function ExhibitorTeamPage() {
           </div>
 
           <div className="text-xs space-y-1 text-slate-600">
-            <p className="font-bold text-slate-900">Event: GITEX Global 2026 • Stand H3-B24</p>
+            <p className="font-bold text-slate-900">Event: {activeEvent.name} • {activeTenant.stand}</p>
             <p className="text-slate-400">QR token expires in 24 hours • Enforces booth license limits</p>
           </div>
 

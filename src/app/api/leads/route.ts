@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
     // Insert directly into Supabase PostgreSQL table 'leads'
     const { error: insertError } = await supabase.from('leads').insert([{
       id: targetUuid,
-      tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
-      event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
+      tenant_id: body.tenant_id || '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
+      event_id: body.event_id || '0d8c44ff-3163-4265-9e6b-a1b7a5880fc4',
       attendee_id: isUuid(body.attendee_id) ? body.attendee_id : null,
-      captured_by: isUuid(body.captured_by) ? body.captured_by : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      captured_by: isUuid(body.captured_by) ? body.captured_by : 'd1c88448-0a1a-4b35-8f50-32aea5420067',
       booth_id: isUuid(body.booth_id) ? body.booth_id : null,
       first_name: body.first_name,
       last_name: body.last_name,
@@ -106,11 +106,11 @@ export async function POST(req: NextRequest) {
 
     const savedLead: Lead = {
       id: targetUuid,
-      tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
-      event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
+      tenant_id: body.tenant_id || '2d14ae23-567f-457f-be97-f8cfb1bbd6dd',
+      event_id: body.event_id || '0d8c44ff-3163-4265-9e6b-a1b7a5880fc4',
       attendee_id: body.attendee_id,
-      captured_by: body.captured_by || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-      captured_by_name: body.captured_by_name || 'Tariq Mansoor',
+      captured_by: body.captured_by || 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+      captured_by_name: body.captured_by_name || 'Sheik Abdullah',
       booth_id: body.booth_id || 'b0001111-1111-1111-1111-111111111111',
       first_name: body.first_name,
       last_name: body.last_name,

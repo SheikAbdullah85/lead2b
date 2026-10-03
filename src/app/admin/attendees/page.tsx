@@ -11,6 +11,7 @@ import { parseAttendeeFile, validateAndMapAttendees, ColumnMapping, ParseResult 
 import { Attendee } from '@/lib/types';
 import { localDb } from '@/lib/db/dexie';
 import { supabase } from '@/lib/supabase/client';
+import { getActiveEvent } from '@/lib/events/active-event';
 import {
   Users,
   Upload,
@@ -30,6 +31,7 @@ import {
 } from 'lucide-react';
 
 export default function AdminAttendeesPage() {
+  const [activeEvent, setActiveEvent] = useState(getActiveEvent());
   const [attendees, setAttendees] = useState<Attendee[]>(INITIAL_ATTENDEES);
   const [searchQuery, setSearchQuery] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -54,7 +56,7 @@ export default function AdminAttendeesPage() {
   const [importSummary, setImportSummary] = useState<{ imported: number; duplicates: number; errors: number } | null>(null);
 
   // Manual create attendee state
-  const [badgeId, setBadgeId] = useState(`GITEX2026-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [badgeId, setBadgeId] = useState(`${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [company, setCompany] = useState('');
@@ -138,7 +140,7 @@ export default function AdminAttendeesPage() {
     const result = validateAndMapAttendees(
       parsedData.rawRows,
       columnMapping,
-      'eeee1111-1111-1111-1111-111111111111',
+      activeEvent.id,
       existingBadges
     );
 
@@ -206,7 +208,7 @@ export default function AdminAttendeesPage() {
 
     const newAtt: Attendee = {
       id: uuid,
-      event_id: 'eeee1111-1111-1111-1111-111111111111',
+      event_id: activeEvent.id,
       badge_id: badgeId.trim(),
       qr_token: `lead2b:badge:${badgeId.trim()}`,
       first_name: firstName.trim(),
@@ -257,7 +259,7 @@ export default function AdminAttendeesPage() {
     setCompany('');
     setJobTitle('');
     setMobile('');
-    setBadgeId(`GITEX2026-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
+    setBadgeId(`${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
   };
 
   // Selection toggles
@@ -485,7 +487,7 @@ export default function AdminAttendeesPage() {
           isOpen={!!badgesToPrint}
           onClose={() => setBadgesToPrint(null)}
           title={`Print ${badgesToPrint.length === 1 ? 'Attendee Badge' : `${badgesToPrint.length} Badges in Batch`}`}
-          description="High-resolution encrypted QR badge for fast offline badge scanning at GITEX Global 2026"
+          description={`High-resolution encrypted QR badge for fast offline badge scanning at ${activeEvent.name}`}
           maxWidth="xl"
         >
           <div className="space-y-4">
@@ -535,10 +537,10 @@ export default function AdminAttendeesPage() {
                     {/* Badge Top Header */}
                     <div className="bg-slate-900 text-white p-3.5 text-center">
                       <div className="text-[10px] uppercase font-black tracking-widest text-teal-400">
-                        GITEX GLOBAL 2026
+                        {activeEvent.name}
                       </div>
                       <div className="text-[10px] text-slate-300 font-medium">
-                        DUBAI WORLD TRADE CENTRE • UAE
+                        {activeEvent.venue || 'Maharnombu Pottal, Karaikkudi'}
                       </div>
                     </div>
 

@@ -40,6 +40,7 @@ import { NaturalLanguageVoiceInput } from '@/components/audio/NaturalLanguageVoi
 import { ParsedNaturalLanguageLead } from '@/lib/utils/speech';
 import { preprocessCardForOcr } from '@/lib/ocr/card-preprocessor';
 import { parseBusinessCardText } from '@/lib/ocr/card-parser';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
 export default function ScanPage() {
   const router = useRouter();
@@ -126,7 +127,7 @@ export default function ScanPage() {
 
       const ocrAttendee: Attendee = {
         id: generatedAttUuid,
-        event_id: 'eeee1111-1111-1111-1111-111111111111',
+        event_id: getActiveEvent().id,
         badge_id: 'OCR-' + Date.now().toString(36).toUpperCase().slice(-5),
         qr_token: 'ocr_badge_' + Date.now(),
         first_name: parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : 'Visitor'),
@@ -297,7 +298,7 @@ export default function ScanPage() {
 
       matchedAttendee = {
         id: generatedAttUuid,
-        event_id: 'eeee1111-1111-1111-1111-111111111111',
+        event_id: getActiveEvent().id,
         badge_id: badgeId,
         qr_token: qrText,
         first_name: parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : 'Visitor'),
@@ -342,11 +343,11 @@ export default function ScanPage() {
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
       const leadPayload: Omit<Lead, 'id' | 'local_id' | 'sync_status'> = {
-        tenant_id: user?.tenant_id || '11111111-1111-1111-1111-111111111111',
-        event_id: matchedAttendee.event_id || 'eeee1111-1111-1111-1111-111111111111',
+        tenant_id: user?.tenant_id || getActiveTenant().id,
+        event_id: matchedAttendee.event_id || getActiveEvent().id,
         attendee_id: isUuid(matchedAttendee.id) ? matchedAttendee.id : undefined,
-        captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-        captured_by_name: user?.full_name || 'Tariq Mansoor',
+        captured_by: user?.id || 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+        captured_by_name: user?.full_name || 'Sheik Abdullah',
         booth_id: 'b0001111-1111-1111-1111-111111111111',
         first_name: matchedAttendee.first_name,
         last_name: matchedAttendee.last_name || 'Visitor',
@@ -458,10 +459,10 @@ export default function ScanPage() {
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
       const leadPayload: Omit<Lead, 'id' | 'local_id' | 'sync_status'> = {
-        tenant_id: user?.tenant_id || '11111111-1111-1111-1111-111111111111',
-        event_id: 'eeee1111-1111-1111-1111-111111111111',
-        captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-        captured_by_name: user?.full_name || 'Tariq Mansoor',
+        tenant_id: user?.tenant_id || getActiveTenant().id,
+        event_id: getActiveEvent().id,
+        captured_by: user?.id || 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+        captured_by_name: user?.full_name || 'Sheik Abdullah',
         first_name: firstName.trim(),
         last_name: lastName.trim(),
         full_name: `${firstName.trim()} ${lastName.trim()}`,
@@ -920,7 +921,7 @@ export default function ScanPage() {
               onClick={() => {
                 const sampleBadgeAttendee: Attendee = {
                   id: 'att_sample_' + Date.now(),
-                  event_id: 'eeee1111-1111-1111-1111-111111111111',
+                  event_id: getActiveEvent().id,
                   badge_id: 'BADGE-' + Math.floor(1000 + Math.random() * 9000),
                   qr_token: 'sample_badge_qr',
                   first_name: 'Dr. Sarah',

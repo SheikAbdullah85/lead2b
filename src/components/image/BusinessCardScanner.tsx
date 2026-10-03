@@ -10,6 +10,7 @@ import { Camera, RefreshCw, Sparkles, Check, AlertCircle, Loader2, Image as Imag
 import { saveLeadLocally } from '@/lib/db/sync-engine';
 import { useAuth } from '@/lib/auth/context';
 import { Lead } from '@/lib/types';
+import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
 
 interface BusinessCardScannerProps {
   onSuccess: (savedLead: Lead) => void;
@@ -145,10 +146,10 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
 
       const leadPayload: Omit<Lead, 'id' | 'local_id' | 'sync_status'> = {
-        tenant_id: user?.tenant_id || '11111111-1111-1111-1111-111111111111',
-        event_id: 'eeee1111-1111-1111-1111-111111111111',
-        captured_by: user?.id || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-        captured_by_name: user?.full_name || 'Tariq Mansoor',
+        tenant_id: user?.tenant_id || getActiveTenant().id,
+        event_id: getActiveEvent().id,
+        captured_by: user?.id || 'd1c88448-0a1a-4b35-8f50-32aea5420067',
+        captured_by_name: user?.full_name || 'Sheik Abdullah',
         first_name: firstName,
         last_name: lastName,
         full_name: `${firstName} ${lastName}`.trim(),
