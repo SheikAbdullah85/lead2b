@@ -43,6 +43,7 @@ export default function MobileDashboardPage() {
     const handleSync = () => {
       setActiveEvent(getActiveEvent());
       setActiveTenant(getActiveTenant());
+      loadLeads();
     };
     handleSync();
     if (typeof window !== 'undefined') {
@@ -68,10 +69,16 @@ export default function MobileDashboardPage() {
         }
       }
 
-      // In demo mode only, fallback to INITIAL_LEADS if completely empty
+      // In demo mode only, fallback to INITIAL_LEADS filtered by active event
       let combined = merged;
       if (isDemoMode && combined.length === 0) {
-        combined = [...INITIAL_LEADS];
+        const activeEvId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+        if (activeEvId) {
+          const matching = INITIAL_LEADS.filter((l) => l.event_id === activeEvId);
+          combined = matching.length > 0 ? matching : [...INITIAL_LEADS];
+        } else {
+          combined = [...INITIAL_LEADS];
+        }
       }
 
       combined.sort((a, b) => {

@@ -112,15 +112,41 @@ export default function AdminAttendeesPage() {
     }
   };
 
+  const [showAllEvents, setShowAllEvents] = useState(false);
+
   useEffect(() => {
     loadAttendees();
+
+    const handleEventChange = (e?: any) => {
+      if (e?.detail) {
+        setActiveEvent({
+          id: e.detail.id,
+          name: e.detail.event_name,
+          code: e.detail.event_code,
+          venue: e.detail.venue,
+          city: e.detail.city,
+        });
+      }
+      loadAttendees();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+      return () => window.removeEventListener('lead2b_event_changed', handleEventChange);
+    }
   }, []);
 
-  const filteredAttendees = attendees.filter((a) =>
-    `${a.first_name} ${a.last_name} ${a.company} ${a.email} ${a.badge_id}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  );
+  const filteredAttendees = attendees
+    .filter((a) => {
+      if (showAllEvents) return true;
+      if (!activeEvent?.id) return true;
+      return a.event_id === activeEvent.id;
+    })
+    .filter((a) =>
+      `${a.first_name} ${a.last_name} ${a.company} ${a.email} ${a.badge_id}`
+        .toLowerCase()
+        .includes(searchQuery.toLowerCase())
+    );
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -372,6 +398,25 @@ export default function AdminAttendeesPage() {
               <X className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
+
+        {/* Active Event Scope Bar */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-100 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-slate-400">Event Scope:</span>
+            <span className="font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              {showAllEvents ? 'All Exhibitions' : (activeEvent?.name || 'Active Event')}
+            </span>
+            <span className="text-slate-400 font-medium">({filteredAttendees.length} badges)</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAllEvents(!showAllEvents)}
+            className="text-[11px] font-bold text-brand-700 hover:underline cursor-pointer"
+          >
+            {showAllEvents ? `← Filter by ${activeEvent?.name || 'Active Event'}` : `View All Attendees Across All Events (${attendees.length}) →`}
+          </button>
         </div>
 
         {/* Multi-selection summary banner */}

@@ -151,8 +151,19 @@ export default function AdminLicensesPage() {
     }
   };
 
+  const [filterEventId, setFilterEventId] = useState<string>('active');
+
   useEffect(() => {
     loadLicenses();
+
+    const handleEventChange = () => {
+      loadLicenses();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+      return () => window.removeEventListener('lead2b_event_changed', handleEventChange);
+    }
   }, [isDemoMode]);
 
   const handleSelectOrgChange = (orgId: string) => {
@@ -291,9 +302,47 @@ export default function AdminLicensesPage() {
         </div>
       </div>
 
+      {/* Event Scope Filter Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">Filter Event:</span>
+          <button
+            type="button"
+            onClick={() => setFilterEventId('active')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+              filterEventId === 'active'
+                ? 'bg-brand-50 border border-brand-300 text-brand-900 shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            <span>Selected Event Focus</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilterEventId('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              filterEventId === 'all'
+                ? 'bg-brand-900 text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All Exhibitions ({licenses.length})
+          </button>
+        </div>
+      </div>
+
       {/* Licenses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {licenses.map((lic) => (
+        {licenses
+          .filter((lic) => {
+            if (filterEventId === 'all') return true;
+            const activeStoredId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+            if (!activeStoredId) return true;
+            const matchedOrg = organizations.find((o) => o.id === lic.tenant_id);
+            if (!matchedOrg) return true;
+            return matchedOrg.assigned_event_id === activeStoredId;
+          })
+          .map((lic) => (
           <Card key={lic.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition relative group">
             <CardHeader className="pb-2">
               <div className="flex items-start justify-between gap-2">

@@ -120,31 +120,51 @@ export function getActiveTenant(): ActiveTenantInfo {
     } catch (e) {}
 
     try {
+      const activeEventId = localStorage.getItem('lead2b_active_event_id');
       const rawDel = localStorage.getItem('lead2b_deleted_exhibitor_ids');
       const deletedIds = new Set<string>(rawDel ? JSON.parse(rawDel) : []);
 
       const stored = localStorage.getItem('lead2b_exhibitors');
-      if (stored) {
-        const orgs: Organization[] = JSON.parse(stored).filter((o: Organization) => !deletedIds.has(o.id));
-        if (userTenantId) {
-          const matchedUserOrg = orgs.find((o) => o.id === userTenantId);
-          if (matchedUserOrg) {
-            return {
-              id: matchedUserOrg.id,
-              name: matchedUserOrg.company_name,
-              code: matchedUserOrg.company_code,
-              stand: matchedUserOrg.assigned_stand || 'Stand Unassigned',
-            };
-          }
-        }
-        if (orgs.length > 0) {
+      let orgs: Organization[] = stored ? JSON.parse(stored).filter((o: Organization) => !deletedIds.has(o.id)) : [];
+
+      if (isDemo && orgs.length === 0) {
+        orgs = INITIAL_EXHIBITORS;
+      }
+
+      // 1. Try to find organization belonging to the selected active event
+      if (activeEventId && orgs.length > 0) {
+        const orgForEvent = orgs.find((o) => o.assigned_event_id === activeEventId);
+        if (orgForEvent) {
           return {
-            id: orgs[0].id,
-            name: orgs[0].company_name,
-            code: orgs[0].company_code,
-            stand: orgs[0].assigned_stand || 'Stand Unassigned',
+            id: orgForEvent.id,
+            name: orgForEvent.company_name,
+            code: orgForEvent.company_code,
+            stand: orgForEvent.assigned_stand || 'Stand Unassigned',
           };
         }
+      }
+
+      // 2. Try user-assigned tenant
+      if (userTenantId && orgs.length > 0) {
+        const matchedUserOrg = orgs.find((o) => o.id === userTenantId);
+        if (matchedUserOrg) {
+          return {
+            id: matchedUserOrg.id,
+            name: matchedUserOrg.company_name,
+            code: matchedUserOrg.company_code,
+            stand: matchedUserOrg.assigned_stand || 'Stand Unassigned',
+          };
+        }
+      }
+
+      // 3. Fallback to first available organization
+      if (orgs.length > 0) {
+        return {
+          id: orgs[0].id,
+          name: orgs[0].company_name,
+          code: orgs[0].company_code,
+          stand: orgs[0].assigned_stand || 'Stand Unassigned',
+        };
       }
     } catch (e) {}
   }

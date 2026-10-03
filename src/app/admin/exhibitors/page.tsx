@@ -398,6 +398,45 @@ export default function AdminExhibitorsPage() {
         </div>
       </div>
 
+      {/* Event Filter & Active Focus Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-white rounded-2xl border border-slate-200 shadow-2xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mr-1 shrink-0">Filter Event:</span>
+          <button
+            type="button"
+            onClick={() => setSelectedEventId('all')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+              selectedEventId === 'all'
+                ? 'bg-brand-900 text-white shadow-2xs'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            All Events ({exhibitors.length})
+          </button>
+          {eventsList.map((ev) => {
+            const count = exhibitors.filter((ex) => ex.assigned_event_id === ev.id).length;
+            const isSelected = selectedEventId === ev.id || (!selectedEventId && ev.id === (typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : ''));
+            return (
+              <button
+                key={ev.id}
+                type="button"
+                onClick={() => setSelectedEventId(ev.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
+                  isSelected
+                    ? 'bg-brand-50 border border-brand-300 text-brand-900 shadow-2xs'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <span>{ev.event_code || ev.event_name}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isSelected ? 'bg-brand-200/80 text-brand-950 font-black' : 'bg-slate-200 text-slate-700'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Exhibitors Table */}
       <Card className="p-0 overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
@@ -413,7 +452,14 @@ export default function AdminExhibitorsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {exhibitors.map((ex) => (
+              {exhibitors
+                .filter((ex) => {
+                  if (selectedEventId === 'all') return true;
+                  const activeStoredId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+                  const targetId = selectedEventId || activeStoredId || eventsList[0]?.id;
+                  return !targetId || ex.assigned_event_id === targetId;
+                })
+                .map((ex) => (
                 <tr key={ex.id} className="hover:bg-slate-50/80 transition">
                   <td className="p-3.5 font-bold text-slate-900">
                     <div className="flex items-center gap-3">

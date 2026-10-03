@@ -191,13 +191,39 @@ export default function AdminDashboardPage() {
           adoptionRate: totalExhibitors > 0 ? `${Math.round((activeExhibitors / totalExhibitors) * 100)}%` : '0%',
         });
       } else {
-        // DEMO SANDBOX MODE: Populate rich multi-tenant simulation
-        const rankings: ExhibitorItem[] = mergedOrgs.map((org, index) => {
-          let leads = 220 + (index * 65);
-          if (org.company_name.toLowerCase().includes('alpha')) leads = 680;
-          if (org.company_name.toLowerCase().includes('apex')) leads = 540;
-          if (org.company_name.toLowerCase().includes('biohealth')) leads = 415;
-          if (org.company_name.toLowerCase().includes('volt')) leads = 370;
+        // DEMO SANDBOX MODE: Filter specifically to the active selected event
+        const activeEventId = currentActive?.id || mergedEvents[0]?.id;
+        const filteredOrgs = activeEventId
+          ? mergedOrgs.filter((o) => o.assigned_event_id === activeEventId)
+          : mergedOrgs;
+
+        const effectiveOrgs = filteredOrgs.length > 0 ? filteredOrgs : mergedOrgs;
+
+        const getRealisticLeads = (name: string, idx: number) => {
+          const lower = name.toLowerCase();
+          if (lower.includes('skyline')) return 485;
+          if (lower.includes('aeroturbine')) return 360;
+          if (lower.includes('falcon avionics')) return 290;
+          if (lower.includes('biohealth')) return 520;
+          if (lower.includes('mediscan')) return 440;
+          if (lower.includes('pharmacare')) return 285;
+          if (lower.includes('voltmobility')) return 580;
+          if (lower.includes('hypercharge')) return 390;
+          if (lower.includes('falcon logistics')) return 310;
+          if (lower.includes('sentinel')) return 640;
+          if (lower.includes('cybershield')) return 410;
+          if (lower.includes('tactical surveillance')) return 250;
+          if (lower.includes('gulf green')) return 510;
+          if (lower.includes('solargrid')) return 430;
+          if (lower.includes('desert wind')) return 275;
+          if (lower.includes('alpha')) return 680;
+          if (lower.includes('apex')) return 540;
+          if (lower.includes('quantum')) return 460;
+          return 250 + (idx * 55);
+        };
+
+        const rankings: ExhibitorItem[] = effectiveOrgs.map((org, index) => {
+          const leads = getRealisticLeads(org.company_name, index);
 
           let resolvedEventName = org.assigned_event_name;
           if (!resolvedEventName && org.assigned_event_id) {
@@ -223,13 +249,13 @@ export default function AdminDashboardPage() {
         rankings.sort((a, b) => b.leads - a.leads);
         setExhibitorRankings(rankings);
 
-        const totalExhibitors = mergedOrgs.length;
-        const activeExhibitors = mergedOrgs.filter((o) => o.active_status !== false).length;
+        const totalExhibitors = effectiveOrgs.length;
+        const activeExhibitors = effectiveOrgs.filter((o) => o.active_status !== false).length;
         const totalReps = rankings.reduce((acc, curr) => acc + curr.reps, 0);
         const totalLeads = rankings.reduce((acc, curr) => acc + curr.leads, 0);
 
         setStats({
-          eventsCount: Math.max(mergedEvents.length, 6),
+          eventsCount: 1, // Focused on this active event
           totalExhibitors,
           activeExhibitors,
           activeUsers: totalReps,
@@ -248,7 +274,10 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadDashboardData();
 
-    const handleEventChange = () => {
+    const handleEventChange = (e?: any) => {
+      if (e?.detail) {
+        setActiveEvent(e.detail);
+      }
       loadDashboardData();
     };
 
@@ -301,6 +330,33 @@ export default function AdminDashboardPage() {
           </Link>
         </div>
       </div>
+
+      {/* Active Event Context Banner */}
+      {activeEvent && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-teal-50 via-slate-50 to-indigo-50 border border-teal-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-[#00838f] text-white font-mono font-black text-xs shrink-0">
+              {activeEvent.event_code || 'EVENT'}
+            </div>
+            <div>
+              <div className="text-sm font-black text-slate-900 flex items-center gap-2">
+                <span>{activeEvent.event_name}</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  Live Selected Event
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                {activeEvent.venue} • {activeEvent.city}, {activeEvent.country} • {activeEvent.start_date} to {activeEvent.end_date}
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs">
+              {stats.totalExhibitors} Registered Exhibitors • {stats.activeUsers} Staff Reps • {stats.totalLeadsCaptured} Leads
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

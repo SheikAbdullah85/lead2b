@@ -1,11 +1,16 @@
-import { Lead, Attendee, Event, Organization, FollowupTask, LeadNote, LeadForm, License, AuditLog } from '../types';
+const fs = require('fs');
+const path = require('path');
+
+const mockStorePath = path.join(__dirname, '..', 'src', 'lib', 'data', 'mock-store.ts');
+
+const content = `import { Lead, Attendee, Event, Organization, FollowupTask, LeadNote, LeadForm, License, AuditLog } from '../types';
 
 export const INITIAL_EVENTS: Event[] = [
   {
     id: 'eeee1111-1111-1111-1111-111111111111',
     event_name: 'GITEX Global 2026',
     event_code: 'GITEX2026',
-    description: 'The world\'s largest tech, AI, and enterprise software exhibition with 6,500+ exhibitors and 180,000+ global trade visitors.',
+    description: 'The world\\'s largest tech, AI, and enterprise software exhibition with 6,500+ exhibitors and 180,000+ global trade visitors.',
     venue: 'Dubai World Trade Centre (DWTC)',
     city: 'Dubai',
     country: 'United Arab Emirates',
@@ -792,7 +797,7 @@ export const INITIAL_ATTENDEES: Attendee[] = [
     badge_id: 'AHMT2026-ATT-00202',
     qr_token: 'lead2b:badge:AHMT2026-ATT-00202',
     first_name: 'Sarah',
-    last_name: 'O\'Connor',
+    last_name: 'O\\'Connor',
     company: 'Cleveland Clinic Abu Dhabi',
     job_title: 'Director of Biomedical Equipment',
     email: 's.oconnor@clevelandclinicabudhabi.example.ae',
@@ -1354,7 +1359,7 @@ export const INITIAL_LEADS: Lead[] = [
     captured_by_name: 'Dr. Layla Al-Hashimi',
     booth_id: 'b0002222-2222-2222-2222-222222222222',
     first_name: 'Sarah',
-    last_name: 'O\'Connor',
+    last_name: 'O\\'Connor',
     company: 'Cleveland Clinic Abu Dhabi',
     job_title: 'Director of Biomedical Equipment',
     email: 's.oconnor@clevelandclinicabudhabi.example.ae',
@@ -2212,3 +2217,7 @@ export const INITIAL_AUDIT_LOGS: AuditLog[] = [
     created_at: new Date(Date.now() - 3600000 * 1).toISOString(),
   }
 ];
+`;
+
+fs.writeFileSync(mockStorePath, content, 'utf8');
+console.log('Successfully enriched mock-store.ts with multi-event dataset!');

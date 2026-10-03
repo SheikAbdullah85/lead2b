@@ -9,7 +9,7 @@ import { Logo } from '@/components/ui/Logo';
 import { Building2, Calendar, QrCode, LogOut, LayoutDashboard, Users, FileSpreadsheet, Sliders, ShieldCheck, ExternalLink, Menu, X, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { Event } from '@/lib/types';
-import { INITIAL_EVENTS } from '@/lib/data/mock-store';
+import { INITIAL_EVENTS, INITIAL_EXHIBITORS } from '@/lib/data/mock-store';
 
 interface PortalHeaderProps {
   type: 'admin' | 'exhibitor';
@@ -23,16 +23,28 @@ export function PortalHeader({ type }: PortalHeaderProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
   const [exhibitorName, setExhibitorName] = useState('');
+  const [standName, setStandName] = useState('');
 
-  // Resolve current active exhibitor name cleanly
-  useEffect(() => {
+  // Resolve current active exhibitor name & stand cleanly
+  const resolveExhibitor = (evtId?: string) => {
     try {
-      const storedEx = localStorage.getItem('lead2b_exhibitors');
-      if (storedEx) {
-        const orgs: any[] = JSON.parse(storedEx);
-        const match = orgs.find((o) => o.id === user?.tenant_id) || orgs[0];
-        if (match && match.company_name) {
-          setExhibitorName(match.company_name);
+      const activeEvId = evtId || (typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null);
+      const storedEx = typeof window !== 'undefined' ? localStorage.getItem('lead2b_exhibitors') : null;
+      const orgs: any[] = storedEx ? JSON.parse(storedEx) : (isDemoMode ? INITIAL_EXHIBITORS : []);
+
+      if (orgs.length > 0) {
+        if (activeEvId) {
+          const evMatch = orgs.find((o) => o.assigned_event_id === activeEvId);
+          if (evMatch && evMatch.company_name) {
+            setExhibitorName(evMatch.company_name);
+            setStandName(evMatch.assigned_stand || 'Stand Unassigned');
+            return;
+          }
+        }
+        const userMatch = orgs.find((o) => o.id === user?.tenant_id) || orgs[0];
+        if (userMatch && userMatch.company_name) {
+          setExhibitorName(userMatch.company_name);
+          setStandName(userMatch.assigned_stand || 'Stand Unassigned');
           return;
         }
       }
@@ -40,12 +52,19 @@ export function PortalHeader({ type }: PortalHeaderProps) {
 
     if (branding?.company_name) {
       setExhibitorName(branding.company_name);
+      setStandName('Stand Assigned');
     } else if (isDemoMode) {
       setExhibitorName('Alpha Technology Group');
+      setStandName('Stand H3-B24');
     } else {
       setExhibitorName('');
+      setStandName('');
     }
-  }, [user, branding, isDemoMode]);
+  };
+
+  useEffect(() => {
+    resolveExhibitor(activeEvent?.id);
+  }, [user, branding, isDemoMode, activeEvent?.id]);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -204,7 +223,7 @@ export function PortalHeader({ type }: PortalHeaderProps) {
                   </span>
                 )}
                 <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded border border-slate-200">
-                  {user?.booth_number ? `Stand ${user.booth_number}` : (isDemoMode ? 'Stand H3-B24' : 'No Stand')}
+                  {user?.booth_number ? `Stand ${user.booth_number}` : (isDemoMode ? (standName || 'Stand H3-B24') : 'No Stand')}
                 </span>
               </div>
             )}

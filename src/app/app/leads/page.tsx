@@ -80,9 +80,15 @@ export default function MobileLeadsPage() {
       }
 
       let combined: Lead[] = merged;
-      // In demo mode only, fallback to INITIAL_LEADS if empty
+      // In demo mode only, fallback to INITIAL_LEADS filtered by active event
       if (isDemoMode && combined.length === 0) {
-        combined = [...INITIAL_LEADS];
+        const activeEvId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+        if (activeEvId) {
+          const matching = INITIAL_LEADS.filter((l) => l.event_id === activeEvId);
+          combined = matching.length > 0 ? matching : [...INITIAL_LEADS];
+        } else {
+          combined = [...INITIAL_LEADS];
+        }
       }
 
       combined.sort((a, b) => {
@@ -95,7 +101,13 @@ export default function MobileLeadsPage() {
       const localList = await localDb.leads.toArray().catch(() => []);
       let combined: Lead[] = localList as Lead[];
       if (isDemoMode && combined.length === 0) {
-        combined = [...INITIAL_LEADS];
+        const activeEvId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+        if (activeEvId) {
+          const matching = INITIAL_LEADS.filter((l) => l.event_id === activeEvId);
+          combined = matching.length > 0 ? matching : [...INITIAL_LEADS];
+        } else {
+          combined = [...INITIAL_LEADS];
+        }
       }
       combined.sort((a, b) => {
         const tA = new Date(a.created_at || a.captured_at || 0).getTime();
@@ -111,12 +123,25 @@ export default function MobileLeadsPage() {
   useEffect(() => {
     loadAllLeads();
 
+    const handleEventChange = () => {
+      loadAllLeads();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+    }
+
     // Auto-refresh every 12 seconds
     const interval = setInterval(() => {
       loadAllLeads();
     }, 12000);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('lead2b_event_changed', handleEventChange);
+      }
+    };
   }, []);
 
   const filteredLeads = leads.filter((lead) => {

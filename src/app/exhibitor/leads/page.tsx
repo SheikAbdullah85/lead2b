@@ -68,9 +68,15 @@ export default function ExhibitorLeadsPage() {
       }
 
       let combined: Lead[] = merged;
-      // In demo mode only, fallback to INITIAL_LEADS if empty
+      // In demo mode only, fallback to INITIAL_LEADS filtered by active event
       if (isDemoMode && combined.length === 0) {
-        combined = [...INITIAL_LEADS];
+        const activeEvId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+        if (activeEvId) {
+          const matching = INITIAL_LEADS.filter((l) => l.event_id === activeEvId);
+          combined = matching.length > 0 ? matching : [...INITIAL_LEADS];
+        } else {
+          combined = [...INITIAL_LEADS];
+        }
       }
 
       combined.sort((a, b) => {
@@ -90,6 +96,14 @@ export default function ExhibitorLeadsPage() {
 
   useEffect(() => {
     refreshAllLeads();
+
+    const handleEventChange = () => {
+      refreshAllLeads();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+    }
 
     // Set up real-time subscription for new leads inserted via badge/batch scan
     const channel = supabase
@@ -111,6 +125,9 @@ export default function ExhibitorLeadsPage() {
     return () => {
       supabase.removeChannel(channel);
       clearInterval(interval);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('lead2b_event_changed', handleEventChange);
+      }
     };
   }, []);
 

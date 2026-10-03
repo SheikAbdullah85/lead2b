@@ -45,7 +45,10 @@ export default function ExhibitorDashboardPage() {
           }
         }
         if (isDemoMode && merged.length === 0) {
-          setLeads([...INITIAL_LEADS]);
+          const activeEvId = typeof window !== 'undefined' ? localStorage.getItem('lead2b_active_event_id') : null;
+          const targetId = activeEvId || activeEvent.id;
+          const matchingLeads = INITIAL_LEADS.filter((l) => l.event_id === targetId);
+          setLeads(matchingLeads.length > 0 ? matchingLeads : INITIAL_LEADS);
         } else {
           setLeads(merged);
         }
@@ -53,8 +56,20 @@ export default function ExhibitorDashboardPage() {
         setLeads([]);
       }
     };
+
     fetchLeads();
-  }, [isDemoMode]);
+
+    const handleEventChange = () => {
+      setActiveEvent(getActiveEvent());
+      setActiveTenant(getActiveTenant());
+      fetchLeads();
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+      return () => window.removeEventListener('lead2b_event_changed', handleEventChange);
+    }
+  }, [isDemoMode, activeEvent.id]);
 
   const hotCount = leads.filter((l) => l.rating === 'hot').length;
   const warmCount = leads.filter((l) => l.rating === 'warm').length;
