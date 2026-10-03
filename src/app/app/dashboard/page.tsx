@@ -19,8 +19,6 @@ import {
   TrendingUp,
   Award,
   Zap,
-  ShieldCheck,
-  Shield,
 } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -29,7 +27,6 @@ import { supabase } from '@/lib/supabase/client';
 import { INITIAL_LEADS } from '@/lib/data/mock-store';
 import { Lead } from '@/lib/types';
 import { useAuth } from '@/lib/auth/context';
-import { triggerGlobalPwaInstall } from '@/components/pwa/PwaInstallPrompt';
 
 export default function MobileDashboardPage() {
   const { user, isDemoMode } = useAuth();
@@ -120,37 +117,6 @@ export default function MobileDashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* Super Administrator Master Portal Access Bar */}
-      {user?.system_role === 'super_admin' && (
-        <div className="p-3 bg-gradient-to-r from-slate-900 to-indigo-950 text-white rounded-2xl border border-indigo-500/40 shadow-sm flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0" />
-            <div>
-              <span className="text-xs font-black text-white block">Master Admin Privileges</span>
-              <span className="text-[10px] text-slate-300">Switch to full web consoles anytime</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Link
-              href="/exhibitor/dashboard"
-              className="text-[10px] font-black px-2.5 py-1.5 rounded-xl bg-teal-500/20 text-teal-300 border border-teal-500/30 hover:bg-teal-500/30 transition flex items-center gap-1"
-              title="Open Exhibitor Web Portal"
-            >
-              <Building2 className="w-3 h-3 text-teal-400" />
-              <span>Exhibitor</span>
-            </Link>
-            <Link
-              href="/admin/dashboard"
-              className="text-[10px] font-black px-2.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition flex items-center gap-1"
-              title="Open Organizer Admin Portal"
-            >
-              <Shield className="w-3 h-3 text-indigo-400" />
-              <span>Organizer</span>
-            </Link>
-          </div>
-        </div>
-      )}
-
       {/* Event Header Banner */}
       <div className="relative overflow-hidden p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-[#004d53] text-white shadow-lg border border-teal-900/40">
         {/* Subtle decorative glow */}
@@ -174,7 +140,7 @@ export default function MobileDashboardPage() {
         </div>
       </div>
 
-      {/* KPI Stats Grid matching prompt specifications */}
+      {/* KPI Stats Grid */}
       <div className="grid grid-cols-4 gap-2">
         <div className="p-2.5 rounded-2xl bg-white border border-slate-200 text-center shadow-2xs">
           <span className="text-[10px] font-bold uppercase tracking-tight text-slate-400 block">
@@ -217,7 +183,7 @@ export default function MobileDashboardPage() {
         </div>
       </div>
 
-      {/* 3 Primary Lead Capture Hero Actions (Scan Badge, Business Card, Manual Feed) */}
+      {/* 3 Primary Lead Capture Hero Actions without numbering counts */}
       <div className="space-y-2.5">
         <div className="flex items-center justify-between px-1">
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">
@@ -238,7 +204,7 @@ export default function MobileDashboardPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-black tracking-tight text-white leading-tight">
-                    1. SCAN BADGE
+                    SCAN BADGE
                   </h3>
                   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 text-cyan-100 border border-white/25">
                     QR &amp; OCR
@@ -265,7 +231,7 @@ export default function MobileDashboardPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-black tracking-tight text-white leading-tight">
-                    2. BUSINESS CARD
+                    BUSINESS CARD
                   </h3>
                   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 text-teal-100 border border-white/25">
                     Card OCR
@@ -292,7 +258,7 @@ export default function MobileDashboardPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-black tracking-tight text-white leading-tight">
-                    3. MANUAL FEED
+                    MANUAL FEED
                   </h3>
                   <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/15 text-slate-200 border border-white/20">
                     Voice &amp; Form
@@ -308,26 +274,6 @@ export default function MobileDashboardPage() {
             </div>
           </div>
         </Link>
-      </div>
-
-      {/* PWA Mobile App Quick Install Banner */}
-      <div className="p-3 bg-gradient-to-r from-teal-50 to-cyan-50 rounded-2xl border border-teal-200/90 flex items-center justify-between gap-2 shadow-2xs">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-[#00838f] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-            📱
-          </div>
-          <div>
-            <span className="text-xs font-black text-slate-900 block leading-tight">Install Mobile App</span>
-            <span className="text-[10px] text-slate-500">Add to phone home screen for offline booth access</span>
-          </div>
-        </div>
-        <button
-          type="button"
-          onClick={() => triggerGlobalPwaInstall()}
-          className="px-3 py-1.5 rounded-xl bg-white border border-teal-300 text-teal-800 font-black text-xs hover:bg-teal-50 active:scale-95 transition shadow-2xs cursor-pointer shrink-0"
-        >
-          Install App
-        </button>
       </div>
 
       {/* Booth Velocity & Target HUD */}
@@ -354,49 +300,6 @@ export default function MobileDashboardPage() {
             className="h-full bg-gradient-to-r from-teal-400 to-cyan-400 rounded-full transition-all duration-500"
             style={{ width: `${Math.min(100, Math.round((hourlyVelocity / hourlyTarget) * 100))}%` }}
           />
-        </div>
-      </div>
-
-      {/* Gamified Live Booth Staff Leaderboard */}
-      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
-            <Trophy className="w-4 h-4 text-amber-500" />
-            <span>Live Booth Staff Leaderboard</span>
-          </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-            Stand H3-B24
-          </span>
-        </div>
-
-        <div className="divide-y divide-slate-100">
-          {repLeaderboard.map((rep) => (
-            <div key={rep.name} className="py-2 flex items-center justify-between text-xs">
-              <div className="flex items-center gap-2">
-                <span className="text-base shrink-0">{rep.medal}</span>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-slate-900">{rep.name}</span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                      {rep.badge}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {rep.hot} Hot Lead{rep.hot === 1 ? '' : 's'} Qualified
-                  </span>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <span className="text-sm font-black text-brand-700 block leading-tight">
-                  {rep.count}
-                </span>
-                <span className="text-[9px] text-slate-400 uppercase font-semibold">
-                  Scans
-                </span>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -463,6 +366,49 @@ export default function MobileDashboardPage() {
               </Link>
             ))
           )}
+        </div>
+      </div>
+
+      {/* Gamified Live Booth Staff Leaderboard - NOW AS THE LAST CARD AS REQUESTED */}
+      <div className="p-3.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-black text-slate-900">
+            <Trophy className="w-4 h-4 text-amber-500" />
+            <span>Live Booth Staff Leaderboard</span>
+          </div>
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+            Stand H3-B24
+          </span>
+        </div>
+
+        <div className="divide-y divide-slate-100">
+          {repLeaderboard.map((rep) => (
+            <div key={rep.name} className="py-2 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-base shrink-0">{rep.medal}</span>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-slate-900">{rep.name}</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                      {rep.badge}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    {rep.hot} Hot Lead{rep.hot === 1 ? '' : 's'} Qualified
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-right">
+                <span className="text-sm font-black text-brand-700 block leading-tight">
+                  {rep.count}
+                </span>
+                <span className="text-[9px] text-slate-400 uppercase font-semibold">
+                  Scans
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

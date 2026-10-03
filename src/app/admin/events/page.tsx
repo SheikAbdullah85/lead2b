@@ -8,13 +8,58 @@ import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Event } from '@/lib/types';
-import { Calendar, MapPin, Plus, Building2, Clock, Globe, Sparkles, Layers, Trash2 } from 'lucide-react';
+import { Calendar, MapPin, Plus, Building2, Clock, Globe, Sparkles, Layers, Trash2, LayoutGrid, CheckCircle2, RefreshCw, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
+
+interface HallItem {
+  id: string;
+  name: string;
+  code: string;
+  standsCount: number;
+}
+
+interface StandItem {
+  id: string;
+  standNumber: string;
+  hallName: string;
+  exhibitorName: string;
+  status: 'allocated' | 'available' | 'reserved';
+  sizeSqm: number;
+}
 
 export default function AdminEventsPage() {
   const [events, setEvents] = useState<Event[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Floorplan Modal State
+  const [isFloorplanModalOpen, setIsFloorplanModalOpen] = useState(false);
+  const [selectedEventForFloorplan, setSelectedEventForFloorplan] = useState<Event | null>(null);
+  const [floorplanTab, setFloorplanTab] = useState<'visual' | 'halls' | 'stands'>('visual');
+
+  // Halls & Stands state
+  const [halls, setHalls] = useState<HallItem[]>([
+    { id: 'h1', name: 'Hall 1 - Main Concourse', code: 'H1', standsCount: 8 },
+    { id: 'h2', name: 'Hall 2 - Enterprise AI & Cloud', code: 'H2', standsCount: 12 },
+    { id: 'h3', name: 'Hall 3 - Cyber Valley', code: 'H3', standsCount: 10 },
+  ]);
+
+  const [stands, setStands] = useState<StandItem[]>([
+    { id: 's1', standNumber: 'H3-B24', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Alpha Technology Group', status: 'allocated', sizeSqm: 36 },
+    { id: 's2', standNumber: 'H2-A10', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Beta Solutions Corp', status: 'allocated', sizeSqm: 24 },
+    { id: 's3', standNumber: 'H1-C05', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Siemens Global', status: 'allocated', sizeSqm: 48 },
+    { id: 's4', standNumber: 'H3-B25', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 18 },
+    { id: 's5', standNumber: 'H2-B12', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
+    { id: 's6', standNumber: 'H1-A01', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Reserved for Sponsor', status: 'reserved', sizeSqm: 54 },
+  ]);
+
+  // Form states for adding Hall / Stand
+  const [newHallName, setNewHallName] = useState('');
+  const [newHallCode, setNewHallCode] = useState('');
+  const [newStandNumber, setNewStandNumber] = useState('');
+  const [newStandHall, setNewStandHall] = useState('Hall 3 - Cyber Valley');
+  const [newStandExhibitor, setNewStandExhibitor] = useState('');
+  const [newStandSize, setNewStandSize] = useState(24);
 
   // Load events from Supabase and localStorage on mount
   const loadEvents = async () => {
@@ -57,6 +102,20 @@ export default function AdminEventsPage() {
     loadEvents();
   }, []);
 
+  // Hydrate floorplan data when event is selected
+  useEffect(() => {
+    if (selectedEventForFloorplan && typeof window !== 'undefined') {
+      const storedFp = localStorage.getItem(`lead2b_fp_${selectedEventForFloorplan.id}`);
+      if (storedFp) {
+        try {
+          const parsed = JSON.parse(storedFp);
+          if (parsed.halls) setHalls(parsed.halls);
+          if (parsed.stands) setStands(parsed.stands);
+        } catch (e) {}
+      }
+    }
+  }, [selectedEventForFloorplan]);
+
   // New Event Form State
   const [eventName, setEventName] = useState('');
   const [eventCode, setEventCode] = useState('');
@@ -73,9 +132,6 @@ export default function AdminEventsPage() {
     if (!eventName || !eventCode) return;
 
     setIsSaving(true);
-    const isUuid = (val?: string) =>
-      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
-
     const generatedId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `eeee${Date.now()}-0000-0000-0000-000000000001`;
 
     const newEvent: Event = {
@@ -144,10 +200,62 @@ export default function AdminEventsPage() {
         localStorage.setItem('lead2b_events', JSON.stringify(remaining));
       } catch (err) {}
     }
+
     if (typeof navigator === 'undefined' || navigator.onLine) {
       try {
         await supabase.from('events').delete().eq('id', id);
-      } catch (e) {}
+      } catch (sbErr) {
+        console.warn('Supabase event delete error:', sbErr);
+      }
+    }
+  };
+
+  const handleOpenFloorplan = (evt: Event) => {
+    setSelectedEventForFloorplan(evt);
+    setIsFloorplanModalOpen(true);
+  };
+
+  const handleAddHall = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newHallName.trim() || !newHallCode.trim()) return;
+
+    const newH: HallItem = {
+      id: `h_${Date.now()}`,
+      name: newHallName.trim(),
+      code: newHallCode.trim().toUpperCase(),
+      standsCount: 0,
+    };
+
+    const updated = [...halls, newH];
+    setHalls(updated);
+    setNewHallName('');
+    setNewHallCode('');
+
+    if (selectedEventForFloorplan && typeof window !== 'undefined') {
+      localStorage.setItem(`lead2b_fp_${selectedEventForFloorplan.id}`, JSON.stringify({ halls: updated, stands }));
+    }
+  };
+
+  const handleAddStand = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStandNumber.trim()) return;
+
+    const newS: StandItem = {
+      id: `s_${Date.now()}`,
+      standNumber: newStandNumber.trim().toUpperCase(),
+      hallName: newStandHall,
+      exhibitorName: newStandExhibitor.trim() || 'Available Stand',
+      status: newStandExhibitor.trim() ? 'allocated' : 'available',
+      sizeSqm: Number(newStandSize) || 24,
+    };
+
+    const updatedStands = [...stands, newS];
+    setStands(updatedStands);
+    setNewStandNumber('');
+    setNewStandExhibitor('');
+
+    if (selectedEventForFloorplan && typeof window !== 'undefined') {
+      localStorage.setItem(`lead2b_fp_${selectedEventForFloorplan.id}`, JSON.stringify({ halls, stands: updatedStands }));
     }
   };
 
@@ -157,55 +265,76 @@ export default function AdminEventsPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <span className="text-[11px] font-black uppercase tracking-wider text-brand-700 bg-brand-50 border border-brand-200/60 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1.5 mb-1">
-            <Layers className="w-3 h-3 text-brand-600" />
-            Floorplans & Schedules
+            <Building2 className="w-3 h-3 text-brand-600" />
+            Organizer Operations
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Events, Halls & Stands</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Event Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure exhibition schedules, hall allocations, and stand coordinates.
+            Configure exhibition schedules, venues, floorplans, and visitor badge lookups.
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          size="sm"
-          onClick={() => setIsCreateModalOpen(true)}
-          className="text-xs font-bold gap-1.5 shadow-sm"
-        >
-          <Plus className="w-3.5 h-3.5" />
-          <span>Add New Event</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadEvents}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            <RefreshCw className="w-3.5 h-3.5 text-slate-600" />
+            <span>Refresh</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="text-xs font-bold gap-1.5 shadow-sm"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Create Event</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Events Grid */}
+      {/* Events List */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {events.map((evt) => (
-          <Card key={evt.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition">
-            <CardHeader className="pb-2">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-800 bg-brand-50 border border-brand-200/60 px-2 py-0.5 rounded-md">
-                    {evt.event_code}
-                  </span>
-                  <CardTitle className="text-lg font-black mt-2">{evt.event_name}</CardTitle>
+          <Card key={evt.id} className="border-slate-200/90 shadow-2xs hover:border-brand-300 transition relative group">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-brand-800 bg-brand-50 border border-brand-200/60 px-2 py-0.5 rounded-md">
+                      {evt.event_code}
+                    </span>
+                    <Badge variant={evt.status === 'active' ? 'synced' : 'default'}>
+                      {evt.status.toUpperCase()}
+                    </Badge>
+                  </div>
+                  <CardTitle className="text-lg font-black text-slate-900 leading-snug">{evt.event_name}</CardTitle>
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{evt.description || 'Global technology exhibition & trade conference'}</p>
                 </div>
-                <Badge variant={evt.status === 'active' ? 'synced' : 'default'}>
-                  {evt.status.toUpperCase()}
-                </Badge>
+
+                <button
+                  onClick={() => handleDeleteEvent(evt.id)}
+                  className="p-1 rounded text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                  title="Delete Event"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
             </CardHeader>
 
-            <CardContent className="space-y-3 pt-2 text-xs text-slate-600">
-              <p className="text-slate-500 line-clamp-2 leading-relaxed">{evt.description}</p>
-
-              <div className="space-y-2 pt-2 border-t border-slate-100">
+            <CardContent className="space-y-3 pt-0 text-xs text-slate-600">
+              <div className="space-y-1.5 p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                  <span className="font-medium">{evt.venue}, {evt.city}, {evt.country}</span>
+                  <span className="font-semibold text-slate-800">{evt.venue}, {evt.city}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="w-3.5 h-3.5 text-brand-600 shrink-0" />
-                  <span>{new Date(evt.start_date).toLocaleDateString()} — {new Date(evt.end_date).toLocaleDateString()}</span>
+                  <span>{evt.start_date} to {evt.end_date}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Globe className="w-3.5 h-3.5 text-brand-600 shrink-0" />
@@ -217,15 +346,21 @@ export default function AdminEventsPage() {
               <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                    2 Halls Configured
+                    {halls.length} Halls Configured
                   </span>
                   <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
-                    12 Stands Allocated
+                    {stands.length} Stands
                   </span>
                 </div>
 
-                <Button size="sm" variant="outline" className="text-xs h-7 font-bold hover:border-brand-300 hover:text-brand-700">
-                  Manage Floorplan
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleOpenFloorplan(evt)}
+                  className="text-xs h-7 font-bold hover:border-brand-300 hover:text-brand-700 gap-1.5"
+                >
+                  <LayoutGrid className="w-3 h-3 text-brand-600" />
+                  <span>Manage Floorplan</span>
                 </Button>
               </div>
             </CardContent>
@@ -302,12 +437,217 @@ export default function AdminEventsPage() {
             <Button type="button" variant="outline" onClick={() => setIsCreateModalOpen(false)} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" variant="primary" className="flex-1 font-bold">
-              Save Event
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save Event'}
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Interactive Floorplan Management Modal */}
+      {isFloorplanModalOpen && selectedEventForFloorplan && (
+        <Modal
+          isOpen={isFloorplanModalOpen}
+          onClose={() => setIsFloorplanModalOpen(false)}
+          title={`Floorplan Management • ${selectedEventForFloorplan.event_name}`}
+          description="Allocate exhibition halls, stand positions, and square-meter space"
+          maxWidth="xl"
+        >
+          <div className="space-y-4">
+            {/* Modal Navigation Tabs */}
+            <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+              <button
+                type="button"
+                onClick={() => setFloorplanTab('visual')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  floorplanTab === 'visual'
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>2D Floorplan Grid</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFloorplanTab('stands')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  floorplanTab === 'stands'
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <span>Stands Directory ({stands.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setFloorplanTab('halls')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                  floorplanTab === 'halls'
+                    ? 'bg-brand-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                <span>Halls ({halls.length})</span>
+              </button>
+            </div>
+
+            {/* TAB 1: Visual 2D Floorplan Grid */}
+            {floorplanTab === 'visual' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-3">
+                    <span className="flex items-center gap-1 text-[11px] text-slate-600 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-teal-600 inline-block"></span> Allocated Stand
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-slate-600 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-slate-200 border border-slate-300 inline-block"></span> Available
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-slate-600 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span> Reserved
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-mono text-slate-400">DWTC Dubai Hall Layout</span>
+                </div>
+
+                {/* 2D Interactive Grid */}
+                <div className="p-4 bg-slate-900 rounded-2xl border border-slate-800 shadow-inner">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {stands.map((stand) => (
+                      <div
+                        key={stand.id}
+                        className={`p-3 rounded-xl border transition-all ${
+                          stand.status === 'allocated'
+                            ? 'bg-teal-950/80 border-teal-500/50 text-white'
+                            : stand.status === 'reserved'
+                            ? 'bg-amber-950/70 border-amber-500/50 text-white'
+                            : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:border-slate-500'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-black font-mono tracking-tight text-white">{stand.standNumber}</span>
+                          <span className="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-white/10 text-white">
+                            {stand.sizeSqm}m²
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold truncate text-slate-100">{stand.exhibitorName}</p>
+                        <span className="text-[10px] text-slate-400 truncate block mt-0.5">{stand.hallName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: Stands Management */}
+            {floorplanTab === 'stands' && (
+              <div className="space-y-4">
+                <form onSubmit={handleAddStand} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wide block">Allocate New Stand</span>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Stand No. (e.g. H3-C12)"
+                      value={newStandNumber}
+                      onChange={(e) => setNewStandNumber(e.target.value)}
+                      className="text-xs h-9 px-3 rounded-xl border border-slate-300 bg-white"
+                      required
+                    />
+                    <select
+                      value={newStandHall}
+                      onChange={(e) => setNewStandHall(e.target.value)}
+                      className="text-xs h-9 px-3 rounded-xl border border-slate-300 bg-white"
+                    >
+                      {halls.map((h) => (
+                        <option key={h.id} value={h.name}>{h.name}</option>
+                      ))}
+                    </select>
+                    <input
+                      type="text"
+                      placeholder="Exhibitor (e.g. Oracle)"
+                      value={newStandExhibitor}
+                      onChange={(e) => setNewStandExhibitor(e.target.value)}
+                      className="text-xs h-9 px-3 rounded-xl border border-slate-300 bg-white"
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" size="sm" className="w-full text-xs font-bold">
+                    Add Stand to Floorplan
+                  </Button>
+                </form>
+
+                <div className="max-h-60 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-2xl">
+                  {stands.map((s) => (
+                    <div key={s.id} className="p-3 flex items-center justify-between text-xs hover:bg-slate-50">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-slate-900">{s.standNumber}</span>
+                          <span className="font-semibold text-slate-800">{s.exhibitorName}</span>
+                        </div>
+                        <span className="text-[11px] text-slate-400">{s.hallName} • {s.sizeSqm}m²</span>
+                      </div>
+                      <Badge variant={s.status === 'allocated' ? 'synced' : 'default'}>
+                        {s.status.toUpperCase()}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: Halls Management */}
+            {floorplanTab === 'halls' && (
+              <div className="space-y-4">
+                <form onSubmit={handleAddHall} className="p-3 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wide block">Add Exhibition Hall</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      placeholder="Hall Name (e.g. Za'abeel Hall 4)"
+                      value={newHallName}
+                      onChange={(e) => setNewHallName(e.target.value)}
+                      className="text-xs h-9 px-3 rounded-xl border border-slate-300 bg-white"
+                      required
+                    />
+                    <input
+                      type="text"
+                      placeholder="Hall Code (e.g. ZH4)"
+                      value={newHallCode}
+                      onChange={(e) => setNewHallCode(e.target.value)}
+                      className="text-xs h-9 px-3 rounded-xl border border-slate-300 bg-white"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="primary" size="sm" className="w-full text-xs font-bold">
+                    Save Hall
+                  </Button>
+                </form>
+
+                <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl">
+                  {halls.map((h) => (
+                    <div key={h.id} className="p-3 flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-bold text-slate-900 block">{h.name}</span>
+                        <span className="text-[11px] font-mono text-slate-400">Code: {h.code}</span>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                        {stands.filter(s => s.hallName === h.name).length} Stands
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-200 flex justify-end">
+              <Button size="sm" variant="primary" onClick={() => setIsFloorplanModalOpen(false)} className="font-bold">
+                Done
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
