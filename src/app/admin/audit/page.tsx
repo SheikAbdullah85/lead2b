@@ -8,7 +8,17 @@ import { AuditLog } from '@/lib/types';
 import { Shield, Clock, Search, Terminal, Globe, Filter, Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function AdminAuditPage() {
-  const [logs, setLogs] = useState<AuditLog[]>(INITIAL_AUDIT_LOGS);
+  const isDemoMode = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) return !!JSON.parse(stored).is_demo;
+      }
+    } catch (e) {}
+    return false;
+  })();
+
+  const [logs, setLogs] = useState<AuditLog[]>(isDemoMode ? INITIAL_AUDIT_LOGS : []);
   const [filterAction, setFilterAction] = useState('all');
 
   const filteredLogs = logs.filter((l) => {

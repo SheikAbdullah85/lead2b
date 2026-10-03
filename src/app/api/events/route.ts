@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
-import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Event } from '@/lib/types';
 
 export const runtime = 'edge';
@@ -13,10 +12,10 @@ export async function GET() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error || !dbEvents || dbEvents.length === 0) {
+    if (error || !dbEvents) {
       return NextResponse.json({
-        events: INITIAL_EVENTS,
-        total: INITIAL_EVENTS.length,
+        events: [],
+        total: 0,
       });
     }
 
@@ -26,8 +25,8 @@ export async function GET() {
     });
   } catch (err: any) {
     return NextResponse.json({
-      events: INITIAL_EVENTS,
-      total: INITIAL_EVENTS.length,
+      events: [],
+      total: 0,
     });
   }
 }

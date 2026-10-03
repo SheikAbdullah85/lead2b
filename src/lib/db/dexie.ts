@@ -129,7 +129,28 @@ export async function seedLocalDatabaseIfNeeded(eventId: string) {
   await localDb.attendees.bulkPut(demoAttendees);
 }
 
-// Auto-seed in browser if empty
+export async function clearLocalDatabase() {
+  try {
+    await Promise.all([
+      localDb.leads.clear().catch(() => {}),
+      localDb.attendees.clear().catch(() => {}),
+      localDb.leadNotes.clear().catch(() => {}),
+      localDb.followups.clear().catch(() => {}),
+      localDb.syncQueue.clear().catch(() => {}),
+      localDb.appSettings.clear().catch(() => {}),
+    ]);
+  } catch (e) {}
+}
+
+// Auto-seed in browser ONLY if explicitly running in interactive demo mode
 if (typeof window !== 'undefined') {
-  seedLocalDatabaseIfNeeded('eeee1111-1111-1111-1111-111111111111').catch(() => {});
+  try {
+    const storedUser = localStorage.getItem('lead2b_active_user');
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      if (parsed.is_demo) {
+        seedLocalDatabaseIfNeeded('eeee1111-1111-1111-1111-111111111111').catch(() => {});
+      }
+    }
+  } catch (e) {}
 }

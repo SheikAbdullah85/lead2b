@@ -22,7 +22,7 @@ export default function AdminLicensesPage() {
 
   // New License State
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
-  const [tenantName, setTenantName] = useState('Craftix Technologies');
+  const [tenantName, setTenantName] = useState('');
   const [plan, setPlan] = useState('event_standard');
   const [allowedUsers, setAllowedUsers] = useState(5);
   const [leadLimit, setLeadLimit] = useState(5000);
@@ -113,26 +113,29 @@ export default function AdminLicensesPage() {
         }
       }
 
-      // 5. Ensure EVERY registered organization (like Craftix Technologies) has a visible license card
-      for (const org of orgs) {
-        const hasLicense = merged.some(
-          (m) => m.tenant_id === org.id || m.tenant_name?.toLowerCase() === org.company_name.toLowerCase()
-        );
-        if (!hasLicense) {
-          const defaultLic: License = {
-            id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : org.id,
-            tenant_id: org.id,
-            tenant_name: org.company_name,
-            plan: org.subscription_plan || 'event_standard',
-            allowed_events: 1,
-            allowed_users: org.license_count || 5,
-            lead_limit: 5000,
-            start_date: '2026-10-01',
-            expiry_date: '2026-11-01',
-            is_active: org.active_status !== false,
-            created_at: org.created_at || new Date().toISOString(),
-          };
-          merged.push(defaultLic);
+      // 5. In live mode, orgs without an explicit license in DB simply have no license card.
+      // In demo mode, generate a default license card for any org that lacks one.
+      if (isDemoMode) {
+        for (const org of orgs) {
+          const hasLicense = merged.some(
+            (m) => m.tenant_id === org.id || m.tenant_name?.toLowerCase() === org.company_name.toLowerCase()
+          );
+          if (!hasLicense) {
+            const defaultLic: License = {
+              id: typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : org.id,
+              tenant_id: org.id,
+              tenant_name: org.company_name,
+              plan: org.subscription_plan || 'event_standard',
+              allowed_events: 1,
+              allowed_users: org.license_count || 5,
+              lead_limit: 5000,
+              start_date: '2026-10-01',
+              expiry_date: '2026-11-01',
+              is_active: org.active_status !== false,
+              created_at: org.created_at || new Date().toISOString(),
+            };
+            merged.push(defaultLic);
+          }
         }
       }
 

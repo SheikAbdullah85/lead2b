@@ -32,7 +32,7 @@ import {
 
 export default function AdminAttendeesPage() {
   const [activeEvent, setActiveEvent] = useState(getActiveEvent());
-  const [attendees, setAttendees] = useState<Attendee[]>(INITIAL_ATTENDEES);
+  const [attendees, setAttendees] = useState<Attendee[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -65,6 +65,17 @@ export default function AdminAttendeesPage() {
   const [mobile, setMobile] = useState('');
   const [visitorType, setVisitorType] = useState('Trade Visitor');
 
+  // Detect demo mode from localStorage
+  const isDemoMode = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const stored = localStorage.getItem('lead2b_active_user');
+        if (stored) return !!JSON.parse(stored).is_demo;
+      }
+    } catch (e) {}
+    return false;
+  })();
+
   // Load attendees on mount from Dexie localDb & Supabase
   const loadAttendees = async () => {
     try {
@@ -87,9 +98,11 @@ export default function AdminAttendeesPage() {
         }
       }
 
-      // 3. Merge: INITIAL_ATTENDEES (baseline) -> localList -> serverList
+      // 3. Merge: demo baseline -> localList -> serverList (server wins on conflict)
       const map = new Map<string, Attendee>();
-      INITIAL_ATTENDEES.forEach((a) => map.set(a.badge_id.toLowerCase(), a));
+      if (isDemoMode) {
+        INITIAL_ATTENDEES.forEach((a) => map.set(a.badge_id.toLowerCase(), a));
+      }
       localList.forEach((a) => map.set(a.badge_id.toLowerCase(), a));
       serverList.forEach((a) => map.set(a.badge_id.toLowerCase(), a));
 

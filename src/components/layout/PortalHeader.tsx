@@ -22,7 +22,7 @@ export function PortalHeader({ type }: PortalHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
-  const [exhibitorName, setExhibitorName] = useState('Craftix Technologies');
+  const [exhibitorName, setExhibitorName] = useState('');
 
   // Resolve current active exhibitor name cleanly
   useEffect(() => {
@@ -30,20 +30,22 @@ export function PortalHeader({ type }: PortalHeaderProps) {
       const storedEx = localStorage.getItem('lead2b_exhibitors');
       if (storedEx) {
         const orgs: any[] = JSON.parse(storedEx);
-        const match = orgs.find((o) => o.id === user?.tenant_id) || orgs.find((o) => o.company_name?.toLowerCase().includes('craftix')) || orgs[0];
-        if (match && match.company_name && !match.company_name.toLowerCase().includes('ascys')) {
+        const match = orgs.find((o) => o.id === user?.tenant_id) || orgs[0];
+        if (match && match.company_name) {
           setExhibitorName(match.company_name);
           return;
         }
       }
     } catch (e) {}
 
-    if (branding?.company_name && !branding.company_name.toLowerCase().includes('ascys') && !branding.company_name.toLowerCase().includes('alpha')) {
+    if (branding?.company_name) {
       setExhibitorName(branding.company_name);
+    } else if (isDemoMode) {
+      setExhibitorName('Alpha Technology Group');
     } else {
-      setExhibitorName('Craftix Technologies');
+      setExhibitorName('');
     }
-  }, [user, branding]);
+  }, [user, branding, isDemoMode]);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -196,11 +198,13 @@ export function PortalHeader({ type }: PortalHeaderProps) {
               </div>
             ) : (
               <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-200">
-                <span className="text-xs font-bold text-slate-700">
-                  {exhibitorName}
-                </span>
+                {exhibitorName && (
+                  <span className="text-xs font-bold text-slate-700">
+                    {exhibitorName}
+                  </span>
+                )}
                 <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded border border-slate-200">
-                  {user?.booth_number ? `Stand ${user.booth_number}` : 'Stand TK-01'}
+                  {user?.booth_number ? `Stand ${user.booth_number}` : (isDemoMode ? 'Stand H3-B24' : 'No Stand')}
                 </span>
               </div>
             )}

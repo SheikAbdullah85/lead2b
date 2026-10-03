@@ -28,6 +28,23 @@ interface StandItem {
   sizeSqm: number;
 }
 
+const DEMO_HALLS: HallItem[] = [
+  { id: 'h0', name: 'Main Pavilion', code: 'MP', standsCount: 6 },
+  { id: 'h1', name: 'Hall 1 - Main Concourse', code: 'H1', standsCount: 8 },
+  { id: 'h2', name: 'Hall 2 - Enterprise AI & Cloud', code: 'H2', standsCount: 12 },
+  { id: 'h3', name: 'Hall 3 - Cyber Valley', code: 'H3', standsCount: 10 },
+];
+
+const DEMO_STANDS: StandItem[] = [
+  { id: 's0', standNumber: 'TK-01', hallName: 'Main Pavilion', exhibitorName: 'Craftix Technologies', status: 'allocated', sizeSqm: 40 },
+  { id: 's1', standNumber: 'H3-B24', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Alpha Technology Group', status: 'allocated', sizeSqm: 36 },
+  { id: 's2', standNumber: 'H2-A10', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Beta Solutions Corp', status: 'allocated', sizeSqm: 24 },
+  { id: 's3', standNumber: 'H1-C05', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Siemens Global', status: 'allocated', sizeSqm: 48 },
+  { id: 's4', standNumber: 'TK-02', hallName: 'Main Pavilion', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
+  { id: 's5', standNumber: 'H3-B25', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 18 },
+  { id: 's6', standNumber: 'H2-B12', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
+];
+
 export default function AdminEventsPage() {
   const { user, isDemoMode } = useAuth();
   const [events, setEvents] = useState<Event[]>([]);
@@ -40,22 +57,8 @@ export default function AdminEventsPage() {
   const [floorplanTab, setFloorplanTab] = useState<'visual' | 'halls' | 'stands'>('visual');
 
   // Halls & Stands state
-  const [halls, setHalls] = useState<HallItem[]>([
-    { id: 'h0', name: 'Main Pavilion', code: 'MP', standsCount: 6 },
-    { id: 'h1', name: 'Hall 1 - Main Concourse', code: 'H1', standsCount: 8 },
-    { id: 'h2', name: 'Hall 2 - Enterprise AI & Cloud', code: 'H2', standsCount: 12 },
-    { id: 'h3', name: 'Hall 3 - Cyber Valley', code: 'H3', standsCount: 10 },
-  ]);
-
-  const [stands, setStands] = useState<StandItem[]>([
-    { id: 's0', standNumber: 'TK-01', hallName: 'Main Pavilion', exhibitorName: 'Craftix Technologies', status: 'allocated', sizeSqm: 40 },
-    { id: 's1', standNumber: 'H3-B24', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Alpha Technology Group', status: 'allocated', sizeSqm: 36 },
-    { id: 's2', standNumber: 'H2-A10', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Beta Solutions Corp', status: 'allocated', sizeSqm: 24 },
-    { id: 's3', standNumber: 'H1-C05', hallName: 'Hall 1 - Main Concourse', exhibitorName: 'Siemens Global', status: 'allocated', sizeSqm: 48 },
-    { id: 's4', standNumber: 'TK-02', hallName: 'Main Pavilion', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
-    { id: 's5', standNumber: 'H3-B25', hallName: 'Hall 3 - Cyber Valley', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 18 },
-    { id: 's6', standNumber: 'H2-B12', hallName: 'Hall 2 - Enterprise AI & Cloud', exhibitorName: 'Available Stand', status: 'available', sizeSqm: 24 },
-  ]);
+  const [halls, setHalls] = useState<HallItem[]>(() => (isDemoMode ? DEMO_HALLS : []));
+  const [stands, setStands] = useState<StandItem[]>(() => (isDemoMode ? DEMO_STANDS : []));
 
   // Form states for adding Hall / Stand
   const [newHallName, setNewHallName] = useState('');
@@ -116,25 +119,25 @@ export default function AdminEventsPage() {
         }
       }
 
+      let finalEvents: Event[] = [];
       const seen = new Set<string>();
-      const merged: Event[] = [];
-      
-      // In DEMO mode, load INITIAL_EVENTS if local/server is empty
-      // In LIVE mode, NEVER load INITIAL_EVENTS. Show real database/local events only.
-      const baseList = isDemoMode
-        ? (hasStored || serverList.length > 0 ? [...serverList, ...storedList] : [...serverList, ...storedList, ...INITIAL_EVENTS])
-        : [...serverList, ...storedList];
 
-      for (const e of baseList) {
-        if (!seen.has(e.id) && !deletedIds.has(e.id)) {
-          seen.add(e.id);
-          merged.push(e);
+      if (isDemoMode) {
+        const baseList = hasStored || serverList.length > 0 ? [...serverList, ...storedList] : [...serverList, ...storedList, ...INITIAL_EVENTS];
+        for (const e of baseList) {
+          if (!seen.has(e.id) && !deletedIds.has(e.id)) {
+            seen.add(e.id);
+            finalEvents.push(e);
+          }
         }
+      } else {
+        // LIVE PRODUCTION MODE: Supabase database is the absolute source of truth
+        finalEvents = serverList.filter((e) => !deletedIds.has(e.id));
       }
 
-      setEvents(merged);
+      setEvents(finalEvents);
       if (typeof window !== 'undefined') {
-        localStorage.setItem('lead2b_events', JSON.stringify(merged));
+        localStorage.setItem('lead2b_events', JSON.stringify(finalEvents));
       }
     } catch (err) {
       console.warn('Error loading events:', err);

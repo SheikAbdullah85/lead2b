@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { UserProfile, SystemRole } from '../types';
 import { supabase } from '../supabase/client';
+import { clearLocalDatabase } from '../db/dexie';
 
 export interface CredentialUser extends UserProfile {
   password?: string;
@@ -161,6 +162,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
+    // 0. Auto-purge stale demo/test local cache for clean live experience
+    if (typeof window !== 'undefined') {
+      try {
+        if (localStorage.getItem('lead2b_live_purged_v5') !== 'true') {
+          localStorage.removeItem('lead2b_events');
+          localStorage.removeItem('lead2b_exhibitors');
+          localStorage.removeItem('lead2b_admin_licenses');
+          localStorage.removeItem('lead2b_active_event_id');
+          localStorage.removeItem('lead2b_tenant_branding');
+          localStorage.removeItem('lead2b_deleted_event_ids');
+          localStorage.removeItem('lead2b_deleted_exhibitor_ids');
+          localStorage.removeItem('lead2b_offline_queue');
+          localStorage.removeItem('lead2b_custom_questions');
+          clearLocalDatabase().catch(() => {});
+          localStorage.setItem('lead2b_live_purged_v5', 'true');
+        }
+      } catch (e) {}
+    }
+
     // 1. Initial check for active Supabase session
     async function checkSession() {
       const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
@@ -205,8 +225,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: profile?.full_name || session.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : 'User'),
             mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
             system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-            tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
-            booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
+            tenant_id: profile?.tenant_id || undefined,
+            booth_number: profile?.booth_number || undefined,
             is_active: profile?.is_active ?? true,
             is_demo: !isLiveSheik && !!cachedUser?.is_demo,
             created_at: profile?.created_at || session.user.created_at || new Date().toISOString(),
@@ -245,8 +265,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             full_name: profile?.full_name || (isLiveSheik ? 'Sheik Abdullah' : (session.user.email?.split('@')[0] || 'User')),
             mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
             system_role: (profile?.system_role as SystemRole) || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-            tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
-            booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
+            tenant_id: profile?.tenant_id || undefined,
+            booth_number: profile?.booth_number || undefined,
             is_active: profile?.is_active ?? true,
             is_demo: !isLiveSheik,
             created_at: profile?.created_at || new Date().toISOString(),
@@ -312,8 +332,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           full_name: profile?.full_name || authData.user.user_metadata?.full_name || (isLiveSheik ? 'Sheik Abdullah' : cleanEmail.split('@')[0]),
           mobile: profile?.mobile || (isLiveSheik ? '+971 50 123 4567' : undefined),
           system_role: (profile?.system_role as SystemRole) || role || (isLiveSheik ? 'super_admin' : 'sales_rep'),
-          tenant_id: profile?.tenant_id || (isLiveSheik ? '2d14ae23-567f-457f-be97-f8cfb1bbd6dd' : '11111111-1111-1111-1111-111111111111'),
-          booth_number: isLiveSheik ? 'TK-01' : (profile?.booth_number || 'Stand TK-01'),
+          tenant_id: profile?.tenant_id || undefined,
+          booth_number: profile?.booth_number || undefined,
           is_active: true,
           is_demo: !!isDemoLogin,
           created_at: profile?.created_at || new Date().toISOString(),
@@ -321,6 +341,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(authenticatedUser);
         localStorage.setItem('lead2b_active_user', JSON.stringify(authenticatedUser));
+        if (isLiveSheik && !isDemoLogin) {
+          try {
+            localStorage.removeItem('lead2b_events');
+            localStorage.removeItem('lead2b_exhibitors');
+            localStorage.removeItem('lead2b_admin_licenses');
+            localStorage.removeItem('lead2b_active_event_id');
+            localStorage.removeItem('lead2b_tenant_branding');
+            localStorage.removeItem('lead2b_deleted_event_ids');
+            localStorage.removeItem('lead2b_deleted_exhibitor_ids');
+            localStorage.removeItem('lead2b_offline_queue');
+            localStorage.removeItem('lead2b_custom_questions');
+            clearLocalDatabase().catch(() => {});
+          } catch (e) {}
+        }
         setIsLoading(false);
         return { success: true, user: authenticatedUser };
       }
@@ -334,6 +368,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(liveAdmin);
       try {
         localStorage.setItem('lead2b_active_user', JSON.stringify(liveAdmin));
+        localStorage.removeItem('lead2b_events');
+        localStorage.removeItem('lead2b_exhibitors');
+        localStorage.removeItem('lead2b_admin_licenses');
+        localStorage.removeItem('lead2b_active_event_id');
+        localStorage.removeItem('lead2b_tenant_branding');
+        localStorage.removeItem('lead2b_deleted_event_ids');
+        localStorage.removeItem('lead2b_deleted_exhibitor_ids');
+        localStorage.removeItem('lead2b_offline_queue');
+        localStorage.removeItem('lead2b_custom_questions');
+        clearLocalDatabase().catch(() => {});
       } catch (e) {}
       setIsLoading(false);
       return { success: true, user: liveAdmin };

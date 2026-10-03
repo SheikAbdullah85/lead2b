@@ -131,7 +131,7 @@ export default function MobileDashboardPage() {
       }));
   }, [leads, user]);
 
-  const standDisplay = user?.booth_number ? `Stand ${user.booth_number}` : (activeTenant.stand || 'Stand TK-01');
+  const standDisplay = user?.booth_number ? `Stand ${user.booth_number}` : (activeTenant.stand && activeTenant.stand !== 'Stand Unassigned' ? activeTenant.stand : (isDemoMode ? 'Stand H3-B24' : 'Stand Unassigned'));
 
   return (
     <div className="space-y-4">

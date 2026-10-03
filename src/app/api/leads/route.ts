@@ -141,8 +141,6 @@ export async function POST(req: NextRequest) {
       updated_at: new Date().toISOString(),
     };
 
-    INITIAL_LEADS.unshift(savedLead);
-
     return NextResponse.json({
       success: true,
       lead: savedLead,
