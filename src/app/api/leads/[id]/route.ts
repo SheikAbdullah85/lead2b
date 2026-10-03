@@ -61,3 +61,31 @@ export async function PATCH(
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const supabase = createServerClient();
+
+    // 1. Cascade delete child notes and followups
+    await supabase.from('lead_notes').delete().eq('lead_id', params.id);
+    await supabase.from('followups').delete().eq('lead_id', params.id);
+
+    // 2. Delete parent lead record
+    const { error } = await supabase.from('leads').delete().eq('id', params.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      deleted_id: params.id,
+      message: 'Lead and associated child records successfully deleted.',
+    });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

@@ -1,31 +1,89 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
 import { FollowupTask } from '@/lib/types';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { CheckCircle2, Clock, Phone, Mail, MessageCircle, CalendarCheck, Check, Sparkles, Building2 } from 'lucide-react';
+import { localDb } from '@/lib/db/dexie';
+import { supabase } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 
 export default function MobileFollowupsPage() {
-  const [tasks, setTasks] = useState<FollowupTask[]>(INITIAL_FOLLOWUPS);
+  const { isDemoMode } = useAuth();
+  const [tasks, setTasks] = useState<FollowupTask[]>([]);
   const [filter, setFilter] = useState<'open' | 'completed' | 'all'>('open');
 
-  const handleToggleComplete = (id: string) => {
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const localTasks = await localDb.followups.toArray().catch(() => []);
+        let serverTasks: FollowupTask[] = [];
+        if (typeof navigator === 'undefined' || navigator.onLine) {
+          const { data: dbTasks } = await supabase.from('followups').select('*').order('due_date', { ascending: true });
+          if (dbTasks) serverTasks = dbTasks as FollowupTask[];
+        }
+
+        const seenIds = new Set<string>();
+        const merged: FollowupTask[] = [];
+        for (const t of [...localTasks, ...serverTasks]) {
+          if (!seenIds.has(t.id)) {
+            seenIds.add(t.id);
+            merged.push(t);
+          }
+        }
+
+        if (isDemoMode && merged.length === 0) {
+          setTasks([...INITIAL_FOLLOWUPS]);
+        } else {
+          setTasks(merged);
+        }
+      } catch (err) {
+        setTasks([]);
+      }
+    };
+
+    fetchTasks();
+  }, [isDemoMode]);
+
+  const handleToggleComplete = async (id: string) => {
+    const target = tasks.find((t) => t.id === id);
+    if (!target) return;
+
+    const newStatus = target.status === 'completed' ? 'open' : 'completed';
+    const completedAt = newStatus === 'completed' ? new Date().toISOString() : undefined;
+
+    // 1. Optimistic UI update
     setTasks(
       tasks.map((t) => {
         if (t.id === id) {
-          const newStatus = t.status === 'completed' ? 'open' : 'completed';
           return {
             ...t,
             status: newStatus,
-            completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined,
+            completed_at: completedAt,
           };
         }
         return t;
       })
     );
+
+    // 2. Persist to Dexie
+    await localDb.followups.update(id, {
+      status: newStatus,
+      completed_at: completedAt,
+    }).catch(() => {});
+
+    // 3. Persist to Supabase if online
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('followups').update({
+          status: newStatus,
+          completed_at: completedAt,
+        }).eq('id', id);
+      } catch (e) {}
+    }
   };
 
   const filteredTasks = tasks.filter((t) => {

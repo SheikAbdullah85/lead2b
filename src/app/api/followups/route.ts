@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { INITIAL_FOLLOWUPS } from '@/lib/data/mock-store';
+import { createServerClient } from '@/lib/supabase/server';
 import { FollowupTask } from '@/lib/types';
 
 export const runtime = 'edge';
@@ -9,23 +9,31 @@ export async function GET(req: NextRequest) {
   const tenantId = searchParams.get('tenant_id');
   const assignedTo = searchParams.get('assigned_to');
   const status = searchParams.get('status');
+  const leadId = searchParams.get('lead_id');
 
-  let tasks = [...INITIAL_FOLLOWUPS];
+  try {
+    const supabase = createServerClient();
+    let query = supabase.from('followups').select('*').order('created_at', { ascending: false });
 
-  if (tenantId) {
-    tasks = tasks.filter((t) => t.tenant_id === tenantId);
-  }
-  if (assignedTo) {
-    tasks = tasks.filter((t) => t.assigned_to === assignedTo);
-  }
-  if (status && status !== 'all') {
-    tasks = tasks.filter((t) => t.status === status);
-  }
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    if (assignedTo) query = query.eq('assigned_to', assignedTo);
+    if (leadId) query = query.eq('lead_id', leadId);
+    if (status && status !== 'all') query = query.eq('status', status);
 
-  return NextResponse.json({
-    followups: tasks,
-    total: tasks.length,
-  });
+    const { data: dbFollowups, error } = await query;
+
+    if (error) {
+      console.warn('Error fetching followups from Supabase:', error);
+      return NextResponse.json({ followups: [], total: 0 });
+    }
+
+    return NextResponse.json({
+      followups: dbFollowups || [],
+      total: dbFollowups ? dbFollowups.length : 0,
+    });
+  } catch (err: any) {
+    return NextResponse.json({ followups: [], total: 0 });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -39,31 +47,38 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const newTask: FollowupTask = {
-      id: `foll_${Date.now()}`,
-      tenant_id: body.tenant_id || '11111111-1111-1111-1111-111111111111',
-      event_id: body.event_id || 'eeee1111-1111-1111-1111-111111111111',
+    const supabase = createServerClient();
+    const isUuid = (val?: string) =>
+      typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+    const generatedId = isUuid(body.id) ? body.id : crypto.randomUUID();
+
+    const insertPayload = {
+      id: generatedId,
+      tenant_id: isUuid(body.tenant_id) ? body.tenant_id : '11111111-1111-1111-1111-111111111111',
+      event_id: isUuid(body.event_id) ? body.event_id : 'eeee1111-1111-1111-1111-111111111111',
       lead_id: body.lead_id,
-      lead_name: body.lead_name || 'Prospect Lead',
-      lead_company: body.lead_company,
-      lead_mobile: body.lead_mobile,
-      lead_email: body.lead_email,
-      assigned_to: body.assigned_to,
-      assigned_to_name: body.assigned_to_name,
-      task_type: body.task_type || 'call',
+      assigned_to: isUuid(body.assigned_to) ? body.assigned_to : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      created_by: isUuid(body.created_by) ? body.created_by : 'dddddddd-dddd-dddd-dddd-dddddddddddd',
       task_title: body.task_title,
+      task_type: body.task_type || 'call',
       description: body.description || '',
       due_date: body.due_date,
       priority: body.priority || 'medium',
-      status: 'open',
-      created_by: body.created_by || 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-      created_at: new Date().toISOString(),
-      sync_status: 'synced',
+      status: body.status || 'open',
     };
 
-    INITIAL_FOLLOWUPS.unshift(newTask);
+    const { data, error } = await supabase
+      .from('followups')
+      .insert([insertPayload])
+      .select()
+      .single();
 
-    return NextResponse.json({ success: true, followup: newTask });
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, followup: data });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
