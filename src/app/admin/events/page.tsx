@@ -63,14 +63,43 @@ export default function AdminEventsPage() {
   const [newStandExhibitor, setNewStandExhibitor] = useState('');
   const [newStandSize, setNewStandSize] = useState(24);
 
+  // Deleted events tombstone tracking so deletions persist across refreshes
+  const getDeletedEventIds = (): Set<string> => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = localStorage.getItem('lead2b_deleted_event_ids');
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (e) {
+      return new Set();
+    }
+  };
+
+  const markEventDeleted = (id: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('lead2b_deleted_event_ids');
+      const list: string[] = raw ? JSON.parse(raw) : [];
+      if (!list.includes(id)) {
+        list.push(id);
+        localStorage.setItem('lead2b_deleted_event_ids', JSON.stringify(list));
+      }
+    } catch (e) {}
+  };
+
   // Load events from Supabase and localStorage on mount
   const loadEvents = async () => {
     try {
+      const deletedIds = getDeletedEventIds();
       let storedList: Event[] = [];
+      let hasStored = false;
+
       if (typeof window !== 'undefined') {
         const stored = localStorage.getItem('lead2b_events');
         if (stored) {
-          storedList = JSON.parse(stored);
+          hasStored = true;
+          try {
+            storedList = JSON.parse(stored);
+          } catch (e) {}
         }
       }
 
@@ -87,16 +116,27 @@ export default function AdminEventsPage() {
 
       const seen = new Set<string>();
       const merged: Event[] = [];
-      for (const e of [...serverList, ...storedList, ...INITIAL_EVENTS]) {
-        if (!seen.has(e.id)) {
+      
+      // If user has local storage, use server + stored (fallback to INITIAL_EVENTS only if empty)
+      const baseList = hasStored 
+        ? [...serverList, ...storedList] 
+        : [...serverList, ...storedList, ...INITIAL_EVENTS];
+
+      for (const e of baseList) {
+        if (!seen.has(e.id) && !deletedIds.has(e.id)) {
           seen.add(e.id);
           merged.push(e);
         }
       }
+
       setEvents(merged);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('lead2b_events', JSON.stringify(merged));
+      }
     } catch (err) {
       console.warn('Error loading events:', err);
-      setEvents(INITIAL_EVENTS);
+      const deletedIds = getDeletedEventIds();
+      setEvents(INITIAL_EVENTS.filter(e => !deletedIds.has(e.id)));
     }
   };
 
@@ -197,6 +237,7 @@ export default function AdminEventsPage() {
 
   const handleDeleteEvent = async (id: string) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
+    markEventDeleted(id);
     const remaining = events.filter((e) => e.id !== id);
     setEvents(remaining);
     if (typeof window !== 'undefined') {

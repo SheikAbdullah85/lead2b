@@ -41,11 +41,14 @@ export const DEFAULT_LIVE_TENANT: ActiveTenantInfo = {
 export function getActiveEvent(): ActiveEventInfo {
   if (typeof window !== 'undefined') {
     try {
+      const rawDel = localStorage.getItem('lead2b_deleted_event_ids');
+      const deletedIds = new Set<string>(rawDel ? JSON.parse(rawDel) : []);
+
       const activeId = localStorage.getItem('lead2b_active_event_id');
       const stored = localStorage.getItem('lead2b_events');
       if (stored) {
-        const events: Event[] = JSON.parse(stored);
-        if (activeId) {
+        const events: Event[] = JSON.parse(stored).filter((e: Event) => !deletedIds.has(e.id));
+        if (activeId && !deletedIds.has(activeId)) {
           const match = events.find((e) => e.id === activeId);
           if (match) {
             return {
@@ -78,9 +81,12 @@ export function getActiveEvent(): ActiveEventInfo {
 export function getActiveTenant(): ActiveTenantInfo {
   if (typeof window !== 'undefined') {
     try {
+      const rawDel = localStorage.getItem('lead2b_deleted_exhibitor_ids');
+      const deletedIds = new Set<string>(rawDel ? JSON.parse(rawDel) : []);
+
       const stored = localStorage.getItem('lead2b_exhibitors');
       if (stored) {
-        const orgs: Organization[] = JSON.parse(stored);
+        const orgs: Organization[] = JSON.parse(stored).filter((o: Organization) => !deletedIds.has(o.id));
         const craftix = orgs.find((o) => o.company_name?.toLowerCase().includes('craftix')) || orgs[0];
         if (craftix) {
           return {

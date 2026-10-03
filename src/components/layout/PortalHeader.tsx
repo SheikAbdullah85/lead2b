@@ -22,14 +22,46 @@ export function PortalHeader({ type }: PortalHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [events, setEvents] = useState<Event[]>([]);
   const [activeEvent, setActiveEvent] = useState<Event | null>(null);
+  const [exhibitorName, setExhibitorName] = useState('Craftix Technologies');
+
+  // Resolve current active exhibitor name cleanly
+  useEffect(() => {
+    try {
+      const storedEx = localStorage.getItem('lead2b_exhibitors');
+      if (storedEx) {
+        const orgs: any[] = JSON.parse(storedEx);
+        const match = orgs.find((o) => o.id === user?.tenant_id) || orgs.find((o) => o.company_name?.toLowerCase().includes('craftix')) || orgs[0];
+        if (match && match.company_name && !match.company_name.toLowerCase().includes('ascys')) {
+          setExhibitorName(match.company_name);
+          return;
+        }
+      }
+    } catch (e) {}
+
+    if (branding?.company_name && !branding.company_name.toLowerCase().includes('ascys') && !branding.company_name.toLowerCase().includes('alpha')) {
+      setExhibitorName(branding.company_name);
+    } else {
+      setExhibitorName('Craftix Technologies');
+    }
+  }, [user, branding]);
 
   useEffect(() => {
     const loadEvents = async () => {
       try {
+        let deletedIds = new Set<string>();
+        if (typeof window !== 'undefined') {
+          try {
+            const rawDel = localStorage.getItem('lead2b_deleted_event_ids');
+            if (rawDel) deletedIds = new Set(JSON.parse(rawDel));
+          } catch (e) {}
+        }
+
         let storedList: Event[] = [];
+        let hasStored = false;
         if (typeof window !== 'undefined') {
           const stored = localStorage.getItem('lead2b_events');
           if (stored) {
+            hasStored = true;
             try {
               storedList = JSON.parse(stored);
             } catch (e) {}
@@ -49,8 +81,12 @@ export function PortalHeader({ type }: PortalHeaderProps) {
 
         const seen = new Set<string>();
         const merged: Event[] = [];
-        for (const e of [...serverList, ...storedList, ...INITIAL_EVENTS]) {
-          if (!seen.has(e.id)) {
+        const baseList = hasStored
+          ? [...serverList, ...storedList]
+          : [...serverList, ...storedList, ...INITIAL_EVENTS];
+
+        for (const e of baseList) {
+          if (!seen.has(e.id) && !deletedIds.has(e.id)) {
             seen.add(e.id);
             merged.push(e);
           }
@@ -67,6 +103,18 @@ export function PortalHeader({ type }: PortalHeaderProps) {
     };
 
     loadEvents();
+
+    const handleEventChange = (e: any) => {
+      if (e.detail) {
+        setActiveEvent(e.detail);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('lead2b_event_changed', handleEventChange);
+      return () => {
+        window.removeEventListener('lead2b_event_changed', handleEventChange);
+      };
+    }
   }, []);
 
   const handleSelectEvent = (eventId: string) => {
@@ -149,10 +197,10 @@ export function PortalHeader({ type }: PortalHeaderProps) {
             ) : (
               <div className="hidden xl:flex items-center gap-2 pl-4 border-l border-slate-200">
                 <span className="text-xs font-bold text-slate-700">
-                  {branding.company_name || user?.organization?.company_name || 'Alpha Technology Group'}
+                  {exhibitorName}
                 </span>
-                <span className="text-[10px] bg-slate-100 text-slate-500 font-mono font-semibold px-2 py-0.5 rounded border border-slate-200">
-                  {user?.booth_number ? `Stand ${user.booth_number}` : 'Stand Allocated'}
+                <span className="text-[10px] bg-slate-100 text-slate-600 font-mono font-bold px-2 py-0.5 rounded border border-slate-200">
+                  {user?.booth_number ? `Stand ${user.booth_number}` : 'Stand TK-01'}
                 </span>
               </div>
             )}

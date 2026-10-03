@@ -127,10 +127,25 @@ export default function AdminDashboardPage() {
         } catch (e) {}
       }
 
+      let deletedEvtIds = new Set<string>();
+      let deletedOrgIds = new Set<string>();
+      if (typeof window !== 'undefined') {
+        try {
+          const rawEvt = localStorage.getItem('lead2b_deleted_event_ids');
+          if (rawEvt) deletedEvtIds = new Set(JSON.parse(rawEvt));
+          const rawOrg = localStorage.getItem('lead2b_deleted_exhibitor_ids');
+          if (rawOrg) deletedOrgIds = new Set(JSON.parse(rawOrg));
+        } catch (e) {}
+      }
+
       const seenEvtIds = new Set<string>();
       const mergedEvents: Event[] = [];
-      for (const ev of [...serverEvents, ...localEvents, ...INITIAL_EVENTS]) {
-        if (!seenEvtIds.has(ev.id)) {
+      const baseEvents = localEvents.length > 0 || serverEvents.length > 0
+        ? [...serverEvents, ...localEvents]
+        : [...serverEvents, ...localEvents, ...INITIAL_EVENTS];
+
+      for (const ev of baseEvents) {
+        if (!seenEvtIds.has(ev.id) && !deletedEvtIds.has(ev.id)) {
           seenEvtIds.add(ev.id);
           mergedEvents.push(ev);
         }
@@ -168,10 +183,13 @@ export default function AdminDashboardPage() {
       const seenOrgIds = new Set<string>();
       const seenOrgCodes = new Set<string>();
       const mergedOrgs: Organization[] = [];
+      const baseOrgs = localOrgs.length > 0 || serverOrgs.length > 0
+        ? [...serverOrgs, ...localOrgs]
+        : [...serverOrgs, ...localOrgs, ...INITIAL_EXHIBITORS];
 
-      for (const org of [...serverOrgs, ...localOrgs, ...INITIAL_EXHIBITORS]) {
+      for (const org of baseOrgs) {
         const codeKey = org.company_code?.trim().toUpperCase();
-        if (!seenOrgIds.has(org.id) && (!codeKey || !seenOrgCodes.has(codeKey))) {
+        if (!seenOrgIds.has(org.id) && !deletedOrgIds.has(org.id) && (!codeKey || !seenOrgCodes.has(codeKey))) {
           seenOrgIds.add(org.id);
           if (codeKey) seenOrgCodes.add(codeKey);
           mergedOrgs.push(org);

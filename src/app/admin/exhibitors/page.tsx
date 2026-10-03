@@ -113,10 +113,25 @@ export default function AdminExhibitorsPage() {
         } catch (e) {}
       }
 
+      let deletedEvtIds = new Set<string>();
+      let deletedOrgIds = new Set<string>();
+      if (typeof window !== 'undefined') {
+        try {
+          const rawEvt = localStorage.getItem('lead2b_deleted_event_ids');
+          if (rawEvt) deletedEvtIds = new Set(JSON.parse(rawEvt));
+          const rawOrg = localStorage.getItem('lead2b_deleted_exhibitor_ids');
+          if (rawOrg) deletedOrgIds = new Set(JSON.parse(rawOrg));
+        } catch (e) {}
+      }
+
       const seenEvtIds = new Set<string>();
       const mergedEvents: Event[] = [];
-      for (const ev of [...serverEvents, ...localEvents, ...INITIAL_EVENTS]) {
-        if (!seenEvtIds.has(ev.id)) {
+      const baseEvents = localEvents.length > 0 || serverEvents.length > 0
+        ? [...serverEvents, ...localEvents]
+        : [...serverEvents, ...localEvents, ...INITIAL_EVENTS];
+
+      for (const ev of baseEvents) {
+        if (!seenEvtIds.has(ev.id) && !deletedEvtIds.has(ev.id)) {
           seenEvtIds.add(ev.id);
           mergedEvents.push(ev);
         }
@@ -155,10 +170,13 @@ export default function AdminExhibitorsPage() {
       const seenIds = new Set<string>();
       const seenCodes = new Set<string>();
       const merged: Organization[] = [];
+      const baseOrgs = localList.length > 0 || serverList.length > 0
+        ? [...serverList, ...localList]
+        : [...serverList, ...localList, ...INITIAL_EXHIBITORS];
 
-      for (const org of [...serverList, ...localList, ...INITIAL_EXHIBITORS]) {
+      for (const org of baseOrgs) {
         const codeKey = org.company_code?.trim().toUpperCase();
-        if (!seenIds.has(org.id) && (!codeKey || !seenCodes.has(codeKey))) {
+        if (!seenIds.has(org.id) && !deletedOrgIds.has(org.id) && (!codeKey || !seenCodes.has(codeKey))) {
           seenIds.add(org.id);
           if (codeKey) seenCodes.add(codeKey);
 
@@ -365,6 +383,17 @@ export default function AdminExhibitorsPage() {
   const handleDeleteExhibitor = async (id: string, exName: string) => {
     if (!confirm(`Are you sure you want to delete exhibitor "${exName}"? This will remove all associated tenant settings.`)) {
       return;
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        const rawOrg = localStorage.getItem('lead2b_deleted_exhibitor_ids');
+        const delList: string[] = rawOrg ? JSON.parse(rawOrg) : [];
+        if (!delList.includes(id)) {
+          delList.push(id);
+          localStorage.setItem('lead2b_deleted_exhibitor_ids', JSON.stringify(delList));
+        }
+      } catch (e) {}
     }
 
     const remaining = exhibitors.filter((ex) => ex.id !== id);

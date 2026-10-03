@@ -31,8 +31,19 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     try {
       const stored = localStorage.getItem('lead2b_tenant_branding');
       if (stored) {
-        setBranding(JSON.parse(stored));
-        return;
+        const parsed = JSON.parse(stored);
+        if (
+          parsed &&
+          parsed.company_name &&
+          !parsed.company_name.toLowerCase().includes('ascys') &&
+          !parsed.company_name.toLowerCase().includes('alpha')
+        ) {
+          setBranding(parsed);
+          return;
+        } else {
+          // Purge stale or unrecognized ghost tenant branding
+          localStorage.removeItem('lead2b_tenant_branding');
+        }
       }
 
       // 2. Check registered exhibitors in localStorage
@@ -40,7 +51,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
       if (storedEx) {
         const orgs = JSON.parse(storedEx);
         const match = orgs.find((o: any) => o.company_name?.toLowerCase().includes('craftix')) || orgs[0];
-        if (match) {
+        if (match && !match.company_name?.toLowerCase().includes('ascys')) {
           setBranding({
             id: `brand_${match.id}`,
             tenant_id: match.id,
@@ -49,8 +60,10 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
             secondary_color: '#0f172a',
             welcome_message: `Welcome to ${match.company_name} Stand`,
           });
+          return;
         }
       }
+      setBranding(DEFAULT_BRANDING);
     } catch (e) {}
   }, []);
 
