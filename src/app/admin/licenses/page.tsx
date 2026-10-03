@@ -26,8 +26,8 @@ export default function AdminLicensesPage() {
   const [plan, setPlan] = useState('event_standard');
   const [allowedUsers, setAllowedUsers] = useState(5);
   const [leadLimit, setLeadLimit] = useState(5000);
-  const [startDate, setStartDate] = useState('2026-10-01');
-  const [expiryDate, setExpiryDate] = useState('2026-11-01');
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [expiryDate, setExpiryDate] = useState(() => new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]);
 
   const loadLicenses = async () => {
     setIsLoading(true);

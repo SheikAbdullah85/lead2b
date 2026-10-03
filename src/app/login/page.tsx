@@ -37,8 +37,8 @@ function LoginForm() {
   const redirectParam = searchParams.get('redirect');
   const { login } = useAuth();
 
-  const [email, setEmail] = useState('sheik85@gmail.com');
-  const [password, setPassword] = useState('Craftix@2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [targetPortal, setTargetPortal] = useState<string>('/admin/dashboard');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -79,7 +79,7 @@ function LoginForm() {
           Live Production Workspace
         </span>
         <p className="text-xs text-slate-500 mt-1 font-medium">
-          Authorized Admin: <strong className="text-slate-800">sheik85@gmail.com</strong>
+          Sign in with your enterprise credentials
         </p>
       </div>
 

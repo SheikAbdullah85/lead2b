@@ -172,7 +172,7 @@ export default function AdminDashboardPage() {
           return {
             id: org.id,
             name: org.company_name,
-            booth: org.assigned_stand || `Stand TK-${index + 1}`,
+            booth: org.assigned_stand || 'Stand Unassigned',
             event: resolvedEventName || 'Active Event',
             leads: liveLeadsCount,
             reps: org.license_count || 5,

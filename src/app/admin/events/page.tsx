@@ -167,12 +167,12 @@ export default function AdminEventsPage() {
   // New Event Form State
   const [eventName, setEventName] = useState('');
   const [eventCode, setEventCode] = useState('');
-  const [venue, setVenue] = useState('Dubai World Trade Centre (DWTC)');
-  const [city, setCity] = useState('Dubai');
-  const [country, setCountry] = useState('United Arab Emirates');
-  const [startDate, setStartDate] = useState('2026-10-12');
-  const [endDate, setEndDate] = useState('2026-10-16');
-  const [organizerName, setOrganizerName] = useState('Dubai World Trade Centre Authority');
+  const [venue, setVenue] = useState('');
+  const [city, setCity] = useState('');
+  const [country, setCountry] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [organizerName, setOrganizerName] = useState('');
   const [description, setDescription] = useState('');
 
   const handleCreateEvent = async (e: React.FormEvent) => {
@@ -238,6 +238,12 @@ export default function AdminEventsPage() {
     setIsCreateModalOpen(false);
     setEventName('');
     setEventCode('');
+    setVenue('');
+    setCity('');
+    setCountry('');
+    setStartDate('');
+    setEndDate('');
+    setOrganizerName('');
     setDescription('');
   };
 
@@ -478,14 +484,14 @@ export default function AdminEventsPage() {
               label="Venue"
               value={venue}
               onChange={(e) => setVenue(e.target.value)}
-              placeholder="Exhibition Centre"
+              placeholder="e.g. Exhibition Centre / Convention Hall"
               required
             />
             <Input
               label="City"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder="Dubai"
+              placeholder="e.g. City Name"
               required
             />
           </div>
@@ -511,7 +517,7 @@ export default function AdminEventsPage() {
             label="Organizer Authority"
             value={organizerName}
             onChange={(e) => setOrganizerName(e.target.value)}
-            placeholder="Exhibition Authority"
+            placeholder="e.g. Organizer / Event Management Company"
           />
 
           <div className="pt-2 flex items-center gap-2">
@@ -590,7 +596,9 @@ export default function AdminEventsPage() {
                       <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block"></span> Reserved
                     </span>
                   </div>
-                  <span className="text-[11px] font-mono text-slate-400">DWTC Dubai Hall Layout</span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    {selectedEventForFloorplan?.venue ? `${selectedEventForFloorplan.venue} Layout` : 'Exhibition Hall Layout'}
+                  </span>
                 </div>
 
                 {/* 2D Interactive Grid */}

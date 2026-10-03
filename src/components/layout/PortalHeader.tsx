@@ -319,26 +319,55 @@ export function PortalHeader({ type }: PortalHeaderProps) {
 
         {/* Mobile Dropdown Navigation Menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden py-3 border-t border-slate-100 space-y-1 animate-in fade-in duration-150">
-            {links.map((link) => {
-              const Icon = link.icon;
-              const isActive = pathname === link.href;
-              return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold ${
-                    isActive
-                      ? 'bg-brand-50 text-brand-900 border border-brand-200'
-                      : 'text-slate-600 hover:bg-slate-50'
-                  }`}
+          <div className="lg:hidden py-3 border-t border-slate-100 space-y-2 animate-in fade-in duration-150">
+            {/* Mobile Event Selector Context */}
+            {type === 'admin' && events.length > 0 && (
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-bold text-slate-500 uppercase">Event:</span>
+                <select
+                  value={activeEvent?.id || ''}
+                  onChange={(e) => handleSelectEvent(e.target.value)}
+                  className="text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-2 py-1 max-w-[200px] truncate"
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
-                  <span>{link.label}</span>
-                </Link>
-              );
-            })}
+                  {events.map((evt) => (
+                    <option key={evt.id} value={evt.id}>
+                      {evt.event_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {type === 'exhibitor' && (
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl mb-2 flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-700 truncate">{exhibitorName || 'Exhibitor Portal'}</span>
+                <span className="font-mono text-[11px] font-semibold text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                  {user?.booth_number ? `Stand ${user.booth_number}` : (isDemoMode ? (standName || 'Stand H3-B24') : 'No Stand')}
+                </span>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              {links.map((link) => {
+                const Icon = link.icon;
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
+                      isActive
+                        ? 'bg-brand-50 text-brand-900 border border-brand-200 shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-brand-600' : 'text-slate-400'}`} />
+                    <span>{link.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

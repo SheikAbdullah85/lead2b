@@ -27,12 +27,12 @@ export default function AdminExhibitorsPage() {
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [country, setCountry] = useState('United Arab Emirates');
+  const [country, setCountry] = useState('');
   const [website, setWebsite] = useState('');
   const [plan, setPlan] = useState('event_standard');
   const [licenses, setLicenses] = useState(5);
   const [selectedEventId, setSelectedEventId] = useState('');
-  const [assignedStand, setAssignedStand] = useState('Stand H3-B24');
+  const [assignedStand, setAssignedStand] = useState('');
 
   const loadExhibitors = async () => {
     setIsLoading(true);
@@ -184,7 +184,7 @@ export default function AdminExhibitorsPage() {
     const selectedEv = eventsList.find((ev) => ev.id === selectedEventId) || eventsList[0];
     const eventId = selectedEv?.id || activeEv.id;
     const eventNameStr = selectedEv?.event_name || activeEv.name;
-    const standStr = assignedStand.trim() || 'Stand TK-01';
+    const standStr = assignedStand.trim() || 'Stand TBD';
 
     const newExhibitor: Organization = {
       id: newId,
@@ -193,7 +193,7 @@ export default function AdminExhibitorsPage() {
       primary_contact_name: contactName.trim() || undefined,
       email: email.trim().toLowerCase(),
       phone: phone.trim() || undefined,
-      country: country.trim() || 'United Arab Emirates',
+      country: country.trim() || '',
       website: website.trim() || undefined,
       active_status: true,
       subscription_plan: plan,
@@ -300,6 +300,8 @@ export default function AdminExhibitorsPage() {
     setEmail('');
     setPhone('');
     setWebsite('');
+    setCountry('');
+    setAssignedStand('');
   };
 
   const toggleStatus = async (id: string) => {
@@ -573,7 +575,7 @@ export default function AdminExhibitorsPage() {
               label="Assigned Stand / Booth"
               value={assignedStand}
               onChange={(e) => setAssignedStand(e.target.value)}
-              placeholder="e.g. Stand H3-B24 or Stand TK-01"
+              placeholder="e.g. Stand A-101 / Booth 12"
               required
             />
           </div>
@@ -583,7 +585,7 @@ export default function AdminExhibitorsPage() {
               label="Primary Contact"
               value={contactName}
               onChange={(e) => setContactName(e.target.value)}
-              placeholder="Elena Rostova"
+              placeholder="e.g. Full Name"
             />
             <Input
               label="Work Email"
@@ -600,13 +602,13 @@ export default function AdminExhibitorsPage() {
               label="Phone Number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+971 4 000 0000"
+              placeholder="e.g. +1 555 000 0000"
             />
             <Input
               label="Country"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
-              placeholder="United Arab Emirates"
+              placeholder="e.g. Country / Region"
             />
           </div>
 

@@ -56,7 +56,7 @@ export default function AdminAttendeesPage() {
   const [importSummary, setImportSummary] = useState<{ imported: number; duplicates: number; errors: number } | null>(null);
 
   // Manual create attendee state
-  const [badgeId, setBadgeId] = useState(`${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
+  const [badgeId, setBadgeId] = useState(() => (activeEvent?.code && activeEvent.code !== 'NONE' ? `${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}` : ''));
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [company, setCompany] = useState('');
@@ -298,7 +298,7 @@ export default function AdminAttendeesPage() {
     setCompany('');
     setJobTitle('');
     setMobile('');
-    setBadgeId(`${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}`);
+    setBadgeId(activeEvent?.code && activeEvent.code !== 'NONE' ? `${activeEvent.code}-ATT-${Math.floor(10000 + Math.random() * 90000)}` : '');
   };
 
   // Selection toggles
