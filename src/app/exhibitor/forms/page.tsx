@@ -214,7 +214,7 @@ export default function ExhibitorFormsPage() {
             <Sliders className="w-3 h-3 text-brand-600" />
             Lead Qualification Architecture
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Qualification Form Builder</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Qualification Form Builder</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Configure custom qualification questions, scoring criteria, and branching logic for booth sales reps.
           </p>

@@ -298,7 +298,7 @@ export default function AdminDashboardPage() {
             <ShieldCheck className="w-3 h-3 text-brand-600" />
             Organizer Command Center
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">System & Event Administration</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">System & Event Administration</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Cross-event telemetry, exhibitor license quotas, badge imports, and tenant health monitoring.
           </p>

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Organization, Event, License } from '@/lib/types';
 import { INITIAL_EVENTS, INITIAL_EXHIBITORS } from '@/lib/data/mock-store';
 import { useAuth } from '@/lib/auth/context';
-import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw, Key, Lock, Eye, EyeOff } from 'lucide-react';
+import { Building2, Plus, ShieldCheck, Mail, Phone, Globe, Trash2, CheckCircle2, Sparkles, RefreshCw, Key, Lock, Eye, EyeOff, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 import { getActiveEvent } from '@/lib/events/active-event';
 
@@ -324,6 +324,150 @@ export default function AdminExhibitorsPage() {
     setPortalPassword('');
   };
 
+  // Edit Exhibitor State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingExhibitor, setEditingExhibitor] = useState<Organization | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCode, setEditCode] = useState('');
+  const [editContactName, setEditContactName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editWebsite, setEditWebsite] = useState('');
+  const [editPlan, setEditPlan] = useState('event_standard');
+  const [editLicenses, setEditLicenses] = useState(5);
+  const [editEventId, setEditEventId] = useState('');
+  const [editStand, setEditStand] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [showEditPassword, setShowEditPassword] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleOpenEditExhibitor = (org: Organization) => {
+    setEditingExhibitor(org);
+    setEditName(org.company_name || '');
+    setEditCode(org.company_code || '');
+    setEditContactName(org.primary_contact_name || '');
+    setEditEmail(org.email || '');
+    setEditPhone(org.phone || '');
+    setEditCountry(org.country || '');
+    setEditWebsite(org.website || '');
+    setEditPlan(org.subscription_plan || 'event_standard');
+    setEditLicenses(org.license_count || 5);
+    setEditEventId(org.assigned_event_id || eventsList[0]?.id || '');
+    setEditStand(org.assigned_stand || '');
+    setEditPassword('');
+    setShowEditPassword(false);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateExhibitor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExhibitor || !editName.trim() || !editCode.trim() || !editEmail.trim()) return;
+
+    setIsUpdating(true);
+
+    const targetEv = eventsList.find((ev) => ev.id === editEventId) || eventsList[0];
+    const eventId = targetEv?.id || editingExhibitor.assigned_event_id;
+    const eventNameStr = targetEv?.event_name || editingExhibitor.assigned_event_name;
+    const standStr = editStand.trim() || editingExhibitor.assigned_stand || 'Stand TBD';
+
+    const updatedOrg: Organization = {
+      ...editingExhibitor,
+      company_name: editName.trim(),
+      company_code: editCode.trim().toUpperCase(),
+      primary_contact_name: editContactName.trim() || undefined,
+      email: editEmail.trim().toLowerCase(),
+      phone: editPhone.trim() || undefined,
+      country: editCountry.trim() || '',
+      website: editWebsite.trim() || undefined,
+      subscription_plan: editPlan,
+      license_count: Number(editLicenses) || 5,
+      assigned_event_id: eventId,
+      assigned_event_name: eventNameStr,
+      assigned_stand: standStr,
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Optimistic UI & Local Storage
+    const updatedList = exhibitors.map((ex) => (ex.id === editingExhibitor.id ? updatedOrg : ex));
+    setExhibitors(updatedList);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_exhibitors', JSON.stringify(updatedList));
+
+        // Update credentials in lead2b_registered_users if password or email changed
+        const cleanAdminEmail = updatedOrg.email.toLowerCase();
+        const customStored = localStorage.getItem('lead2b_registered_users');
+        const registered = customStored ? JSON.parse(customStored) : {};
+
+        // Find existing user entry if any
+        const oldEmail = editingExhibitor.email.toLowerCase();
+        const existingUser = registered[cleanAdminEmail] || registered[oldEmail] || {};
+
+        registered[cleanAdminEmail] = {
+          ...existingUser,
+          id: existingUser.id || `u_${Date.now()}`,
+          email: cleanAdminEmail,
+          full_name: updatedOrg.primary_contact_name || updatedOrg.company_name,
+          system_role: 'exhibitor_admin',
+          tenant_id: updatedOrg.id,
+          booth_number: updatedOrg.assigned_stand?.replace('Stand ', ''),
+          is_active: true,
+          password: editPassword.trim() ? editPassword.trim() : (existingUser.password || 'Password123!'),
+        };
+
+        if (oldEmail !== cleanAdminEmail && registered[oldEmail]) {
+          delete registered[oldEmail];
+        }
+
+        localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
+
+        // Update license package if present
+        const storedLics = localStorage.getItem('lead2b_admin_licenses');
+        if (storedLics) {
+          const lics: License[] = JSON.parse(storedLics);
+          const updatedLics = lics.map((l) =>
+            l.tenant_id === updatedOrg.id
+              ? { ...l, tenant_name: updatedOrg.company_name, plan: updatedOrg.subscription_plan, allowed_users: updatedOrg.license_count }
+              : l
+          );
+          localStorage.setItem('lead2b_admin_licenses', JSON.stringify(updatedLics));
+        }
+      } catch (err) {}
+    }
+
+    // 2. Persist to Supabase
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase
+          .from('organizations')
+          .update({
+            company_name: updatedOrg.company_name,
+            company_code: updatedOrg.company_code,
+            primary_contact_name: updatedOrg.primary_contact_name,
+            email: updatedOrg.email,
+            phone: updatedOrg.phone,
+            country: updatedOrg.country,
+            website: updatedOrg.website,
+            subscription_plan: updatedOrg.subscription_plan,
+            license_count: updatedOrg.license_count,
+            assigned_event_id: updatedOrg.assigned_event_id,
+            assigned_event_name: updatedOrg.assigned_event_name,
+            assigned_stand: updatedOrg.assigned_stand,
+            updated_at: updatedOrg.updated_at,
+          })
+          .eq('id', editingExhibitor.id);
+      } catch (sbErr) {
+        console.warn('Supabase organization update error:', sbErr);
+      }
+    }
+
+    setIsUpdating(false);
+    setIsEditModalOpen(false);
+    setEditingExhibitor(null);
+  };
+
   const toggleStatus = async (id: string) => {
     const target = exhibitors.find((ex) => ex.id === id);
     if (!target) return;
@@ -390,7 +534,7 @@ export default function AdminExhibitorsPage() {
             <Building2 className="w-3 h-3 text-brand-600" />
             Exhibitor Tenant Directory
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Exhibitor Management</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Exhibitor Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Provision exhibitor tenants, allocate stand licenses, and enforce PostgreSQL multi-tenant isolation.
           </p>
@@ -513,6 +657,14 @@ export default function AdminExhibitorsPage() {
                   </td>
                   <td className="p-3.5 text-right">
                     <div className="flex items-center justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditExhibitor(ex)}
+                        className="p-1 rounded text-slate-400 hover:text-brand-700 hover:bg-brand-50 transition"
+                        title="Edit Exhibitor"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => toggleStatus(ex.id)}
                         className={`text-xs font-bold px-2.5 py-1 rounded transition ${
@@ -698,6 +850,174 @@ export default function AdminExhibitorsPage() {
             </Button>
             <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isSaving}>
               {isSaving ? 'Creating...' : 'Create Exhibitor Tenant'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Exhibitor Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingExhibitor(null);
+        }}
+        title="Edit Exhibitor Tenant"
+        description="Update company profile, stand allocations, quota packages, and portal credentials"
+      >
+        <form onSubmit={handleUpdateExhibitor} className="space-y-3.5">
+          <Input
+            label="Company Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder="e.g. Siemens Global"
+            required
+          />
+
+          <Input
+            label="Company Code (Tenant Identifier)"
+            value={editCode}
+            onChange={(e) => setEditCode(e.target.value)}
+            placeholder="e.g. SIEMENS-01"
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Input
+              label="Primary Contact Person"
+              value={editContactName}
+              onChange={(e) => setEditContactName(e.target.value)}
+              placeholder="e.g. Markus Weber"
+            />
+            <Input
+              label="Country"
+              value={editCountry}
+              onChange={(e) => setEditCountry(e.target.value)}
+              placeholder="e.g. Germany"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Input
+              label="Admin Login Email"
+              type="email"
+              value={editEmail}
+              onChange={(e) => setEditEmail(e.target.value)}
+              placeholder="admin@company.com"
+              required
+            />
+            <Input
+              label="Direct Phone"
+              type="tel"
+              value={editPhone}
+              onChange={(e) => setEditPhone(e.target.value)}
+              placeholder="+971 50 123 4567"
+            />
+          </div>
+
+          <Input
+            label="Company Website"
+            value={editWebsite}
+            onChange={(e) => setEditWebsite(e.target.value)}
+            placeholder="https://company.com"
+          />
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Assigned Exhibition
+              </label>
+              <select
+                value={editEventId}
+                onChange={(e) => setEditEventId(e.target.value)}
+                className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+              >
+                {eventsList.map((ev) => (
+                  <option key={ev.id} value={ev.id}>
+                    {ev.event_name} ({ev.event_code})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Input
+              label="Assigned Stand / Booth"
+              value={editStand}
+              onChange={(e) => setEditStand(e.target.value)}
+              placeholder="e.g. Stand H3-B24 or TK-01"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Subscription Plan
+              </label>
+              <select
+                value={editPlan}
+                onChange={(e) => setEditPlan(e.target.value)}
+                className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+              >
+                <option value="event_standard">Standard Plan</option>
+                <option value="event_pro">Pro Plan</option>
+                <option value="enterprise">Enterprise VIP</option>
+              </select>
+            </div>
+
+            <Input
+              label="Rep License Count"
+              type="number"
+              value={editLicenses}
+              onChange={(e) => setEditLicenses(Number(e.target.value))}
+              min={1}
+              max={100}
+            />
+          </div>
+
+          {/* Reset / Update Exhibitor Portal Password */}
+          <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+              <Key className="w-3.5 h-3.5 text-brand-600" />
+              <span>Update Exhibitor Portal Password (Optional)</span>
+            </div>
+            <div>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type={showEditPassword ? 'text' : 'password'}
+                  value={editPassword}
+                  onChange={(e) => setEditPassword(e.target.value)}
+                  placeholder="Leave blank to keep current password, or enter new"
+                  className="w-full h-11 text-xs rounded-xl border border-slate-300 pl-9 pr-10 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPassword(!showEditPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  {showEditPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Enter a new password only if the exhibitor needs their login credentials reset.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingExhibitor(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isUpdating}>
+              {isUpdating ? 'Saving...' : 'Update Exhibitor'}
             </Button>
           </div>
         </form>

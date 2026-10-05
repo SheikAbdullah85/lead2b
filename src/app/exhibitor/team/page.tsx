@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Badge } from '@/components/ui/Badge';
-import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2, Trash2, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, QrCode, Mail, Copy, Check, Shield, Smartphone, Sparkles, Building2, Trash2, RefreshCw, Plus, Key, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { supabase } from '@/lib/supabase/client';
 import { getActiveEvent, getActiveTenant } from '@/lib/events/active-event';
@@ -52,6 +52,16 @@ export default function ExhibitorTeamPage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteName, setInviteName] = useState('');
   const [inviteRole, setInviteRole] = useState<'sales_rep' | 'exhibitor_admin'>('sales_rep');
+
+  // Direct Create User Modal State
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'sales_rep' | 'exhibitor_admin'>('sales_rep');
+  const [newUserPassword, setNewUserPassword] = useState('Password123!');
+  const [showNewUserPassword, setShowNewUserPassword] = useState(false);
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
   const [copiedLink, setCopiedLink] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -220,6 +230,78 @@ export default function ExhibitorTeamPage() {
     setInviteName('');
   };
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserEmail.trim() || !newUserName.trim()) return;
+
+    setIsCreatingUser(true);
+    const cleanEmail = newUserEmail.trim().toLowerCase();
+    const newMemberId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `m-${Date.now()}-0000-0000-000000000001`;
+
+    const newMember: TeamMember = {
+      id: newMemberId,
+      name: newUserName.trim(),
+      email: cleanEmail,
+      role: newUserRole,
+      leadsCount: 0,
+      status: 'active',
+      lastActive: 'Active now',
+    };
+
+    const updated = [newMember, ...members];
+    setMembers(updated);
+
+    // 1. Store locally in exhibitor team
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_exhibitor_team', JSON.stringify(updated));
+
+        // 2. Provision login credentials immediately
+        const customStored = localStorage.getItem('lead2b_registered_users');
+        const registered = customStored ? JSON.parse(customStored) : {};
+        registered[cleanEmail] = {
+          id: newMemberId,
+          email: cleanEmail,
+          full_name: newMember.name,
+          system_role: newUserRole,
+          tenant_id: activeTenant.id || '11111111-1111-1111-1111-111111111111',
+          booth_number: activeTenant.stand?.replace('Stand ', ''),
+          is_active: true,
+          created_at: new Date().toISOString(),
+          password: newUserPassword.trim() || 'Password123!',
+        };
+        localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
+      } catch (err) {}
+    }
+
+    // 3. Persist to Supabase profiles
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase.from('profiles').upsert([
+          {
+            id: newMemberId,
+            email: cleanEmail,
+            full_name: newMember.name,
+            system_role: newUserRole,
+            tenant_id: activeTenant.id || '11111111-1111-1111-1111-111111111111',
+            is_active: true,
+          },
+        ]);
+      } catch (err) {
+        console.warn('Failed to upsert profile in Supabase:', err);
+      }
+    }
+
+    setIsCreatingUser(false);
+    setIsCreateUserModalOpen(false);
+    setNewUserEmail('');
+    setNewUserName('');
+    setNewUserPassword('Password123!');
+  };
+
   const handleRemoveMember = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to remove ${name} from this booth?`)) return;
 
@@ -265,7 +347,7 @@ export default function ExhibitorTeamPage() {
             <Users className="w-3 h-3 text-brand-600" />
             Booth Personnel Management
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Booth Sales Team</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Booth Sales Team</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Manage representatives, allocate licenses, and monitor lead capture activity at {activeEvent.name} {activeTenant.stand}.
           </p>
@@ -293,13 +375,23 @@ export default function ExhibitorTeamPage() {
           </Button>
 
           <Button
-            variant="primary"
+            variant="outline"
             size="sm"
             onClick={() => setIsInviteModalOpen(true)}
+            className="text-xs font-bold gap-1.5 bg-white border-slate-200 hover:border-brand-300"
+          >
+            <UserPlus className="w-3.5 h-3.5 text-brand-600" />
+            <span>Invite</span>
+          </Button>
+
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsCreateUserModalOpen(true)}
             className="text-xs font-bold gap-1.5 shadow-sm"
           >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Invite Representative</span>
+            <Plus className="w-3.5 h-3.5" />
+            <span>Add Member</span>
           </Button>
         </div>
       </div>
@@ -492,6 +584,89 @@ export default function ExhibitorTeamPage() {
             Done
           </Button>
         </div>
+      </Modal>
+
+      {/* Direct Create User Modal */}
+      <Modal
+        isOpen={isCreateUserModalOpen}
+        onClose={() => setIsCreateUserModalOpen(false)}
+        title="Create Booth Team Member"
+        description="Provision immediate login credentials for a sales rep or booth administrator"
+      >
+        <form onSubmit={handleCreateUser} className="space-y-3.5">
+          <Input
+            label="Full Name"
+            value={newUserName}
+            onChange={(e) => setNewUserName(e.target.value)}
+            placeholder="e.g. Elena Rostova"
+            required
+          />
+
+          <Input
+            label="Email Address (Login Username)"
+            type="email"
+            value={newUserEmail}
+            onChange={(e) => setNewUserEmail(e.target.value)}
+            placeholder="rep@company.com"
+            required
+          />
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Role Permission
+            </label>
+            <select
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value as any)}
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+            >
+              <option value="sales_rep">Sales Representative (Capture & Own Leads)</option>
+              <option value="exhibitor_admin">Exhibitor Administrator (Full Access & Export)</option>
+            </select>
+          </div>
+
+          <div className="p-3 bg-teal-50/60 border border-teal-200/80 rounded-2xl space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+              <Key className="w-3.5 h-3.5 text-teal-700" />
+              <span>Login Password</span>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Password <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type={showNewUserPassword ? 'text' : 'password'}
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="Set password (e.g. Password123!)"
+                  required
+                  className="w-full h-11 text-xs rounded-xl border border-slate-300 pl-9 pr-10 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewUserPassword(!showNewUserPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  {showNewUserPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                The user can immediately log into the Mobile App or Exhibitor Portal using their email and this password.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-2 flex items-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setIsCreateUserModalOpen(false)} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isCreatingUser}>
+              {isCreatingUser ? 'Creating...' : 'Create Team User'}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

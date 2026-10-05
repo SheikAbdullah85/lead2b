@@ -1,0 +1,122 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { imageBase64, mimeType = 'image/jpeg', clientApiKey } = body;
+
+    const apiKey =
+      clientApiKey?.trim() ||
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.NEXT_PUBLIC_GEMINI_API_KEY?.trim();
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No Gemini API key available. Using on-device fallback.',
+        },
+        { status: 400 }
+      );
+    }
+
+    if (!imageBase64) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing imageBase64 data.',
+        },
+        { status: 400 }
+      );
+    }
+
+    // Strip data URL header if present (e.g. data:image/jpeg;base64,...)
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z]+;base64,/, '');
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(
+      apiKey
+    )}`;
+
+    const promptText = `
+You are an expert OCR and Business Card Contact Parser for international trade exhibitions.
+Extract all contact details from this business card image accurately.
+Return ONLY valid JSON matching this schema with no markdown code fences:
+{
+  "firstName": "string or empty",
+  "lastName": "string or empty",
+  "company": "string or empty",
+  "designation": "string or empty",
+  "email": "string or empty",
+  "phone": "international format with country code e.g. +971... or empty",
+  "landline": "string or empty",
+  "website": "string or empty",
+  "address": "string or empty"
+}
+`;
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType,
+                data: cleanBase64,
+              },
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.1,
+      },
+    };
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      return NextResponse.json(
+        {
+          success: false,
+          error: errJson?.error?.message || `Gemini API error: ${response.status}`,
+        },
+        { status: 400 }
+      );
+    }
+
+    const data = await response.json();
+    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+
+    let parsed = {};
+    try {
+      parsed = JSON.parse(rawText);
+    } catch {
+      // Clean possible fences if any
+      const stripped = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+      parsed = JSON.parse(stripped);
+    }
+
+    return NextResponse.json({
+      success: true,
+      engine: 'gemini-1.5-flash',
+      data: parsed,
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: err?.message || 'Server error during card OCR.',
+      },
+      { status: 500 }
+    );
+  }
+}

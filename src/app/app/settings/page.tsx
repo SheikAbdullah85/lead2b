@@ -33,6 +33,12 @@ import {
   Trash2,
   Shield,
   ArrowRight,
+  Key,
+  Lock,
+  Eye,
+  EyeOff,
+  Bot,
+  Cpu,
 } from 'lucide-react';
 
 export default function MobileSettingsPage() {
@@ -44,6 +50,63 @@ export default function MobileSettingsPage() {
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [isPurging, setIsPurging] = useState(false);
   const [purgeSuccess, setPurgeSuccess] = useState(false);
+
+  // AI OCR & Voice Engine Key State
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('lead2b_gemini_api_key');
+      if (stored) setApiKeyInput(stored);
+    }
+  }, []);
+
+  const handleTestKey = async () => {
+    setIsTestingKey(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/ai/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: apiKeyInput }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestResult({
+          success: true,
+          message: `Active & Verified! Response time: ${data.latencyMs}ms (${data.model})`,
+        });
+      } else {
+        setTestResult({
+          success: false,
+          message: data.error || 'API key test failed.',
+        });
+      }
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || 'Network error during test.',
+      });
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
+
+  const handleSaveKey = () => {
+    if (typeof window !== 'undefined') {
+      if (apiKeyInput.trim()) {
+        localStorage.setItem('lead2b_gemini_api_key', apiKeyInput.trim());
+      } else {
+        localStorage.removeItem('lead2b_gemini_api_key');
+      }
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
+    }
+  };
 
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -180,6 +243,103 @@ export default function MobileSettingsPage() {
           <RefreshCw className="w-3.5 h-3.5 text-brand-600" />
           <span>Force Cloud Sync Now</span>
         </Button>
+      </div>
+
+      {/* AI Vision & Voice Engine (Gemini API Configuration & Test) */}
+      <div className="p-4 bg-white rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 border border-purple-200/80 flex items-center justify-center font-bold">
+              <Bot className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-slate-900">AI Vision & Voice Engine</h3>
+              <p className="text-[10px] text-slate-500">Google Gemini 1.5 Flash • High-Speed OCR & Voice Parsing</p>
+            </div>
+          </div>
+          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+            {apiKeyInput.trim() ? 'Gemini 1.5' : 'Hybrid Offline'}
+          </span>
+        </div>
+
+        <p className="text-xs text-slate-500 leading-relaxed">
+          Configure a Google Gemini API Key to unlock multi-lingual business card image parsing and voice lead extraction. If no key is set, the app runs on-device Tesseract OCR and Web Speech 100% offline.
+        </p>
+
+        <div className="space-y-2">
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700">
+            Gemini API Key
+          </label>
+          <div className="relative">
+            <Key className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+            <input
+              type={showApiKey ? 'text' : 'password'}
+              value={apiKeyInput}
+              onChange={(e) => {
+                setApiKeyInput(e.target.value);
+                setTestResult(null);
+              }}
+              placeholder="AIzaSy..."
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 pl-9 pr-10 bg-white font-mono text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowApiKey(!showApiKey)}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+            >
+              {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Live Test Result Banner */}
+        {testResult && (
+          <div
+            className={`p-3 rounded-xl border text-xs font-medium flex items-center gap-2 ${
+              testResult.success
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                : 'bg-rose-50 border-rose-200 text-rose-800'
+            }`}
+          >
+            {testResult.success ? (
+              <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <Trash2 className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span className="flex-1">{testResult.message}</span>
+          </div>
+        )}
+
+        {saveSuccess && (
+          <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-200 text-xs text-teal-800 font-bold flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-teal-600 shrink-0" />
+            <span>API Key configuration saved successfully!</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleTestKey}
+            isLoading={isTestingKey}
+            disabled={!apiKeyInput.trim()}
+            className="text-xs font-bold gap-1.5 py-2 bg-white border-slate-200 hover:border-purple-300 hover:text-purple-700"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+            <span>Test API Key</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleSaveKey}
+            className="text-xs font-bold gap-1.5 py-2 shadow-xs"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Save Key</span>
+          </Button>
+        </div>
       </div>
 
       {/* PWA Mobile App Installation Card */}

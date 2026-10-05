@@ -220,27 +220,27 @@ export default function MobileDashboardPage() {
 
         {/* Action 1: SCAN BADGE (Camera QR + Badge OCR) */}
         <Link href="/app/scan" prefetch={true} className="block group">
-          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-[#005f69] via-[#00838f] to-[#0891b2] text-white shadow-lg shadow-teal-900/20 hover:shadow-xl hover:shadow-teal-800/30 active:scale-[0.98] transition-all cursor-pointer border border-teal-400/30 flex items-center justify-between gap-3">
+          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200/90 shadow-2xs hover:shadow-sm active:scale-[0.98] transition-all cursor-pointer flex items-center justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/25 shadow-inner">
-                <QrCode className="w-6 h-6 text-cyan-200 stroke-[2.4]" />
+              <div className="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0 text-teal-700">
+                <QrCode className="w-6 h-6 stroke-[2.2]" />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-base font-black tracking-tight text-white leading-tight">
+                  <h3 className="text-sm font-black text-slate-900 leading-tight">
                     SCAN BADGE
                   </h3>
-                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-white/20 text-cyan-100 border border-white/25">
+                  <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
                     QR &amp; OCR
                   </span>
                 </div>
-                <p className="text-xs text-slate-200 mt-0.5 truncate font-medium">
+                <p className="text-xs text-slate-500 mt-0.5 truncate font-medium">
                   Camera QR scanner &amp; physical badge photo OCR
                 </p>
               </div>
             </div>
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:bg-white/20 transition">
-              <ChevronRight className="w-5 h-5 text-cyan-200" />
+            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 group-hover:bg-slate-100 transition">
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-slate-700" />
             </div>
           </div>
         </Link>

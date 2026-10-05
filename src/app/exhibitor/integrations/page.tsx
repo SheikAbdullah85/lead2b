@@ -72,7 +72,7 @@ export default function ExhibitorIntegrationsPage() {
           <Sparkles className="w-3 h-3 text-brand-600" />
           Independent Enterprise CRM Sync
         </span>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">CRM & Webhook Integration</h1>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">CRM & Webhook Integration</h1>
         <p className="text-xs text-slate-500 mt-0.5">
           Forward captured booth leads automatically into Salesforce, HubSpot, Zoho, Dynamics, or any Custom API.
         </p>

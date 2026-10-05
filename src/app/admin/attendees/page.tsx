@@ -338,7 +338,7 @@ export default function AdminAttendeesPage() {
             <Users className="w-3 h-3 text-brand-600" />
             Visitor Directory & Badging
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Attendee & Badge Management</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Attendee & Badge Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             {attendees.length} registered attendees • Generates encrypted badge tokens for offline 5-second QR scans.
           </p>

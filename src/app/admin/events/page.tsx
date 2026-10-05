@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { INITIAL_EVENTS } from '@/lib/data/mock-store';
 import { Event } from '@/lib/types';
 import { useAuth } from '@/lib/auth/context';
-import { Calendar, MapPin, Plus, Building2, Clock, Globe, Sparkles, Layers, Trash2, LayoutGrid, CheckCircle2, RefreshCw, X } from 'lucide-react';
+import { Calendar, MapPin, Plus, Building2, Clock, Globe, Sparkles, Layers, Trash2, LayoutGrid, CheckCircle2, RefreshCw, X, Edit2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 interface HallItem {
@@ -254,6 +254,108 @@ export default function AdminEventsPage() {
     setDescription('');
   };
 
+  // Edit Event State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [editEventName, setEditEventName] = useState('');
+  const [editEventCode, setEditEventCode] = useState('');
+  const [editVenue, setEditVenue] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editCountry, setEditCountry] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editOrganizerName, setEditOrganizerName] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editStatus, setEditStatus] = useState<'draft' | 'active' | 'archived'>('active');
+  const [editDateError, setEditDateError] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleOpenEditModal = (evt: Event) => {
+    setEditingEvent(evt);
+    setEditEventName(evt.event_name || '');
+    setEditEventCode(evt.event_code || '');
+    setEditVenue(evt.venue || '');
+    setEditCity(evt.city || '');
+    setEditCountry(evt.country || '');
+    setEditStartDate(evt.start_date || '');
+    setEditEndDate(evt.end_date || '');
+    setEditOrganizerName(evt.organizer_name || '');
+    setEditDescription(evt.description || '');
+    setEditStatus((evt.status as any) || 'active');
+    setEditDateError(null);
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditDateError(null);
+    if (!editingEvent || !editEventName.trim() || !editEventCode.trim()) return;
+
+    if (editStartDate && editEndDate && editStartDate > editEndDate) {
+      setEditDateError('Invalid date range: Event start date cannot be later than end date.');
+      return;
+    }
+
+    setIsUpdating(true);
+
+    const updatedEvt: Event = {
+      ...editingEvent,
+      event_name: editEventName.trim(),
+      event_code: editEventCode.trim().toUpperCase(),
+      description: editDescription,
+      venue: editVenue.trim(),
+      city: editCity.trim(),
+      country: editCountry.trim(),
+      start_date: editStartDate,
+      end_date: editEndDate,
+      organizer_name: editOrganizerName.trim(),
+      status: editStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    // 1. Optimistic UI & LocalStorage
+    const updatedList = events.map((ev) => (ev.id === editingEvent.id ? updatedEvt : ev));
+    setEvents(updatedList);
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('lead2b_events', JSON.stringify(updatedList));
+        const activeId = localStorage.getItem('lead2b_active_event_id');
+        if (activeId === editingEvent.id) {
+          window.dispatchEvent(new CustomEvent('lead2b_event_changed', { detail: updatedEvt }));
+        }
+      } catch (err) {}
+    }
+
+    // 2. Persist to Supabase
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      try {
+        await supabase
+          .from('events')
+          .update({
+            event_name: updatedEvt.event_name,
+            event_code: updatedEvt.event_code,
+            description: updatedEvt.description,
+            venue: updatedEvt.venue,
+            city: updatedEvt.city,
+            country: updatedEvt.country,
+            start_date: updatedEvt.start_date,
+            end_date: updatedEvt.end_date,
+            organizer_name: updatedEvt.organizer_name,
+            status: updatedEvt.status,
+            updated_at: updatedEvt.updated_at,
+          })
+          .eq('id', editingEvent.id);
+      } catch (sbErr) {
+        console.warn('Supabase event update error:', sbErr);
+      }
+    }
+
+    setIsUpdating(false);
+    setIsEditModalOpen(false);
+    setEditingEvent(null);
+  };
+
   const handleDeleteEvent = async (id: string) => {
     if (!confirm('Are you sure you want to delete this event?')) return;
     markEventDeleted(id);
@@ -336,7 +438,7 @@ export default function AdminEventsPage() {
             <Building2 className="w-3 h-3 text-brand-600" />
             Organizer Operations
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Event Management</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Event Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Configure exhibition schedules, venues, floorplans, and visitor badge lookups.
           </p>
@@ -404,13 +506,32 @@ export default function AdminEventsPage() {
                   <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{evt.description || 'Global technology exhibition & trade conference'}</p>
                 </div>
 
-                <button
-                  onClick={() => handleDeleteEvent(evt.id)}
-                  className="p-1 rounded text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
-                  title="Delete Event"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleOpenEditModal(evt);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-brand-700 hover:bg-brand-50 transition"
+                    title="Edit Event"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDeleteEvent(evt.id);
+                    }}
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition"
+                    title="Delete Event"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             </CardHeader>
 
@@ -547,6 +668,135 @@ export default function AdminEventsPage() {
             </Button>
             <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isSaving}>
               {isSaving ? 'Saving...' : 'Save Event'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingEvent(null);
+        }}
+        title="Edit Exhibition or Conference"
+        description="Update event schedule, venue details, and operational status"
+      >
+        <form onSubmit={handleUpdateEvent} className="space-y-3.5">
+          <Input
+            label="Event Name"
+            value={editEventName}
+            onChange={(e) => setEditEventName(e.target.value)}
+            placeholder="e.g. World AI Summit 2026"
+            required
+          />
+
+          <Input
+            label="Event Code"
+            value={editEventCode}
+            onChange={(e) => setEditEventCode(e.target.value)}
+            placeholder="e.g. WAIS2026"
+            required
+          />
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <Input
+              label="Venue"
+              value={editVenue}
+              onChange={(e) => setEditVenue(e.target.value)}
+              placeholder="e.g. Exhibition Centre / Convention Hall"
+              required
+            />
+            <Input
+              label="City"
+              value={editCity}
+              onChange={(e) => setEditCity(e.target.value)}
+              placeholder="e.g. Dubai"
+              required
+            />
+          </div>
+
+          <div className="space-y-1">
+            <div className="grid grid-cols-2 gap-2.5">
+              <Input
+                label="Start Date"
+                type="date"
+                value={editStartDate}
+                onChange={(e) => {
+                  setEditStartDate(e.target.value);
+                  setEditDateError(null);
+                }}
+                required
+              />
+              <Input
+                label="End Date"
+                type="date"
+                value={editEndDate}
+                min={editStartDate || undefined}
+                onChange={(e) => {
+                  setEditEndDate(e.target.value);
+                  setEditDateError(null);
+                }}
+                required
+              />
+            </div>
+            {editDateError && (
+              <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-lg animate-in fade-in">
+                {editDateError}
+              </p>
+            )}
+          </div>
+
+          <Input
+            label="Organizer Authority"
+            value={editOrganizerName}
+            onChange={(e) => setEditOrganizerName(e.target.value)}
+            placeholder="e.g. Dubai World Trade Centre"
+          />
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Event Description
+            </label>
+            <textarea
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Brief exhibition overview..."
+              rows={2}
+              className="w-full text-xs rounded-xl border border-slate-300 p-2.5 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+              Event Status
+            </label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value as any)}
+              className="w-full h-11 text-xs rounded-xl border border-slate-300 px-3 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+            >
+              <option value="active">Active (Live Exhibition)</option>
+              <option value="draft">Draft (Planning Phase)</option>
+              <option value="archived">Archived (Completed)</option>
+            </select>
+          </div>
+
+          <div className="pt-2 flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingEvent(null);
+              }}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1 font-bold" disabled={isUpdating}>
+              {isUpdating ? 'Saving...' : 'Update Event'}
             </Button>
           </div>
         </form>

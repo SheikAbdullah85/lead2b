@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { INITIAL_LICENSES } from '@/lib/data/mock-store';
 import { License, Organization } from '@/lib/types';
 import { useAuth } from '@/lib/auth/context';
-import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw, Building2 } from 'lucide-react';
+import { ShieldCheck, Plus, CheckCircle2, Clock, Users, Database, Sparkles, Key, Trash2, RefreshCw, Building2, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/lib/supabase/client';
 
 export default function AdminLicensesPage() {
@@ -23,6 +23,9 @@ export default function AdminLicensesPage() {
   // New License State
   const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [tenantName, setTenantName] = useState('');
+  const [adminEmail, setAdminEmail] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [plan, setPlan] = useState('event_standard');
   const [allowedUsers, setAllowedUsers] = useState(5);
   const [leadLimit, setLeadLimit] = useState(5000);
@@ -174,6 +177,7 @@ export default function AdminLicensesPage() {
       setTenantName(org.company_name);
       setPlan(org.subscription_plan || 'event_standard');
       setAllowedUsers(org.license_count || 5);
+      if (org.email) setAdminEmail(org.email);
     }
   };
 
@@ -218,6 +222,28 @@ export default function AdminLicensesPage() {
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('lead2b_admin_licenses', JSON.stringify(updated));
+
+        // Provision / Update Exhibitor Portal Login Password if provided
+        if (portalPassword.trim()) {
+          const orgMatch = organizations.find((o) => o.id === tenantIdToUse);
+          const targetEmail = (adminEmail.trim() || orgMatch?.email || '').toLowerCase();
+          if (targetEmail) {
+            const customStored = localStorage.getItem('lead2b_registered_users');
+            const registered = customStored ? JSON.parse(customStored) : {};
+            registered[targetEmail] = {
+              ...registered[targetEmail],
+              id: registered[targetEmail]?.id || `u_${Date.now()}`,
+              email: targetEmail,
+              full_name: orgMatch?.primary_contact_name || newLic.tenant_name,
+              system_role: 'exhibitor_admin',
+              tenant_id: newLic.tenant_id,
+              booth_number: orgMatch?.assigned_stand?.replace('Stand ', ''),
+              is_active: true,
+              password: portalPassword.trim(),
+            };
+            localStorage.setItem('lead2b_registered_users', JSON.stringify(registered));
+          }
+        }
       } catch (e) {}
     }
 
@@ -247,6 +273,7 @@ export default function AdminLicensesPage() {
 
     setIsSaving(false);
     setIsAddModalOpen(false);
+    setPortalPassword('');
   };
 
   const handleDeleteLicense = async (id: string, name: string) => {
@@ -279,7 +306,7 @@ export default function AdminLicensesPage() {
             <Key className="w-3 h-3 text-brand-600" />
             Booth & Quota Provisioning
           </span>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">License & Quota Management</h1>
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">License & Quota Management</h1>
           <p className="text-xs text-slate-500 mt-0.5">
             Per-event exhibitor packages, seat allocations, and lead capture ceilings.
           </p>
@@ -504,6 +531,39 @@ export default function AdminLicensesPage() {
                 {dateError}
               </p>
             )}
+          </div>
+
+          {/* Exhibitor Portal Credentials */}
+          <div className="p-3 bg-teal-50/60 border border-teal-200/80 rounded-2xl space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-teal-900">
+              <Key className="w-3.5 h-3.5 text-teal-700" />
+              <span>Exhibitor Portal Login Password</span>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-700 mb-1">
+                Portal Password (Set or Update)
+              </label>
+              <div className="relative">
+                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3.5" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={portalPassword}
+                  onChange={(e) => setPortalPassword(e.target.value)}
+                  placeholder="Set exhibitor password (e.g. Exhibitor@2026)"
+                  className="w-full h-11 text-xs rounded-xl border border-slate-300 pl-9 pr-10 bg-white font-medium text-slate-800 focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                Sets the initial login password for the exhibitor administrator account.
+              </p>
+            </div>
           </div>
 
           <div className="pt-2 flex items-center gap-2">

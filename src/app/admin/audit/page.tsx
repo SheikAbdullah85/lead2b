@@ -34,7 +34,7 @@ export default function AdminAuditPage() {
           <ShieldCheck className="w-3 h-3 text-brand-600" />
           Enterprise Compliance & Immutable Auditing
         </span>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">System Audit Logs</h1>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">System Audit Logs</h1>
         <p className="text-xs text-slate-500 mt-0.5">
           Tamper-evident trail of lead exports, authentication attempts, permissions changes, and sync triggers.
         </p>

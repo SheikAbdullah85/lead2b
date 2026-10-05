@@ -40,7 +40,7 @@ export default function ExhibitorSettingsPage() {
           <Palette className="w-3 h-3 text-brand-600" />
           Multi-Tenant White-Labeling
         </span>
-        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Tenant Customization</h1>
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight break-normal">Tenant Customization</h1>
         <p className="text-xs text-slate-500 mt-0.5">
           Customize company identity, brand palette, and personalized welcome messaging on mobile capture screens.
         </p>

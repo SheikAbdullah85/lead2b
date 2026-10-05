@@ -56,53 +56,102 @@ export function BusinessCardScanner({ onSuccess, onCancel }: BusinessCardScanner
         sharpen: true,
       });
 
-      setScanStatus('Scanning card text with on-device OCR...');
-      
-      // Dynamic import ensures client-side execution only
-      const { createWorker } = await import('tesseract.js');
-      const worker = await createWorker('eng', 1, {
-        logger: (m) => {
-          if (m.status === 'recognizing text') {
-            const pct = Math.round((m.progress || 0) * 100);
-            setScanStatus(`Reading card text: ${pct}%`);
+      let usedGemini = false;
+      const clientKey = typeof window !== 'undefined' ? localStorage.getItem('lead2b_gemini_api_key') : null;
+
+      // Try Gemini AI Vision if online
+      if (typeof navigator === 'undefined' || navigator.onLine) {
+        try {
+          setScanStatus('Analyzing card with Gemini AI Vision...');
+          const aiRes = await fetch('/api/ai/ocr', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageBase64: ocrOptimizedDataUrl,
+              mimeType: 'image/jpeg',
+              clientApiKey: clientKey || undefined,
+            }),
+          });
+
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            if (aiData.success && aiData.data) {
+              const d = aiData.data;
+              if (d.firstName) setFirstName(d.firstName);
+              if (d.lastName) setLastName(d.lastName);
+              if (d.company) setCompany(d.company);
+              if (d.designation) setDesignation(d.designation);
+              if (d.email) setEmail(d.email);
+              if (d.phone) setPhone(d.phone);
+              if (d.landline) setLandline(d.landline);
+              if (d.website) setWebsite(d.website);
+              if (d.address) {
+                setNotes((prev) => (prev ? `${prev}\nAddress: ${d.address}` : `Address: ${d.address}`));
+              }
+              setRawOcrText(JSON.stringify(d, null, 2));
+              setScanSuccess(true);
+              setScanStatus(
+                d.phone
+                  ? `Gemini AI: Contact extracted! Mobile: ${d.phone}`
+                  : 'Gemini AI: Contact extracted! Please verify fields.'
+              );
+              usedGemini = true;
+            }
           }
-        },
-      });
-
-      await worker.setParameters({
-        preserve_interword_spaces: '1',
-      });
-
-      const ret = await worker.recognize(ocrOptimizedDataUrl);
-      await worker.terminate();
-
-      const extractedText = ret?.data?.text || '';
-      setRawOcrText(extractedText);
-
-      if (extractedText.trim().length > 0) {
-        setScanStatus('Parsing business card details...');
-        const parsed: ParsedBusinessCard = parseBusinessCardText(extractedText);
-
-        if (parsed.firstName) setFirstName(parsed.firstName);
-        if (parsed.lastName) setLastName(parsed.lastName);
-        if (parsed.company) setCompany(parsed.company);
-        if (parsed.designation) setDesignation(parsed.designation);
-        if (parsed.email) setEmail(parsed.email);
-        if (parsed.phone) setPhone(parsed.phone);
-        if (parsed.landline) setLandline(parsed.landline);
-        if (parsed.website) setWebsite(parsed.website);
-        if (parsed.address) {
-          setNotes((prev) => (prev ? `${prev}\nAddress: ${parsed.address}` : `Address: ${parsed.address}`));
+        } catch (aiErr) {
+          console.warn('Gemini AI Vision unavailable, falling back to on-device engine:', aiErr);
         }
+      }
 
-        setScanSuccess(true);
-        if (parsed.phone) {
-          setScanStatus(`Card read! Mobile detected: ${parsed.phone}`);
+      if (!usedGemini) {
+        setScanStatus('Scanning card text with on-device OCR...');
+        
+        // Dynamic import ensures client-side execution only
+        const { createWorker } = await import('tesseract.js');
+        const worker = await createWorker('eng', 1, {
+          logger: (m) => {
+            if (m.status === 'recognizing text') {
+              const pct = Math.round((m.progress || 0) * 100);
+              setScanStatus(`Reading card text: ${pct}%`);
+            }
+          },
+        });
+
+        await worker.setParameters({
+          preserve_interword_spaces: '1',
+        });
+
+        const ret = await worker.recognize(ocrOptimizedDataUrl);
+        await worker.terminate();
+
+        const extractedText = ret?.data?.text || '';
+        setRawOcrText(extractedText);
+
+        if (extractedText.trim().length > 0) {
+          setScanStatus('Parsing business card details...');
+          const parsed: ParsedBusinessCard = parseBusinessCardText(extractedText);
+
+          if (parsed.firstName) setFirstName(parsed.firstName);
+          if (parsed.lastName) setLastName(parsed.lastName);
+          if (parsed.company) setCompany(parsed.company);
+          if (parsed.designation) setDesignation(parsed.designation);
+          if (parsed.email) setEmail(parsed.email);
+          if (parsed.phone) setPhone(parsed.phone);
+          if (parsed.landline) setLandline(parsed.landline);
+          if (parsed.website) setWebsite(parsed.website);
+          if (parsed.address) {
+            setNotes((prev) => (prev ? `${prev}\nAddress: ${parsed.address}` : `Address: ${parsed.address}`));
+          }
+
+          setScanSuccess(true);
+          if (parsed.phone) {
+            setScanStatus(`Card read! Mobile detected: ${parsed.phone}`);
+          } else {
+            setScanStatus('Card read! Please review or enter mobile number if missing.');
+          }
         } else {
-          setScanStatus('Card read! Please review or enter mobile number if missing.');
+          setScanStatus('Could not clearly read text. You can fill details manually or retake.');
         }
-      } else {
-        setScanStatus('Could not clearly read text. You can fill details manually or retake.');
       }
     } catch (err: any) {
       console.error('OCR scanning error:', err);
