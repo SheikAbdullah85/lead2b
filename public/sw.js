@@ -1,5 +1,5 @@
 // lead2b Progressive Web App Service Worker - High Reliability Offline Engine
-const CACHE_NAME = 'lead2b-cache-v3';
+const CACHE_NAME = 'lead2b-cache-v4';
 
 const STATIC_ASSETS = [
   '/',
